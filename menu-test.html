@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Menu API</title>
+    <style>
+        .grid-menu { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Daftar Menu</h1>
+    <div id="menu-container" class="grid-menu"></div>
+
+    <script>
+    const outletCode = 'JKT.RKMRYSN'; // Kode outlet yang ingin diambil
+
+fetch(`https://www.nufsfood.shop/api/menu?outletCode=${outletCode}`)
+    .then(response => response.json())
+    .then(data => {
+        const container = document.getElementById('menu-container');
+        
+        // Looping data menu dari image_b26547.png
+        data.menu.forEach(item => {
+            const hargaJual = (item.origPrice / 2) + 3000;
+            
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <h3>${item.name}</h3>
+                <p>Harga Asli: Rp${item.origPrice}</p>
+                <p><strong>Harga Jual: Rp${hargaJual}</strong></p>
+            `;
+            container.appendChild(card);
+        });
+    })
+    .catch(err => console.error("Gagal ambil data:", err));
+    </script>
+</body>
+</html>
