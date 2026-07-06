@@ -1,0 +1,21 @@
+{
+  "name": "Kopi Fachrindah Jasdor",
+  "short_name": "Fachrindah",
+  "description": "Order Kopi & Menu Favorit Praktis via Jasdor",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fffaf3",
+  "theme_color": "#d94b3d",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
