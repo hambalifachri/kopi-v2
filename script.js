@@ -181,6 +181,22 @@ const backToTop = document.querySelector("#backToTop");
 const openCartButton = document.querySelector("#openCartButton");
 const openCartCount = document.querySelector("#openCartCount");
 const openCartTotal = document.querySelector("#openCartTotal");
+const headerCartButton = document.querySelector("#headerCartButton");
+const headerCartCount = document.querySelector("#headerCartCount");
+const headerGuideButton = document.querySelector("#headerGuideButton");
+const headerTestimonialButton = document.querySelector("#headerTestimonialButton");
+const menuModeTabs = document.querySelector("#menuModeTabs");
+const bundleTabs = document.querySelector("#bundleTabs");
+const sortSelect = document.querySelector("#sortSelect");
+const outletPanel = document.querySelector("#outletPanel");
+const selectedOutletName = document.querySelector("#selectedOutletName");
+const wifiPasswordBar = document.querySelector("#wifiPasswordBar");
+const wifiPasswordText = document.querySelector("#wifiPasswordText");
+const wifiDateLabel = document.querySelector("#wifiDateLabel");
+const copyWifiButton = document.querySelector("#copyWifiButton");
+const wifiChevron = document.querySelector("#wifiChevron");
+const wifiDetailPanel = document.querySelector("#wifiDetailPanel");
+const viralFab = document.querySelector("#viralFab");
 const orderModal = document.querySelector("#orderModal");
 const modalTitle = document.querySelector("#modalItemName");
 const modalCustomize = document.querySelector("#modalCustomize");
@@ -198,6 +214,20 @@ const selectedDrink = document.querySelector("#selectedDrink");
 const addConfiguredItemButton = document.querySelector("#addConfiguredItem");
 
 const fallbackTestimonialImages = Array.from({ length: 52 }, (_, index) => `assets/ss-wa-${index + 2}.jpg`);
+const PICKUP_START_MINUTES = 8 * 60;
+const PICKUP_END_MINUTES = 23 * 60;
+const PICKUP_INTERVAL_MINUTES = 15;
+const WIFI_PASSWORDS = [
+  "TemanKenangan#01", "SelaluSeru@02", "WorkFromKenangan+03", "SahabatSetia=4", "PaduanPas!05",
+  "AndalanMantan#06", "NyantaiNgopi@07", "KenanganNyaman+08", "SepenuhHati=09", "AsliAsik!10",
+  "KopiKenanganMantan#11", "CafeMaltLatte@12", "SparksAmericano+13", "KenanganFrappe=14", "SusuGrassJelly!15",
+  "AdamAyam#16", "FriendChip@17", "CoklatKlasik+18", "SaudiSpicy=19", "ChiMateNikmat!20",
+  "ColorpopBubble#21", "TwinsTumbler@22", "CuteCapybara+23", "BaliKintamani=24", "JuwaraBeans!25",
+  "SelfRewardDulu#26", "WorkLifeNgopi@27", "SetegukEspresso+28", "JajanKenangan=29", "SehidupSehati!30",
+  "KopiFavoritmu#31",
+];
+let activeMenuMode = "single";
+let activeSortMode = "default";
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
@@ -221,6 +251,129 @@ function getActiveCategories() {
   return getActiveBrand().categories || [];
 }
 
+function formatPickupClock(totalMinutes) {
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function populatePickupSelect(select) {
+  if (!select) return;
+  const currentValue = select.value;
+  select.innerHTML = '<option value="">-- Pilih jam pickup --</option>';
+
+  for (let minutes = PICKUP_START_MINUTES; minutes <= PICKUP_END_MINUTES; minutes += PICKUP_INTERVAL_MINUTES) {
+    const label = formatPickupClock(minutes);
+    const option = document.createElement("option");
+    option.value = label;
+    option.textContent = label;
+    select.appendChild(option);
+  }
+
+  if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+function populatePickupTimeOptions() {
+  document.querySelectorAll('select[name="pickupTime"]').forEach(populatePickupSelect);
+}
+
+function getTodayWifiPassword() {
+  const day = Math.min(new Date().getDate(), 31);
+  return WIFI_PASSWORDS[day - 1] || WIFI_PASSWORDS[30];
+}
+
+function renderWifiPassword() {
+  const today = Math.min(new Date().getDate(), 31);
+  if (wifiPasswordText) wifiPasswordText.textContent = getTodayWifiPassword();
+  if (wifiDateLabel) wifiDateLabel.textContent = String(today).padStart(2, "0");
+}
+
+function renderWifiDetailPanel() {
+  if (!wifiDetailPanel) return;
+  const today = Math.min(new Date().getDate(), 31);
+  wifiDetailPanel.innerHTML = `
+    <div class="wifi-detail-title">Semua Password WiFi per tanggal</div>
+    <div class="wifi-password-grid">
+      ${WIFI_PASSWORDS.map((password, index) => {
+        const day = index + 1;
+        const isToday = day === today;
+        return `<button class="wifi-password-item ${isToday ? "active" : ""}" type="button" data-wifi-password="${escapeHtml(password)}">
+          <span>${String(day).padStart(2, "0")}</span>
+          <strong>${escapeHtml(password)}</strong>
+        </button>`;
+      }).join("")}
+    </div>`;
+}
+
+function toggleWifiDetail() {
+  if (!wifiDetailPanel) return;
+  const shouldOpen = wifiDetailPanel.hidden;
+  if (shouldOpen && !wifiDetailPanel.innerHTML.trim()) renderWifiDetailPanel();
+  wifiDetailPanel.hidden = !shouldOpen;
+  if (wifiPasswordBar) wifiPasswordBar.setAttribute("aria-expanded", String(shouldOpen));
+  if (wifiChevron) wifiChevron.classList.toggle("open", shouldOpen);
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.cssText = "position:fixed;left:-999px;top:0;opacity:0;";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
+async function copyWifiPassword(password = getTodayWifiPassword()) {
+  try {
+    await copyTextToClipboard(password);
+    if (copyWifiButton) {
+      copyWifiButton.textContent = "Tersalin";
+      setTimeout(() => { copyWifiButton.textContent = "Salin"; }, 1400);
+    }
+  } catch (error) {
+    alert(`Password WiFi: ${password}`);
+  }
+}
+
+function syncOutletPanelVisibility() {
+  if (!outletPanel) return;
+  const shouldShowOutletPanel = activeBrandId === "kopi-kenangan";
+  const outletName = selectedOutletName ? selectedOutletName.textContent.trim() : "";
+  const hasSelectedOutlet = outletName && outletName !== "Belum dipilih";
+  const addressFields = [
+    document.getElementById("customerAddress"),
+    document.getElementById("modalCustomerAddress"),
+  ];
+
+  outletPanel.hidden = !shouldShowOutletPanel;
+  if (viralFab) viralFab.hidden = !shouldShowOutletPanel;
+
+  if (!shouldShowOutletPanel) {
+    const outletResults = document.getElementById("outletResults");
+    if (outletResults) outletResults.hidden = true;
+    if (wifiDetailPanel) wifiDetailPanel.hidden = true;
+    if (wifiPasswordBar) wifiPasswordBar.setAttribute("aria-expanded", "false");
+    if (wifiChevron) wifiChevron.classList.remove("open");
+    addressFields.forEach((field) => {
+      if (field && hasSelectedOutlet && field.value.trim() === outletName) field.value = "";
+    });
+    return;
+  }
+
+  addressFields.forEach((field) => {
+    if (field && hasSelectedOutlet && !field.value.trim()) field.value = outletName;
+  });
+  renderWifiPassword();
+}
+
 function updateBrandHero() {
   const activeBrand = getActiveBrand();
   if (brandTitle) brandTitle.textContent = activeBrand.label;
@@ -232,6 +385,48 @@ function updateBrandHero() {
 
 function getActiveMenuItems() {
   return menuItems.filter((item) => item.brand === activeBrandId);
+}
+
+function getKopiKenanganOutletState() {
+  return window.kopiKenanganOutletState || {
+    selected: false,
+    menuLoaded: false,
+    menuLoading: false,
+    outletName: "",
+  };
+}
+
+function shouldGateKopiKenanganMenu() {
+  const outletState = getKopiKenanganOutletState();
+  return activeBrandId === "kopi-kenangan" && !outletState.menuLoaded;
+}
+
+function getKopiKenanganGateMessage() {
+  const outletState = getKopiKenanganOutletState();
+  if (outletState.menuLoading) {
+    return {
+      title: "Sedang memuat menu outlet...",
+      body: "Tunggu sebentar, menu Kopi Kenangan sedang diambil dari API outlet yang dipilih.",
+      status: "Sedang memuat menu outlet.",
+    };
+  }
+  if (outletState.selected) {
+    return {
+      title: "Menu outlet belum tersedia",
+      body: "Coba pilih outlet ulang dari hasil pencarian supaya menu Kopi Kenangan dimuat dari API.",
+      status: "Menu outlet belum siap. Pilih outlet ulang untuk memuat menu.",
+    };
+  }
+  return {
+    title: "Pilih outlet dulu",
+    body: "Menu Kopi Kenangan akan tampil setelah kamu memilih outlet dari hasil pencarian. Menu lokal bawaan disembunyikan agar hanya menu API outlet yang dipakai.",
+    status: "Pilih outlet Kopi Kenangan untuk melihat menu API outlet.",
+  };
+}
+
+function syncViralFabVisibility() {
+  if (!viralFab) return;
+  viralFab.hidden = activeBrandId !== "kopi-kenangan" || !document.querySelector('[data-menu-id="viral-creamy-aren-latte"]');
 }
 
 function renderBrandTabs() {
@@ -550,7 +745,7 @@ function menuCard(item) {
     ? `<button class="add-button" type="button" disabled>${buttonText}</button>`
     : `<button class="add-button" type="button" data-id="${item.id}">Tambah</button>`;
 
-return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} ${soldOutClass} ${brandClass}">
+return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} ${soldOutClass} ${brandClass}" data-menu-id="${escapeHtml(item.id)}">
     ${menuVisual(item)}
     ${unlockMessage}
     <span class="menu-brand" style="--brand-accent: ${itemBrand.accent}">${escapeHtml(itemBrand.shortLabel)}</span>
@@ -570,6 +765,55 @@ return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} 
 }
 
 function normalizeText(value) { return String(value).toLowerCase().trim(); }
+
+function getItemGroups(item) {
+  return Array.isArray(item.group) ? item.group : [item.group].filter(Boolean);
+}
+
+function isPromoItem(item) {
+  return getItemGroups(item).some((group) => String(group).toLowerCase().includes("promo")) || Boolean(item.bundleImages?.length);
+}
+
+function getModeItems(items) {
+  const hasPromo = items.some(isPromoItem);
+  if (activeMenuMode === "bundle" && hasPromo) return items.filter(isPromoItem);
+  if (activeMenuMode === "single" && hasPromo) return items.filter((item) => !isPromoItem(item));
+  return items;
+}
+
+function sortMenuItems(items) {
+  const sorted = [...items];
+  if (activeSortMode === "price-asc") {
+    return sorted.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
+  }
+  if (activeSortMode === "price-desc") {
+    return sorted.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
+  }
+  return sorted.sort((a, b) => (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0));
+}
+
+function syncMenuControls(activeItems) {
+  const hasPromo = activeItems.some(isPromoItem);
+  if (activeMenuMode === "bundle" && !hasPromo) activeMenuMode = "single";
+
+  if (menuModeTabs) {
+    menuModeTabs.querySelectorAll("[data-menu-mode]").forEach((button) => {
+      const isActive = button.dataset.menuMode === activeMenuMode;
+      button.classList.toggle("active", isActive);
+      if (button.dataset.menuMode === "bundle") button.disabled = !hasPromo;
+    });
+  }
+
+  if (!bundleTabs) return;
+  const activeBrand = getActiveBrand();
+  const promoCategories = (activeBrand.categories || []).filter((category) => {
+    return activeItems.some((item) => isPromoItem(item) && getItemGroups(item).includes(category.id));
+  });
+  bundleTabs.hidden = activeMenuMode !== "bundle" || promoCategories.length === 0;
+  bundleTabs.innerHTML = promoCategories
+    .map((category) => `<a href="#${category.id}">${escapeHtml(category.title)}</a>`)
+    .join("");
+}
 
 // FITUR PENYIMPANAN KERANJANG (ANTI-REFRESH)
 function saveCartToStorage() {
@@ -635,7 +879,7 @@ clearCartButton.addEventListener("click", () => { cart.clear(); saveCartToStorag
   }
 })();
 
-function renderMenu(query = "") {
+function renderMenuLegacy(query = "") {
   renderBrandTabs();
   updateBrandHero();
   const store = checkStoreStatus();
@@ -708,6 +952,95 @@ function renderMenu(query = "") {
     `${activeItems.length} menu ${activeBrand.shortLabel} tersedia.`;
 }
 
+function renderMenu(query = "") {
+  renderBrandTabs();
+  updateBrandHero();
+  syncOutletPanelVisibility();
+
+  const store = checkStoreStatus(activeBrandId);
+  const bannerHtml = store.closed
+    ? `<div class="store-closed-banner"><strong>TOKO SEDANG TUTUP</strong><p>${store.message}</p></div>`
+    : "";
+  const normalizedQuery = normalizeText(query);
+  const activeBrand = getActiveBrand();
+  const activeCategories = getActiveCategories();
+  const activeItems = getActiveMenuItems();
+
+  if (shouldGateKopiKenanganMenu()) {
+    const gateMessage = getKopiKenanganGateMessage();
+    syncMenuControls([]);
+    if (bundleTabs) {
+      bundleTabs.hidden = true;
+      bundleTabs.innerHTML = "";
+    }
+    categoryNav.innerHTML = "";
+    catalogContainer.innerHTML = `${bannerHtml}
+      <div class="no-results outlet-required-message">
+        <strong>${escapeHtml(gateMessage.title)}</strong>
+        <span>${escapeHtml(gateMessage.body)}</span>
+      </div>`;
+    searchStatus.textContent = gateMessage.status;
+    syncViralFabVisibility();
+    return;
+  }
+
+  syncMenuControls(activeItems);
+  const modeItems = getModeItems(activeItems);
+  const visibleCategories = activeCategories.filter((category) => {
+    return modeItems.some((item) => getItemGroups(item).includes(category.id));
+  });
+
+  categoryNav.innerHTML = [
+    `<a href="#best-seller">Best Seller</a>`,
+    ...visibleCategories.map((category) => `<a href="#${category.id}">${escapeHtml(category.title)}</a>`),
+  ].join("");
+
+  let htmlOutput = bannerHtml;
+  const foundItems = new Set();
+
+  const bestSellers = sortMenuItems(modeItems.filter((item) => {
+    if (!item.isBestSeller) return false;
+    if (!normalizedQuery) return true;
+    return normalizeText(item.name).includes(normalizedQuery);
+  }));
+
+  if (bestSellers.length > 0) {
+    bestSellers.forEach((item) => foundItems.add(item.id));
+    htmlOutput += `
+    <section class="catalog-section" id="best-seller">
+      <h2>Best Seller</h2>
+      <div class="menu-grid">${bestSellers.map(menuCard).join("")}</div>
+    </section>`;
+  }
+
+  htmlOutput += visibleCategories.map((category) => {
+    const categoryMatches = normalizeText(category.title).includes(normalizedQuery);
+    const items = sortMenuItems(modeItems.filter((item) => {
+      if (!getItemGroups(item).includes(category.id)) return false;
+      if (!normalizedQuery) return true;
+      return categoryMatches || normalizeText(item.name).includes(normalizedQuery);
+    }));
+
+    if (items.length === 0) return "";
+    items.forEach((item) => foundItems.add(item.id));
+
+    return `<section class="catalog-section" id="${category.id}">
+      <h2>${escapeHtml(category.title)}</h2>
+      <div class="menu-grid">${items.map(menuCard).join("")}</div>
+    </section>`;
+  }).join("");
+
+  if (normalizedQuery && foundItems.size === 0) {
+    htmlOutput = '<p class="no-results">Menu tidak ditemukan. Coba kata lain.</p>';
+  }
+
+  catalogContainer.innerHTML = htmlOutput;
+  searchStatus.textContent = normalizedQuery
+    ? `${foundItems.size} menu ${activeBrand.shortLabel} ditemukan untuk "${query}".`
+    : `${modeItems.length} menu ${activeBrand.shortLabel} tersedia.`;
+  syncViralFabVisibility();
+}
+
 function renderCart() {
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
@@ -738,8 +1071,10 @@ function renderCart() {
   
   const totalQty = entries.reduce((total, item) => total + item.qty, 0);
   openCartButton.hidden = totalQty === 0;
+  document.body.classList.toggle("cart-has-items", totalQty > 0);
   openCartCount.textContent = `${totalQty} menu`;
   openCartTotal.textContent = rupiah.format(grandTotal);
+  if (headerCartCount) headerCartCount.textContent = String(totalQty);
   renderCheckoutSummary(entries, subtotal, serviceFee, grandTotal);
 }
 
@@ -807,7 +1142,12 @@ async function createOrderRecord(formData) {
 
   return {
     id: orderId,
-    customer: { name: String(formData.get("customerName")).trim(), phone: String(formData.get("customerPhone")).trim(), address: String(formData.get("customerAddress")).trim() },
+    customer: {
+      name: String(formData.get("customerName")).trim(),
+      phone: String(formData.get("customerPhone")).trim(),
+      address: String(formData.get("customerAddress")).trim(),
+      pickupTime: String(formData.get("pickupTime") || "").trim(),
+    },
     note: String(formData.get("orderNote")).trim(),
     items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options })),
     subtotal,
@@ -841,11 +1181,13 @@ function resetSelectedOptions(item) {
 
 function openOrderModal() {
   orderModal.classList.add("open");
+  orderModal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modal-open");
 }
 
 function closeOrderModal() {
   orderModal.classList.remove("open");
+  orderModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
   pendingItemId = "";
 }
@@ -1060,6 +1402,7 @@ function buildWhatsappMessage(formData, savedOrder) {
   const messageLines = [
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Catatan Pembeli:* ${formData.get("orderNote") || "-"}`, `*Bukti Transfer:* ${savedOrder.proof.url}`
   ];
+  messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (serviceFee > 0) messageLines.push(`*Biaya Layanan: ${rupiah.format(serviceFee)}*`);
   messageLines.push(`*TOTAL BAYAR: ${rupiah.format(totalFinal)}*`);
   return messageLines.join("\n");
@@ -1133,6 +1476,86 @@ if (brandTabs) {
   });
 }
 
+if (menuModeTabs) {
+  menuModeTabs.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-menu-mode]");
+    if (!button || button.disabled || button.dataset.menuMode === activeMenuMode) return;
+    activeMenuMode = button.dataset.menuMode;
+    renderMenu(menuSearch.value);
+  });
+}
+
+if (sortSelect) {
+  sortSelect.addEventListener("change", () => {
+    activeSortMode = sortSelect.value;
+    renderMenu(menuSearch.value);
+  });
+}
+
+if (headerCartButton) {
+  headerCartButton.addEventListener("click", () => {
+    if (getCartQuantity() > 0) {
+      openOrderModal();
+      setModalStage("cart");
+      return;
+    }
+    const searchPanel = document.querySelector(".search-panel");
+    if (searchPanel) searchPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+if (headerGuideButton) {
+  headerGuideButton.addEventListener("click", () => {
+    const infoModal = document.getElementById("infoModal");
+    if (infoModal) infoModal.classList.remove("hidden");
+  });
+}
+
+if (headerTestimonialButton) {
+  headerTestimonialButton.addEventListener("click", () => {
+    const reviews = document.querySelector(".reviews-section");
+    if (reviews) reviews.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+if (copyWifiButton) {
+  copyWifiButton.addEventListener("click", async (event) => {
+    event.stopPropagation();
+    await copyWifiPassword();
+  });
+}
+
+if (wifiPasswordBar) {
+  wifiPasswordBar.addEventListener("click", () => toggleWifiDetail());
+  wifiPasswordBar.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleWifiDetail();
+    }
+  });
+}
+
+if (wifiDetailPanel) {
+  wifiDetailPanel.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-wifi-password]");
+    if (!button) return;
+    await copyWifiPassword(button.dataset.wifiPassword);
+  });
+}
+
+if (viralFab) {
+  viralFab.addEventListener("click", () => {
+    if (activeBrandId !== "kopi-kenangan") return;
+    if (activeMenuMode !== "single") {
+      activeMenuMode = "single";
+      renderMenu(menuSearch.value);
+    }
+    const viralCard = document.querySelector('[data-menu-id="viral-creamy-aren-latte"]');
+    const target = viralCard || document.querySelector("#best-seller");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
+
 document.addEventListener("click", (event) => {
   const closeTarget = event.target.closest("[data-close-modal]");
   if (closeTarget) { closeOrderModal(); return; }
@@ -1192,15 +1615,20 @@ goCheckoutButton.addEventListener("click", () => {
 
   const totalQty = getCartQuantity();
   const hasBundling = [...cart.values()].some(item => item.group && item.group.includes("promo"));
-  const isForeCoffee = cartBrandId === "fore";
+  const requiresKopkenMinimum = cartBrandId === "kopi-kenangan";
 
   // 👇 SISTEM AKAN MEMBACA ANGKA TERBARU DARI SUPABASE 👇
   const minimalBeli = kopkenMinOrder; 
 
-  if (totalQty >= minimalBeli || hasBundling || isForeCoffee) { 
+  if (totalQty === 0) {
+    alert("Keranjang masih kosong. Pilih menu dulu ya.");
+    return;
+  }
+
+  if (!requiresKopkenMinimum || totalQty >= minimalBeli || hasBundling) {
     setModalStage("checkout"); 
   } else {
-    alert(`Pesanan kamu baru ${totalQty} menu.\nMinimal untuk Kopi Kenangan saat ini adalah ${minimalBeli} item (Bisa gabung makanan/bundle).\nUntuk Fore, tidak ada minimal pesanan.`);
+    alert(`Pesanan kamu baru ${totalQty} menu.\nMinimal untuk Kopi Kenangan saat ini adalah ${minimalBeli} item (bisa gabung makanan/bundle).\nUntuk Tomoro dan Fore, tidak ada minimal pesanan.`);
   }
 });
 
@@ -1267,6 +1695,7 @@ backToTop.addEventListener("click", () => {
   }
 });
 
+populatePickupTimeOptions();
 renderTestimonials();
 renderMenu();
 renderCart();
@@ -1275,10 +1704,10 @@ renderCart();
 // SATPAM KELILING (BACKGROUND CHECKER) Cerdas
 // ==========================================
 // Memori ingatan satpam saat website pertama kali dibuka
-let statusTokoSebelumnya = checkStoreStatus().closed; 
+let statusTokoSebelumnya = checkStoreStatus(activeBrandId).closed;
 
 setInterval(() => {
-  const store = checkStoreStatus();
+  const store = checkStoreStatus(activeBrandId);
   
   // SKENARIO 1: Toko harusnya TUTUP, tapi di ingatan satpam masih BUKA
   if (store.closed && statusTokoSebelumnya === false) {
@@ -1461,12 +1890,14 @@ if (iosInstallModal) {
 const biodataFieldIds = [
   "modalCustomerName", 
   "modalCustomerPhone", 
+  "modalPickupTime",
   "searchCityInput", 
   "modalCustomerAddress", 
   "modalOrderNote",
   // Backup untuk form halaman utama (jika ada)
   "customerName", 
   "customerPhone", 
+  "pickupTime",
   "customerAddress", 
   "orderNote"
 ];

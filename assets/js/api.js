@@ -1,35 +1,242 @@
-async function searchOutlets(keyword) {
-    try {
-        const response = await fetch(`https://www.nufsfood.shop/api/outlets?keyword=${keyword}&page=1`);
-        const data = await response.json();
-        
-        // DEBUG: Lihat apa isi datanya di Console
-        console.log("Data outlet dari API:", data); 
+const NUFS_API_BASE = "https://www.nufsfood.shop/api";
+const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
+let outletSearchTimer = null;
+let originalKopiKenanganMenu = null;
 
-        // CEK STRUKTUR: Apakah datanya langsung array atau di dalam object?
-        // Jika data berupa object, mungkin harus diakses melalui data.outlets atau data.data
-        const outlets = Array.isArray(data) ? data : (data.data || data.outlets || []);
+window.kopiKenanganOutletState = window.kopiKenanganOutletState || {
+  selected: false,
+  menuLoaded: false,
+  menuLoading: false,
+  outletCode: "",
+  outletName: "",
+};
 
-        outletResults.innerHTML = '';
-        if (outlets.length > 0) {
-            outletResults.style.display = 'block';
-            outlets.forEach(outlet => {
-                const div = document.createElement('div');
-                div.textContent = outlet.name;
-                div.style.padding = '8px';
-                div.style.cursor = 'pointer';
-                div.onclick = () => {
-                    loadDynamicMenu(outlet.code);
-                    outletSearch.value = outlet.name;
-                    outletResults.style.display = 'none';
-                };
-                outletResults.appendChild(div);
-            });
-        } else {
-            outletResults.innerHTML = '<div style="padding:8px;">Outlet tidak ditemukan</div>';
-            outletResults.style.display = 'block';
-        }
-    } catch (err) {
-        console.error("Gagal cari outlet:", err);
-    }
+function setKopiKenanganOutletState(patch) {
+  window.kopiKenanganOutletState = {
+    ...window.kopiKenanganOutletState,
+    ...patch,
+  };
 }
+
+function getOutletWifiPassword(outlet) {
+  return outlet?.wifiPassword || outlet?.wifi_password || outlet?.wifi || outlet?.password || "";
+}
+
+function getOutletDisplayName(outlet) {
+  return outlet?.name || outlet?.outletName || outlet?.title || "";
+}
+
+function getOutletCode(outlet) {
+  return outlet?.code || outlet?.outletCode || outlet?.id || "";
+}
+
+function updateOutletUi(outlet = null) {
+  const name = outlet ? getOutletDisplayName(outlet) : "";
+  const code = outlet ? getOutletCode(outlet) : "";
+  const previousState = window.kopiKenanganOutletState || {};
+  const selectedOutletName = document.getElementById("selectedOutletName");
+  const outletSearch = document.getElementById("outletSearch");
+  const outletHint = document.getElementById("outletSearchHint");
+  const modalAddress = document.getElementById("modalCustomerAddress");
+  const pageAddress = document.getElementById("customerAddress");
+
+  setKopiKenanganOutletState({
+    selected: Boolean(name),
+    menuLoaded: Boolean(name) && previousState.outletCode === code ? Boolean(previousState.menuLoaded) : false,
+    menuLoading: false,
+    outletCode: code,
+    outletName: name,
+  });
+
+  if (selectedOutletName) selectedOutletName.textContent = name || "Belum dipilih";
+  if (outletSearch && name) outletSearch.value = name;
+  if (outletHint) {
+    outletHint.textContent = name
+      ? `Outlet aktif: ${name}`
+      : "Ketik minimal 3 huruf untuk mencari gerai Kopi Kenangan.";
+  }
+  if (typeof window.renderWifiPassword === "function") window.renderWifiPassword();
+  if (modalAddress && name) modalAddress.value = name;
+  if (pageAddress && name) pageAddress.value = name;
+}
+
+function saveSelectedOutlet(outlet) {
+  localStorage.setItem(SELECTED_OUTLET_STORAGE_KEY, JSON.stringify(outlet));
+  updateOutletUi(outlet);
+}
+
+function loadSelectedOutlet() {
+  const raw = localStorage.getItem(SELECTED_OUTLET_STORAGE_KEY);
+  if (!raw) {
+    updateOutletUi(null);
+    return;
+  }
+
+  try {
+    const savedOutlet = JSON.parse(raw);
+    updateOutletUi(savedOutlet);
+    const outletCode = getOutletCode(savedOutlet);
+    if (outletCode) window.loadDynamicMenu(outletCode);
+  } catch (error) {
+    localStorage.removeItem(SELECTED_OUTLET_STORAGE_KEY);
+    updateOutletUi(null);
+  }
+}
+
+function cacheOriginalKopiKenanganMenu() {
+  if (originalKopiKenanganMenu || typeof menuItems === "undefined") return;
+  originalKopiKenanganMenu = menuItems
+    .filter((item) => item.brand === "kopi-kenangan")
+    .map((item) => ({ ...item }));
+}
+
+function restoreLocalKopiKenanganMenu() {
+  if (!originalKopiKenanganMenu || typeof menuItems === "undefined") return;
+  const remainingItems = menuItems.filter((item) => item.brand !== "kopi-kenangan");
+  menuItems.length = 0;
+  menuItems.push(...remainingItems, ...originalKopiKenanganMenu.map((item) => ({ ...item })));
+  if (typeof renderMenu === "function") renderMenu();
+}
+
+function clearSelectedOutletState() {
+  localStorage.removeItem(SELECTED_OUTLET_STORAGE_KEY);
+  updateOutletUi(null);
+  restoreLocalKopiKenanganMenu();
+}
+
+function clearOutletResults() {
+  const outletResults = document.getElementById("outletResults");
+  if (!outletResults) return;
+  outletResults.innerHTML = "";
+  outletResults.hidden = true;
+}
+
+function renderOutletResults(outlets) {
+  const outletResults = document.getElementById("outletResults");
+  if (!outletResults) return;
+
+  outletResults.innerHTML = "";
+  outletResults.hidden = false;
+
+  if (!outlets.length) {
+    outletResults.innerHTML = '<p class="outlet-empty">Outlet tidak ditemukan.</p>';
+    return;
+  }
+
+  outlets.forEach((outlet) => {
+    const name = getOutletDisplayName(outlet);
+    const code = getOutletCode(outlet);
+    const address = outlet.address || outlet.city || outlet.area || "";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outlet-result";
+    const nameElement = document.createElement("strong");
+    nameElement.textContent = name;
+    button.appendChild(nameElement);
+    if (address) {
+      const addressElement = document.createElement("span");
+      addressElement.textContent = address;
+      button.appendChild(addressElement);
+    }
+    button.addEventListener("click", () => {
+      const selectedOutlet = { ...outlet, name, code };
+      saveSelectedOutlet(selectedOutlet);
+      clearOutletResults();
+      if (code) window.loadDynamicMenu(code);
+    });
+    outletResults.appendChild(button);
+  });
+}
+
+window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
+  const container = document.getElementById("catalogContainer");
+  if (!container) return;
+
+  setKopiKenanganOutletState({
+    selected: true,
+    menuLoaded: false,
+    menuLoading: true,
+    outletCode,
+  });
+  container.innerHTML = '<p class="no-results">Sedang memuat menu outlet...</p>';
+
+  try {
+    const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const apiMenu = Array.isArray(data.menu) ? data.menu : [];
+    if (!apiMenu.length) throw new Error("Menu outlet kosong");
+
+    const dynamicItems = apiMenu.map((item) => {
+      const category = item.category ? String(item.category).toLowerCase() : "lainnya";
+      const group = category === "kopi" ? "coffee" : category;
+      return {
+        id: String(item.id || item.name),
+        brand: "kopi-kenangan",
+        group,
+        name: item.name,
+        price: Math.round((Number(item.origPrice || 0) / 2) + 3000),
+        oldPrice: item.origPrice,
+        image: item.img || null,
+      };
+    });
+
+    if (typeof menuItems === "undefined") throw new Error("Data menu lokal belum siap");
+    cacheOriginalKopiKenanganMenu();
+    const remainingItems = menuItems.filter((item) => item.brand !== "kopi-kenangan");
+    menuItems.length = 0;
+    menuItems.push(...remainingItems, ...dynamicItems);
+    setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode });
+    if (typeof renderMenu === "function") renderMenu();
+  } catch (error) {
+    setKopiKenanganOutletState({ menuLoaded: false, menuLoading: false, outletCode });
+    container.innerHTML = '<p class="no-results">Gagal memuat menu outlet. Coba pilih outlet ulang.</p>';
+  }
+};
+
+window.searchOutlets = async function(keyword) {
+  const outletHint = document.getElementById("outletSearchHint");
+  try {
+    if (outletHint) outletHint.textContent = "Mencari outlet...";
+    const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const outlets = Array.isArray(data.outlets) ? data.outlets : [];
+    renderOutletResults(outlets);
+    if (outletHint) outletHint.textContent = `${outlets.length} outlet ditemukan.`;
+  } catch (error) {
+    clearOutletResults();
+    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Coba lagi atau isi nama outlet manual di checkout.";
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const outletSearch = document.getElementById("outletSearch");
+  const outletClear = document.getElementById("outletClear");
+
+  loadSelectedOutlet();
+
+  if (outletSearch) {
+    outletSearch.addEventListener("input", (event) => {
+      const keyword = event.target.value.trim();
+      window.clearTimeout(outletSearchTimer);
+      if (keyword.length < 3) {
+        clearOutletResults();
+        clearSelectedOutletState();
+        return;
+      }
+      if (localStorage.getItem(SELECTED_OUTLET_STORAGE_KEY)) {
+        clearSelectedOutletState();
+      }
+      outletSearchTimer = window.setTimeout(() => window.searchOutlets(keyword), 280);
+    });
+  }
+
+  if (outletClear) {
+    outletClear.addEventListener("click", () => {
+      if (outletSearch) outletSearch.value = "";
+      clearOutletResults();
+      clearSelectedOutletState();
+    });
+  }
+});

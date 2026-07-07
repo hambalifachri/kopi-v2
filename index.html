@@ -34,6 +34,20 @@
   </head> <!-- Ini tag penutup aslinya -->
   <body>
     <main class="poster-shell">
+      <header class="app-topbar" aria-label="Navigasi utama">
+        <div class="app-brand">
+          <span class="app-brand-mark" aria-hidden="true">♥</span>
+          <strong>kopi.fachrindah</strong>
+        </div>
+        <div class="app-actions">
+          <button id="headerGuideButton" class="header-nav-btn" type="button">Panduan</button>
+          <button id="headerTestimonialButton" class="header-nav-btn" type="button">Testi</button>
+          <button id="headerCartButton" class="header-cart-button" type="button" aria-label="Buka keranjang">
+            <span>Cart</span>
+            <strong id="headerCartCount">0</strong>
+          </button>
+        </div>
+      </header>
       <div class="price-disclaimer">
         <p><strong>INFO PENTING:</strong> Harga pada website ini dapat berbeda dengan harga di outlet resmi. Jika ada selisih harga atau biaya tambahan, admin akan selalu menginfokan dan meminta persetujuanmu via WhatsApp sebelum memproses pesanan.</p>
       </div>
@@ -165,15 +179,51 @@
       <!-- ========================================== -->
 
       <div class="search-panel">
-<div class="outlet-search-box" style="padding: 10px;">
-  <label for="outletSearch">Cari & Pilih Outlet:</label>
-  <input type="text" id="outletSearch" placeholder="Ketik nama lokasi outlet..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc;">
-  <div id="outletResults" style="margin-top: 5px; border: 1px solid #ddd; display: none; background: #fff; max-height: 200px; overflow-y: auto;"></div>
-</div>
+        <section class="outlet-panel" id="outletPanel" aria-label="Pilih outlet">
+          <div class="outlet-panel-head">
+            <div>
+              <span>Pilih Outlet</span>
+              <strong id="selectedOutletName">Belum dipilih</strong>
+            </div>
+            <button id="outletClear" class="outlet-clear-btn" type="button" aria-label="Hapus outlet">X</button>
+          </div>
+          <div class="outlet-search-box">
+            <label for="outletSearch">Cari outlet</label>
+            <div class="outlet-search-row">
+              <input type="text" id="outletSearch" placeholder="Ketik kota atau nama gerai..." autocomplete="off" />
+            </div>
+            <div id="outletResults" class="outlet-results" hidden></div>
+          </div>
+          <p id="outletSearchHint" class="outlet-hint">Ketik minimal 3 huruf untuk mencari gerai Kopi Kenangan.</p>
+          <div class="wifi-row" id="wifiPasswordBar" role="button" tabindex="0" aria-expanded="false">
+            <div>
+              <span>Password WiFi - <span id="wifiDateLabel">hari ini</span></span>
+              <strong id="wifiPasswordText">Memuat password...</strong>
+            </div>
+            <div class="wifi-actions">
+              <button id="copyWifiButton" type="button">Salin</button>
+              <span id="wifiChevron" aria-hidden="true">⌄</span>
+            </div>
+          </div>
+          <div id="wifiDetailPanel" class="wifi-detail-panel" hidden></div>
+        </section>
+        <div class="menu-mode-tabs" id="menuModeTabs" aria-label="Jenis menu">
+          <button class="mode-tab active" type="button" data-menu-mode="single">Menu Satuan</button>
+          <button class="mode-tab" type="button" data-menu-mode="bundle">Bundling Promo</button>
+        </div>
+        <nav class="bundle-tabs" id="bundleTabs" aria-label="Kategori bundling" hidden></nav>
         <label for="menuSearch">Cari menu</label>
           <div class="search-row">
             <input id="menuSearch" type="search" placeholder="Contoh: latte, thai tea, croissant" autocomplete="off" />
             <button id="clearSearch" type="button" aria-label="Hapus pencarian">×</button>
+          </div>
+          <div class="sort-control">
+            <label for="sortSelect">Urutkan</label>
+            <select id="sortSelect">
+              <option value="default">Default</option>
+              <option value="price-asc">Termurah dulu</option>
+              <option value="price-desc">Termahal dulu</option>
+            </select>
           </div>
           <p id="searchStatus">Ketik nama menu atau kategori.</p>
         </div>
@@ -237,6 +287,12 @@
               <input id="customerPhone" name="customerPhone" type="tel" placeholder="08xxxxxxxxxx" required />
             </label>
           </div>
+          <label>
+            Jam pickup
+            <select id="pickupTime" name="pickupTime" required>
+              <option value="">-- Pilih jam pickup --</option>
+            </select>
+          </label>
           <label>
             Lokasi outlet
             <textarea id="customerAddress" name="customerAddress" rows="3" placeholder="Contoh: Kopi Kenangan Grand Indonesia" required></textarea>
@@ -322,6 +378,12 @@
                   <input id="modalCustomerPhone" name="customerPhone" type="tel" placeholder="08xxxxxxxxxx" required />
                 </label>
               </div>
+              <label>
+                Jam pickup
+                <select id="modalPickupTime" name="pickupTime" required>
+                  <option value="">-- Pilih jam pickup --</option>
+                </select>
+              </label>
               
               <label for="modalCustomerAddress">Lokasi outlet</label>
               <div class="gps-search-block">
@@ -401,6 +463,10 @@
       <button class="floating-cart" id="openCartButton" type="button" hidden>
         <span id="openCartCount">0 menu</span>
         <strong id="openCartTotal">Rp0</strong>
+      </button>
+      <button class="viral-fab" id="viralFab" type="button">
+        <span>Menu Viral</span>
+        <strong>🔥</strong>
       </button>
       <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas">↑</button>
     </main>
