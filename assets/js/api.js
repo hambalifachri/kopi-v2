@@ -42,6 +42,17 @@ function firstNumber(...values) {
   return undefined;
 }
 
+function normalizeApiMenuGroup(category) {
+  const normalized = String(category || "lainnya")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+
+  if (normalized === "kopi" || normalized === "coffee") return "coffee";
+  if (normalized === "non-kopi" || normalized === "non-coffee") return "non-coffee";
+  return normalized;
+}
+
 function updateOutletUi(outlet = null) {
   const name = outlet ? getOutletDisplayName(outlet) : "";
   const code = outlet ? getOutletCode(outlet) : "";
@@ -186,8 +197,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     );
 
     const dynamicItems = apiMenu.map((item) => {
-      const category = item.category ? String(item.category).toLowerCase() : "lainnya";
-      const group = category === "kopi" ? "coffee" : category;
+      const group = normalizeApiMenuGroup(item.category);
       const localItem = localMenuByName.get(normalizeMenuName(item.name)) || {};
       const oldPrice = firstNumber(item.origPrice, item.oldPrice, item.originalPrice);
       const price = firstNumber(item.price, item.discountPrice) || Math.round((Number(oldPrice || 0) / 2) + 3000);
