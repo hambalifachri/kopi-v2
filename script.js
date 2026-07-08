@@ -468,7 +468,7 @@ function canAddBrandToCart(item, shouldAlert = true) {
   return false;
 }
 
-funcfunction getKenanganOptionGroups(item) {
+function getKenanganOptionGroups(item) {
   // Debugging: Kita lihat isi itemnya
   console.log("Isi item:", item);
   
