@@ -469,7 +469,8 @@ function canAddBrandToCart(item, shouldAlert = true) {
 }
 
 function getKenanganOptionGroups(item) {
-  // 1. Definisikan opsi ukuran secara manual berdasarkan data item
+  console.log("Mengecek menu:", item.name, "Large Price:", item.largePrice); // Tambahkan baris ini
+  
   const sizeOptions = [];
 
   // Jika item tidak ditandai noRegular, tambahkan pilihan Regular
