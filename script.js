@@ -469,32 +469,122 @@ function canAddBrandToCart(item, shouldAlert = true) {
 }
 
 function getKenanganOptionGroups(item) {
-  // Debugging: Kita lihat isi itemnya
-  console.log("Isi item:", item);
-  
   const sizeOptions = [];
 
-  // Pilihan Regular
+  // 1. Pilihan Regular
   if (!item.noRegular) {
     sizeOptions.push({ value: "Regular", label: "Regular", price: item.price });
   }
   
-  // GUNAKAN PENGECEKAN INI: Cek apakah largePrice ada di dalam object 'item'
-  const lPrice = item.largePrice || item.largeprice; // Mendukung dua penulisan
-  if (lPrice) {
-    console.log("Ditemukan Large Price:", lPrice);
-    sizeOptions.push({ value: "Large", label: "Large", price: lPrice });
-  } else {
-    console.log("Large Price TIDAK DITEMUKAN untuk:", item.name);
+  // 2. Pilihan Large (Hanya muncul jika item punya largePrice)
+  if (item.largePrice) {
+    sizeOptions.push({ value: "Large", label: "Large", price: item.largePrice });
   }
 
-  // ... (lanjutkan sisa fungsi seperti sebelumnya) ...
-  const groups = [];
+  // 3. Definisikan Grup Opsi
+  const groups = [
+    {
+      key: "temperature",
+      label: "Temperature",
+      options: item.noHot
+        ? [{ value: "Ice", label: "Ice", icon: "ice" }]
+        : [{ value: "Ice", label: "Ice", icon: "ice" }, { value: "Hot", label: "Hot", icon: "hot" }],
+    }
+  ];
+
+  // Tambahkan grup size jika ada lebih dari 1 pilihan
   if (sizeOptions.length > 1) {
     groups.push({ key: "size", label: "Size", options: sizeOptions });
   }
-  
-  // ... kembalikan groups
+
+  // 4. Grup Beans
+  if (item.allowBeans) {
+    groups.push({
+      key: "beans",
+      label: "Biji Kopi (Beans)",
+      options: [
+        { value: "Kenangan Blend", label: "Kenangan Blend" },
+        { value: "Juwara Beans", label: "Juwara Beans", priceDelta: 3000 },
+      ],
+    });
+  }
+
+  // 5. Grup Milk
+  if (item.allowOatside) {
+    groups.push({
+      key: "milk",
+      label: "Pilihan Susu (Milk)",
+      options: [
+        { value: "Milk", label: "Fresh Milk" },
+        { value: "Oatside", label: "Oatside", priceDelta: 3000 },
+      ],
+    });
+  }
+
+  // 6. Grup Sugar
+  groups.push({
+    key: "sugar",
+    label: "Sugar Level",
+    options: item.noSugar
+      ? [
+          { value: "Normal Sugar", label: "Normal Sugar" },
+          { value: "Less Sugar", label: "Less Sugar" },
+        ]
+      : [
+          { value: "Normal Sugar", label: "Normal Sugar" },
+          { value: "Less Sugar", label: "Less Sugar" },
+          { value: "No Sugar", label: "No Sugar" },
+        ],
+  });
+
+  // 7. Grup Ice
+  groups.push({
+    key: "ice",
+    label: "Ice Level",
+    hiddenValue: "No Ice",
+    dependsOn: { key: "temperature", value: "Ice" },
+    options: item.onlyNormalIce 
+      ? [{ value: "Normal Ice", label: "Normal Ice" }]
+      : [
+          { value: "Normal Ice", label: "Normal Ice" },
+          { value: "Less Ice", label: "Less Ice" },
+          { value: "No Ice", label: "No Ice" },
+        ],
+  });
+
+  // 8. Grup Topping
+  groups.push({
+    key: "topping",
+    label: "Topping",
+    options: [
+      { value: "Tanpa Topping", label: "Tanpa Topping" },
+      { value: "Espresso Shot Kenangan Blend", label: "Espresso Shot Kenangan Blend", priceDelta: 6000 },
+      { value: "Espresso Shot Juwara Beans", label: "Espresso Shot Juwara Beans", priceDelta: 6000 },
+      { value: "Golden Boba", label: "Golden Boba", priceDelta: 6000 },
+      { value: "Grass Jelly", label: "Grass Jelly", priceDelta: 6000 },
+      { value: "Oreo", label: "Oreo", priceDelta: 6000 },
+      { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate", priceDelta: 6000 },
+      { value: "Whipped Cream Vanilla", label: "Whipped Cream Vanilla", priceDelta: 6000 },
+      { value: "Caramel Crumble", label: "Caramel Crumble", priceDelta: 6000 },
+      { value: "Gula Aren", label: "Gula Aren", priceDelta: 6000 }
+    ],
+  });
+
+  // 9. Grup Add On
+  groups.push({
+    key: "addon",
+    label: "Add On",
+    options: [
+      { value: "Tanpa Add On", label: "Tanpa Add On" },
+      { value: "Vanilla Syrup", label: "Vanilla Syrup", priceDelta: 6000 },
+      { value: "Hazelnut Syrup", label: "Hazelnut Syrup", priceDelta: 6000 },
+      { value: "Caramel Syrup", label: "Caramel Syrup", priceDelta: 6000 },
+      { value: "Salted Caramel Sauce", label: "Salted Caramel Sauce", priceDelta: 6000 },
+      { value: "Choco Sauce", label: "Choco Sauce", priceDelta: 6000 },
+      { value: "Butterscotch Sauce", label: "Butterscotch Sauce", priceDelta: 6000 }
+    ],
+  });
+
   return groups;
 }
 
