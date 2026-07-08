@@ -469,16 +469,20 @@ function canAddBrandToCart(item, shouldAlert = true) {
 }
 
 function getKenanganOptionGroups(item) {
-  const activeLargeBlock = getActiveSizeBlock(item, "Large")
+  // 1. Definisikan opsi ukuran secara manual berdasarkan data item
   const sizeOptions = [];
 
+  // Jika item tidak ditandai noRegular, tambahkan pilihan Regular
   if (!item.noRegular) {
     sizeOptions.push({ value: "Regular", label: "Regular", price: item.price });
   }
-  if (item.largePrice && !activeLargeBlock) {
+  
+  // Opsi Large akan muncul jika item memiliki properti largePrice di menu-data.js
+  if (item.largePrice) {
     sizeOptions.push({ value: "Large", label: "Large", price: item.largePrice });
   }
 
+  // 2. Definisikan grup opsi
   const groups = [
     {
       key: "temperature",
@@ -492,10 +496,12 @@ function getKenanganOptionGroups(item) {
     },
   ];
 
+  // 3. Hanya tampilkan grup Size jika ada lebih dari 1 pilihan (Regular & Large)
   if (sizeOptions.length > 1) {
     groups.push({ key: "size", label: "Size", options: sizeOptions });
   }
 
+  // 4. Grup Beans (Biji Kopi)
   if (item.allowBeans) {
     groups.push({
       key: "beans",
@@ -507,6 +513,7 @@ function getKenanganOptionGroups(item) {
     });
   }
 
+  // 5. Grup Milk (Susu)
   if (item.allowOatside) {
     groups.push({
       key: "milk",
@@ -518,6 +525,7 @@ function getKenanganOptionGroups(item) {
     });
   }
 
+  // 6. Grup Sugar (Gula)
   groups.push({
     key: "sugar",
     label: "Sugar Level",
@@ -533,15 +541,14 @@ function getKenanganOptionGroups(item) {
         ],
   });
 
+  // 7. Grup Ice (Es)
   groups.push({
     key: "ice",
     label: "Ice Level",
     hiddenValue: "No Ice",
     dependsOn: { key: "temperature", value: "Ice" },
     options: item.onlyNormalIce 
-      ? [
-          { value: "Normal Ice", label: "Normal Ice" }
-        ]
+      ? [{ value: "Normal Ice", label: "Normal Ice" }]
       : [
           { value: "Normal Ice", label: "Normal Ice" },
           { value: "Less Ice", label: "Less Ice" },
@@ -549,7 +556,7 @@ function getKenanganOptionGroups(item) {
         ],
   });
 
-  // 👇 KOTAK 1: KHUSUS TOPPING (+6000) 👇
+  // 8. Grup Topping
   groups.push({
     key: "topping",
     label: "Topping",
@@ -567,7 +574,7 @@ function getKenanganOptionGroups(item) {
     ],
   });
 
-  // 👇 KOTAK 2: KHUSUS ADD ON (+6000) 👇
+  // 9. Grup Add On
   groups.push({
     key: "addon",
     label: "Add On",
@@ -583,7 +590,7 @@ function getKenanganOptionGroups(item) {
   });
 
   return groups;
-} 
+}
 
 function cloneOptionGroups(groups) {
   return (groups || []).map((group) => ({
