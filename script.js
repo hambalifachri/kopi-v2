@@ -468,15 +468,25 @@ function canAddBrandToCart(item, shouldAlert = true) {
   return false;
 }
 
+function getMenuPriceValue(item, ...keys) {
+  for (const key of keys) {
+    const value = Number(item[key]);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return undefined;
+}
+
 function getKenanganOptionGroups(item) {
   const activeLargeBlock = getActiveSizeBlock(item, "Large")
+  const regularPrice = getMenuPriceValue(item, "price") || 0;
+  const largePrice = getMenuPriceValue(item, "largePrice", "largeprice", "large_price");
   const sizeOptions = [];
 
   if (!item.noRegular) {
-    sizeOptions.push({ value: "Regular", label: "Regular", price: item.price });
+    sizeOptions.push({ value: "Regular", label: "Regular", price: regularPrice });
   }
-  if (item.largePrice && !activeLargeBlock) {
-    sizeOptions.push({ value: "Large", label: "Large", price: item.largePrice });
+  if (largePrice && !activeLargeBlock) {
+    sizeOptions.push({ value: "Large", label: "Large", price: largePrice });
   }
 
   const groups = [
@@ -492,7 +502,7 @@ function getKenanganOptionGroups(item) {
     },
   ];
 
-  if (sizeOptions.length > 1) {
+  if (sizeOptions.length > 1 || item.noRegular) {
     groups.push({ key: "size", label: "Size", options: sizeOptions });
   }
 
