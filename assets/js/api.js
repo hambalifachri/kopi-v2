@@ -30,6 +30,29 @@ function getOutletCode(outlet) {
   return outlet?.code || outlet?.outletCode || outlet?.id || "";
 }
 
+function normalizeMenuName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function firstNumber(...values) {
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isFinite(number) && number > 0) return number;
+  }
+  return undefined;
+}
+
+function normalizeApiMenuGroup(category) {
+  const normalized = String(category || "lainnya")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+
+  if (normalized === "kopi" || normalized === "coffee") return "coffee";
+  if (normalized === "non-kopi" || normalized === "non-coffee") return "non-coffee";
+  return normalized;
+}
+
 function updateOutletUi(outlet = null) {
   const name = outlet ? getOutletDisplayName(outlet) : "";
   const code = outlet ? getOutletCode(outlet) : "";
@@ -167,22 +190,37 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     const apiMenu = Array.isArray(data.menu) ? data.menu : [];
     if (!apiMenu.length) throw new Error("Menu outlet kosong");
 
-    const dynamicItems = apiMenu.map((item) => {
-      const category = item.category ? String(item.category).toLowerCase() : "lainnya";
-      const group = category === "kopi" ? "coffee" : category;
+    if (typeof menuItems === "undefined") throw new Error("Data menu lokal belum siap");
+    cacheOriginalKopiKenanganMenu();
+    const localMenuByName = new Map(
+      (originalKopiKenanganMenu || []).map((item) => [normalizeMenuName(item.name), item])
+    );
+
+const dynamicItems = apiMenu.map((item) => {
+      const group = normalizeApiMenuGroup(item.category);
+      const localItem = localMenuByName.get(normalizeMenuName(item.name)) || {};
+      
+      // LOGIKA BARU: Jika ada data lokal, gunakan HARGA LOKAL secara total
+      // Abaikan rumus API jika localItem ditemukan
+      const price = localItem.price || firstNumber(item.price, item.discountPrice) || Math.round((Number(item.origPrice || 0) / 2) + 3000);
+      const largePrice = localItem.largePrice || firstNumber(item.largePrice, item.largeprice, item.large_price);
+      const jumboPrice = localItem.jumboPrice || firstNumber(item.jumboPrice, item.jumboprice, item.jumbo_price);
+      const oldPrice = localItem.oldPrice || firstNumber(item.origPrice, item.oldPrice, item.originalPrice);
+
       return {
+        ...localItem, // Mengambil semua properti dari menu-data.js (termasuk options, color, dll)
         id: String(item.id || item.name),
         brand: "kopi-kenangan",
         group,
         name: item.name,
-        price: Math.round((Number(item.origPrice || 0) / 2) + 3000),
-        oldPrice: item.origPrice,
-        image: item.img || null,
+        price,
+        oldPrice,
+        ...(largePrice ? { largePrice } : {}),
+        ...(jumboPrice ? { jumboPrice } : {}),
+        image: item.img || localItem.image || null,
       };
     });
 
-    if (typeof menuItems === "undefined") throw new Error("Data menu lokal belum siap");
-    cacheOriginalKopiKenanganMenu();
     const remainingItems = menuItems.filter((item) => item.brand !== "kopi-kenangan");
     menuItems.length = 0;
     menuItems.push(...remainingItems, ...dynamicItems);

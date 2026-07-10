@@ -260,7 +260,9 @@ function formatPickupClock(totalMinutes) {
 function populatePickupSelect(select) {
   if (!select) return;
   const currentValue = select.value;
-  select.innerHTML = '<option value="">-- Pilih jam pickup --</option>';
+  // Tambahkan opsi "Sekarang" di paling atas
+  select.innerHTML = '<option value="Sekarang">Sekarang (Segera)</option>' + 
+                     '<option value="">-- Atau pilih jam --</option>';
 
   for (let minutes = PICKUP_START_MINUTES; minutes <= PICKUP_END_MINUTES; minutes += PICKUP_INTERVAL_MINUTES) {
     const label = formatPickupClock(minutes);
@@ -269,10 +271,7 @@ function populatePickupSelect(select) {
     option.textContent = label;
     select.appendChild(option);
   }
-
-  if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
-    select.value = currentValue;
-  }
+  // ... (tetap simpan value sebelumnya jika ada)
 }
 
 function populatePickupTimeOptions() {
@@ -468,15 +467,25 @@ function canAddBrandToCart(item, shouldAlert = true) {
   return false;
 }
 
+function getMenuPriceValue(item, ...keys) {
+  for (const key of keys) {
+    const value = Number(item[key]);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return undefined;
+}
+
 function getKenanganOptionGroups(item) {
   const activeLargeBlock = getActiveSizeBlock(item, "Large")
+  const regularPrice = getMenuPriceValue(item, "price") || 0;
+  const largePrice = getMenuPriceValue(item, "largePrice", "largeprice", "large_price");
   const sizeOptions = [];
 
   if (!item.noRegular) {
-    sizeOptions.push({ value: "Regular", label: "Regular", price: item.price });
+    sizeOptions.push({ value: "Regular", label: "Regular", price: regularPrice });
   }
-  if (item.largePrice && !activeLargeBlock) {
-    sizeOptions.push({ value: "Large", label: "Large", price: item.largePrice });
+  if (largePrice && !activeLargeBlock) {
+    sizeOptions.push({ value: "Large", label: "Large", price: largePrice });
   }
 
   const groups = [
@@ -492,7 +501,7 @@ function getKenanganOptionGroups(item) {
     },
   ];
 
-  if (sizeOptions.length > 1) {
+  if (sizeOptions.length > 1 || item.noRegular) {
     groups.push({ key: "size", label: "Size", options: sizeOptions });
   }
 
