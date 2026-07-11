@@ -216,7 +216,7 @@ const PRICE_ADJUSTMENTS = {
   "choco-chip-cookies": 2000,
   "join-the-dark-side-cookie": 2000,
   "friend-chip-cookie": 2000
-  // Tambahkan nama menu lainnya di sini
+  // Tambahkan nama menu lainnya di sinii
 };
 
 window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
