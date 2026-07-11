@@ -171,6 +171,54 @@ function renderOutletResults(outlets) {
   });
 }
 
+const PRICE_ADJUSTMENTS = {
+  "tiramisu-latte": 500,
+  "toffee-nut-latte": 500,
+  "pistachio-aren-latte": 500,
+  "choco-caramel": 500,
+  "babyccino": 500,
+  "danish-tiramisu": 500,
+  "salt-bread-original": 500,
+  "chocolate-croissant": 500,
+  "roti-keju-manis": 500,
+  "og-aren-speculoos-latte": 1000,
+  "dua-shot-og-aren": 1000,
+  "mocha-caramel": 1000,
+  "cafe-malt-latte": 1000,
+  "tiramisu-mocha-latte": 1000,
+  "toffee-nut-aren-latte": 1000,
+  "toffee-nut-oat-latte": 1000,
+  "butterscotch-aren-latte": 1000,
+  "og-aren-milky-speculoos": 1000,
+  "toffee-nut-choco-macchiato": 1000,
+  "butterscotch-sea-salt-macchiato": 1000,
+  "milk-oreo-crumble": 1000,
+  "kenangan-milk-tea": 1000,
+  "milo-dinosaurus": 1000,
+  "oreo-shake": 1000,
+  "raspberry-hibiscus": 1000,
+  "susu-grass-jelly": 1000,
+  "hazelnut-choco-milk-tea": 1000,
+  "avocado-caramel": 1000,
+  "avocado-milk": 1000,
+  "caramel-dutch-choco": 1000,
+  "dutch-chocolate": 1000,
+  "hazelnut-dutch-choco": 1000,
+  "tiramisu-frappe": 1000,
+  "matcha-kenangan-frappe": 1000,
+  "roti-gulung-abon": 1000,
+  "matcha-latte": 2000,
+  "butterscotch-kenangan-frappe": 2000,
+  "kopi-kenangan-mantan-frappe": 2000,
+  "vanilla-kenangan-frappe": 2000,
+  "dutch-choco-kenangan-frappe": 2000,
+  "bambang-choco-cheese": 2000,
+  "choco-chip-cookies": 2000,
+  "join-the-dark-side-cookie": 2000,
+  "friend-chip-cookie": 2000
+  // Tambahkan nama menu lainnya di sini
+};
+
 window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   const container = document.getElementById("catalogContainer");
   if (!container) return;
@@ -196,26 +244,33 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       (originalKopiKenanganMenu || []).map((item) => [normalizeMenuName(item.name), item])
     );
 
-    const dynamicItems = apiMenu.map((item) => {
-      const group = normalizeApiMenuGroup(item.category);
-      const localItem = localMenuByName.get(normalizeMenuName(item.name)) || {};
-      const oldPrice = firstNumber(item.origPrice, item.oldPrice, item.originalPrice);
-      const price = firstNumber(item.price, item.discountPrice) || Math.round((Number(oldPrice || 0) / 2) + 3000);
-      const largePrice = firstNumber(item.largePrice, item.largeprice, item.large_price, localItem.largePrice);
-      const jumboPrice = firstNumber(item.jumboPrice, item.jumboprice, item.jumbo_price, localItem.jumboPrice);
-      return {
-        ...localItem,
-        id: String(item.id || item.name),
-        brand: "kopi-kenangan",
-        group,
-        name: item.name,
-        price,
-        oldPrice,
-        ...(largePrice ? { largePrice } : {}),
-        ...(jumboPrice ? { jumboPrice } : {}),
-        image: item.img || localItem.image || null,
-      };
-    });
+const dynamicItems = apiMenu.map((item) => {
+  const localItem = localMenuByName.get(normalizeMenuName(item.name)) || {};
+  
+  // 1. Ambil harga dasar dari API
+  const apiPrice = firstNumber(item.price, item.discountPrice, item.origPrice);
+  
+  // 2. Hitung harga dasar menggunakan rumus: (API / 2 + 3000)
+  let basePrice = apiPrice ? Math.round(apiPrice / 2) + 3000 : (localItem.price || 0);
+  
+  // 3. Tentukan penyesuaian khusus (jika menu ada di daftar, tambahkan)
+  const slugName = slugifyAssetName(item.name);
+  const adjustment = PRICE_ADJUSTMENTS[slugName] || 0;
+  
+  // 4. Harga final adalah harga dasar + penyesuaian
+  const finalPrice = basePrice + adjustment;
+
+  return {
+    ...localItem,
+    id: String(item.id || item.name),
+    brand: "kopi-kenangan",
+    group: normalizeApiMenuGroup(item.category),
+    name: item.name,
+    price: finalPrice,
+    oldPrice: firstNumber(item.origPrice, item.oldPrice, item.originalPrice) || localItem.oldPrice,
+    image: item.img || localItem.image || null,
+  };
+});
 
     const remainingItems = menuItems.filter((item) => item.brand !== "kopi-kenangan");
     menuItems.length = 0;
