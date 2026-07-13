@@ -196,7 +196,6 @@ const wifiDateLabel = document.querySelector("#wifiDateLabel");
 const copyWifiButton = document.querySelector("#copyWifiButton");
 const wifiChevron = document.querySelector("#wifiChevron");
 const wifiDetailPanel = document.querySelector("#wifiDetailPanel");
-const viralFab = document.querySelector("#viralFab");
 const orderModal = document.querySelector("#orderModal");
 const modalTitle = document.querySelector("#modalItemName");
 const modalCustomize = document.querySelector("#modalCustomize");
@@ -211,6 +210,7 @@ const paymentProofInput = document.querySelector("#modalPaymentProof");
 const proofPreview = document.querySelector("#proofPreview");
 const shareProofButton = document.querySelector("#shareProofButton");
 const selectedDrink = document.querySelector("#selectedDrink");
+const itemNoteInput = document.querySelector("#itemNote");
 const addConfiguredItemButton = document.querySelector("#addConfiguredItem");
 
 const fallbackTestimonialImages = Array.from({ length: 52 }, (_, index) => `assets/ss-wa-${index + 2}.jpg`);
@@ -353,8 +353,6 @@ function syncOutletPanelVisibility() {
   ];
 
   outletPanel.hidden = !shouldShowOutletPanel;
-  if (viralFab) viralFab.hidden = !shouldShowOutletPanel;
-
   if (!shouldShowOutletPanel) {
     const outletResults = document.getElementById("outletResults");
     if (outletResults) outletResults.hidden = true;
@@ -421,11 +419,6 @@ function getKopiKenanganGateMessage() {
     body: "Menu Kopi Kenangan akan tampil setelah kamu memilih outlet dari hasil pencarian. Menu lokal bawaan disembunyikan agar hanya menu API outlet yang dipakai.",
     status: "Pilih outlet Kopi Kenangan untuk melihat menu API outlet.",
   };
-}
-
-function syncViralFabVisibility() {
-  if (!viralFab) return;
-  viralFab.hidden = activeBrandId !== "kopi-kenangan" || !document.querySelector('[data-menu-id="viral-creamy-aren-latte"]');
 }
 
 function renderBrandTabs() {
@@ -842,7 +835,7 @@ function loadCartFromStorage() {
 
 // Tambahkan pemanggilan saveCartToStorage() ke dalam aksi keranjang
 const originalAddItem = addItem;
-addItem = function(id) { originalAddItem(id); saveCartToStorage(); };
+addItem = function(...args) { originalAddItem(...args); saveCartToStorage(); };
 
 const originalUpdateQuantity = updateQuantity;
 updateQuantity = function(cartKey, direction) { originalUpdateQuantity(cartKey, direction); saveCartToStorage(); };
@@ -989,7 +982,6 @@ function renderMenu(query = "") {
         <span>${escapeHtml(gateMessage.body)}</span>
       </div>`;
     searchStatus.textContent = gateMessage.status;
-    syncViralFabVisibility();
     return;
   }
 
@@ -1047,7 +1039,6 @@ function renderMenu(query = "") {
   searchStatus.textContent = normalizedQuery
     ? `${foundItems.size} menu ${activeBrand.shortLabel} ditemukan untuk "${query}".`
     : `${modeItems.length} menu ${activeBrand.shortLabel} tersedia.`;
-  syncViralFabVisibility();
 }
 
 function renderCart() {
@@ -1060,8 +1051,9 @@ function renderCart() {
     ? '<p class="empty">Pilih menu dari price list untuk mulai order.</p>'
     : entries.map((item) => {
         const optionsText = formatOptions(item.options);
+        const itemNoteText = item.note ? `<small class="cart-item-note">Catatan: ${escapeHtml(item.note)}</small>` : "";
         const safeCartKey = encodeURIComponent(item.cartKey);
-        return `<div class="cart-line"><div><h3>${item.name}</h3><span>${rupiah.format(item.price)} x ${item.qty}</span>${optionsText ? `<small class="cart-options">${optionsText}</small>` : ""}</div><div class="quantity"><button class="qty-button" type="button" data-action="decrease" data-id="${safeCartKey}">-</button><strong>${item.qty}</strong><button class="qty-button" type="button" data-action="increase" data-id="${safeCartKey}">+</button></div></div>`;
+        return `<div class="cart-line"><div><h3>${item.name}</h3><span>${rupiah.format(item.price)} x ${item.qty}</span>${optionsText ? `<small class="cart-options">${optionsText}</small>` : ""}${itemNoteText}</div><div class="quantity"><button class="qty-button" type="button" data-action="decrease" data-id="${safeCartKey}">-</button><strong>${item.qty}</strong><button class="qty-button" type="button" data-action="increase" data-id="${safeCartKey}">+</button></div></div>`;
       }).join("");
 
   // Tambahkan baris biaya layanan ke dalam modal jika ada
@@ -1094,7 +1086,8 @@ function renderCheckoutSummary(entries, subtotal, serviceFee, grandTotal) {
     return;
   }
   let html = `<div class="checkout-lines">${entries.map((item) => {
-    return `<div><span>${item.name} x${item.qty}</span><strong>${rupiah.format(item.price * item.qty)}</strong></div>`;
+    const itemNoteText = item.note ? `<small>Catatan: ${escapeHtml(item.note)}</small>` : "";
+    return `<div><span>${item.name} x${item.qty}</span><strong>${rupiah.format(item.price * item.qty)}</strong>${itemNoteText}</div>`;
   }).join("")}</div>`;
 
   if (serviceFee > 0) {
@@ -1157,8 +1150,8 @@ async function createOrderRecord(formData) {
       address: String(formData.get("customerAddress")).trim(),
       pickupTime: String(formData.get("pickupTime") || "").trim(),
     },
-    note: String(formData.get("orderNote")).trim(),
-    items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options })),
+    note: "",
+    items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "" })),
     subtotal,
     proof: { url: proofUrl, name: proofFile.name, type: proofFile.type, size: proofFile.size }
   };
@@ -1250,15 +1243,9 @@ function selectItemForOptions(id) {
 
   if (!canAddBrandToCart(item)) return;
 
-  // Jika item termasuk kategori makanan langsung tambahkan ke keranjang tanpa membuka modal
-  if (isFoodItem(item)) {
-    addItem(id);
-    renderCart();
-    return;
-  }
-
   pendingItemId = id;
   resetSelectedOptions(item);
+  if (itemNoteInput) itemNoteInput.value = "";
 
   const isFood = isFoodItem(item);
   const isBundle = item.group && item.group.includes("promo");
@@ -1270,7 +1257,7 @@ function selectItemForOptions(id) {
     <span>${escapeHtml(itemBrand.label)}</span>
     <strong id="modalProductTitleName">${escapeHtml(item.name)}</strong>
     <span id="modalItemPrice" style="font-size: 1.1rem; color: #d35c19; font-weight: 800; display: block; margin-top: 4px;">Rp0</span>
-    <small>${isBundle ? "Tulis request Ice/Sugar untuk paket ini di kolom Catatan saat Checkout." : (isFood ? "Menu makanan langsung masuk keranjang." : "Sesuaikan rasa minuman kamu di bawah ini.")}</small>
+    <small>${isBundle ? "Tulis request paket ini di catatan item." : (isFood ? "Tambahkan catatan item jika perlu." : "Sesuaikan rasa dan catatan item kamu di bawah ini.")}</small>
   `;
 
   renderDynamicOptions(item);
@@ -1279,14 +1266,15 @@ function selectItemForOptions(id) {
   setModalStage("customize");
 }
 
-function addItem(id) {
+function addItem(id, note = "") {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
   if (!canAddBrandToCart(item)) return;
 
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
+  const itemNote = String(note || "").trim();
   const calculatedPrice = calculateItemPrice(item, options); // Kalkulasi ulang harga
-  const cartKey = `${id}|${JSON.stringify(options)}`;
+  const cartKey = `${id}|${JSON.stringify(options)}|${itemNote}`;
   const current = cart.get(cartKey);
 
   cart.set(cartKey, {
@@ -1294,6 +1282,7 @@ function addItem(id) {
     price: calculatedPrice, // Pakai harga hasil hitungan
     cartKey,
     options,
+    note: itemNote,
     qty: current ? current.qty + 1 : 1
   });
   renderCart();
@@ -1319,6 +1308,11 @@ function formatOptionsForWA(options) {
     const prefix = isLast ? "└" : "├"; // Garis cabang agar mudah dibaca
     return `   ${prefix} ${formatOptionKey(key)}: ${value}`;
   }).join("\n");
+}
+
+function formatItemNoteForWA(note) {
+  const cleanNote = String(note || "").trim();
+  return cleanNote ? `\n   Catatan: ${cleanNote}` : "";
 }
 
 function buildWhatsappMessage(formData, savedOrder) {
@@ -1384,9 +1378,10 @@ function buildWhatsappMessage(formData, savedOrder) {
       let lines = groupedBucket.map((item, i) => {
         const originalItem = menuItems.find((m) => m.id === item.id);
         const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
+        const itemNote = formatItemNoteForWA(item.note);
         let baseResmi = originalItem ? (originalItem.oldPrice || item.price) : item.price;
         if (item.options && item.options.size === "Large") baseResmi += 5000;
-        return `${i + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}`;
+        return `${i + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
       }).join("\n\n");
 
       const totalAsliBatch = bucket.reduce((sum, it) => sum + it.batchPrice, 0);
@@ -1399,9 +1394,10 @@ function buildWhatsappMessage(formData, savedOrder) {
     orderLinesText = entries.map((item, index) => {
       const originalItem = menuItems.find((m) => m.id === item.id);
       const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
+      const itemNote = formatItemNoteForWA(item.note);
       let baseResmi = originalItem ? (originalItem.oldPrice || item.price) : item.price;
       if (item.options && item.options.size === "Large") baseResmi += 5000;
-      return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}`;
+      return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
     }).join("\n\n");
   }
 
@@ -1409,7 +1405,7 @@ function buildWhatsappMessage(formData, savedOrder) {
   const serviceFee = getServiceFee();
   const totalFinal = finalTotalBayar + serviceFee;
   const messageLines = [
-    "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Catatan Pembeli:* ${formData.get("orderNote") || "-"}`, `*Bukti Transfer:* ${savedOrder.proof.url}`
+    "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${savedOrder.proof.url}`
   ];
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (serviceFee > 0) messageLines.push(`*Biaya Layanan: ${rupiah.format(serviceFee)}*`);
@@ -1552,19 +1548,6 @@ if (wifiDetailPanel) {
   });
 }
 
-if (viralFab) {
-  viralFab.addEventListener("click", () => {
-    if (activeBrandId !== "kopi-kenangan") return;
-    if (activeMenuMode !== "single") {
-      activeMenuMode = "single";
-      renderMenu(menuSearch.value);
-    }
-    const viralCard = document.querySelector('[data-menu-id="viral-creamy-aren-latte"]');
-    const target = viralCard || document.querySelector("#best-seller");
-    if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-}
-
 document.addEventListener("click", (event) => {
   const closeTarget = event.target.closest("[data-close-modal]");
   if (closeTarget) { closeOrderModal(); return; }
@@ -1602,7 +1585,7 @@ document.addEventListener("click", (event) => {
 
 addConfiguredItemButton.addEventListener("click", () => {
   if (!pendingItemId) return;
-  addItem(pendingItemId);
+  addItem(pendingItemId, itemNoteInput ? itemNoteInput.value : "");
   setModalStage("cart");
 });
 
@@ -1902,13 +1885,11 @@ const biodataFieldIds = [
   "modalPickupTime",
   "searchCityInput", 
   "modalCustomerAddress", 
-  "modalOrderNote",
   // Backup untuk form halaman utama (jika ada)
   "customerName", 
   "customerPhone", 
   "pickupTime",
-  "customerAddress", 
-  "orderNote"
+  "customerAddress"
 ];
 
 function saveBiodataToStorage() {

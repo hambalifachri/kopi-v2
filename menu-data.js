@@ -25,6 +25,7 @@ const BRANDS_DATA = [
       { id: "baru", title: "Baru!" },
       { id: "coffee", title: "Coffee" },
       { id: "non-coffee", title: "Non Coffee" },
+      { id: "oatside-series", title: "Oatside Series" },
       { id: "kenangan-frappe", title: "Kenangan Frappe" },
       { id: "chef-martin", title: "Chef Martin Praja's Bake" },
       { id: "kenangan-toast", title: "Kenangan Toast" },
@@ -1391,45 +1392,6 @@ const MENU_ITEMS_DATA = [
     bundleImages: ["menu_23.jpg", "menu_35.jpg", "menu_119.jpg"] 
   },
 
-  // Kategori: Viral!
-{
-    id: "viral-creamy-aren-latte",
-    name: "🔥 Menu Hack Viral Thread",
-    desc: "Creamy Aren Latte + Juwara Beans + Less Sugar + Salted Caramel Sauce.",
-    brand: "kopi-kenangan",
-    group: "kopi", // Sesuaikan dengan ID kategori Anda (misal: "best-seller" atau "kopi")
-    oldPrice: 31000,
-    price: 23000, // ASUMSI HARGA: Base 24k + Juwara 3k + Sauce 6k. (Silakan ubah sesuai harga asli)
-    isBestSeller: true, // Biar ada label apinya!
-    
-    // 👇 KITA KUNCI KUSTOMISASINYA AGAR LANGSUNG SESUAI RESEP VIRAL 👇
-    options: [
-      {
-        key: "size",
-        label: "Pilih Ukuran",
-        options: [
-          { value: "Regular", label: "Regular" },
-          { value: "Large", label: "Large", priceDelta: 6000 } // Sesuaikan selisih harga Large
-        ]
-      },
-      {
-        key: "beans",
-        label: "Biji Kopi",
-        options: [{ value: "Juwara Beans", label: "Juwara Beans (Viral)" }]
-      },
-      {
-        key: "sugar",
-        label: "Sugar Level",
-        options: [{ value: "Less Sugar", label: "Less Sugar (Viral)" }]
-      },
-      {
-        key: "addon",
-        label: "Tambahan Saus",
-        options: [{ value: "Salted Caramel", label: "Salted Caramel Sauce (Viral)" }]
-      }
-    ]
-  },
-
   // Kategori: Baru!
   { 
     id: "blueberry-americano", 
@@ -2211,6 +2173,4 @@ const PRODUCT_IMAGES_DATA = {
   "coffeeberry-frappe": "menu_124.jpg",
   "salt-bread-choco-butter": "menu_125.jpg",
   "salt-bread-sausage": "menu_126.jpg",
-  "viral-creamy-aren-latte": "menu_37.jpg",
 };
-

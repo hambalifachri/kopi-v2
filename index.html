@@ -298,10 +298,6 @@
             <textarea id="customerAddress" name="customerAddress" rows="3" placeholder="Contoh: Kopi Kenangan Grand Indonesia" required></textarea>
           </label>
           <label>
-            Catatan
-            <textarea id="orderNote" name="orderNote" rows="2" placeholder="Less ice, gula normal, jam kirim, dll"></textarea>
-          </label>
-          <label>
             Nomor WA admin
             <input id="adminPhone" name="adminPhone" type="tel" value="6281281400462" required />
           </label>
@@ -321,6 +317,10 @@
           <div class="modal-stage" id="modalCustomize">
             <div class="selected-drink modal-product" id="selectedDrink"></div>
             <div class="modal-options" id="modalOptions"></div>
+            <label class="item-note-field" for="itemNote">
+              Catatan item
+              <textarea id="itemNote" rows="2" placeholder="Contoh: less ice, gula normal, pisah topping, request cup"></textarea>
+            </label>
             <button class="configure-button" id="addConfiguredItem" type="button" disabled>
               Tambahkan ke Keranjang
             </button>
@@ -400,10 +400,6 @@
               <p id="gpsStatus" style="margin: 0; color: var(--muted); font-size: 0.75rem; font-weight: 800; line-height: 1.4;"></p>
 
               <label>
-                Catatan
-                <textarea id="modalOrderNote" name="orderNote" rows="2" placeholder="Less ice, gula normal, jam kirim, dll"></textarea>
-              </label>
-              <label>
                 Nomor WA admin
                 <input id="modalAdminPhone" name="adminPhone" type="tel" value="6281281400462" required />
               </label>
@@ -463,10 +459,6 @@
       <button class="floating-cart" id="openCartButton" type="button" hidden>
         <span id="openCartCount">0 menu</span>
         <strong id="openCartTotal">Rp0</strong>
-      </button>
-      <button class="viral-fab" id="viralFab" type="button">
-        <span>Menu Viral</span>
-        <strong>🔥</strong>
       </button>
       <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas">↑</button>
     </main>

@@ -1114,6 +1114,20 @@ button {
   display: none;
 }
 
+.item-note-field {
+  display: grid;
+  gap: 7px;
+  color: var(--brown);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.item-note-field textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
 .modal-next-actions {
   display: grid;
   gap: 12px;
@@ -1560,6 +1574,15 @@ button {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
+}
+
+.cart-item-note {
+  display: block;
+  margin-top: 3px;
+  color: var(--brown);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .quantity {
@@ -2962,43 +2985,6 @@ textarea:focus {
   color: #fff;
 }
 
-.viral-fab {
-  position: fixed;
-  left: max(18px, calc((100vw - 860px) / 2 + 18px));
-  bottom: 82px;
-  z-index: 19;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 13px;
-  border: 1px solid rgba(47, 107, 79, 0.18);
-  border-radius: 8px;
-  color: #fff;
-  background: #5c2819;
-  box-shadow: 0 10px 24px rgba(43, 23, 16, 0.22);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.viral-fab strong {
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  border-radius: 999px;
-  color: #5c2819;
-  background: #ffd36a;
-}
-
-.viral-fab[hidden] {
-  display: none;
-}
-
-body:not(.cart-has-items) .viral-fab {
-  bottom: 18px;
-}
-
 body.cart-has-items .back-to-top {
   bottom: 82px;
 }
@@ -3015,17 +3001,6 @@ body.cart-has-items .back-to-top {
 @media (max-width: 760px) {
   .poster {
     padding: 14px 12px 0;
-  }
-
-  .viral-fab {
-    left: 14px;
-    bottom: 82px;
-    min-height: 40px;
-    padding: 0 11px;
-  }
-
-  body:not(.cart-has-items) .viral-fab {
-    bottom: 16px;
   }
 
   body.cart-has-items .back-to-top {

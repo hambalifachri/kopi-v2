@@ -1,7 +1,44 @@
+// Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
+const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 let outletSearchTimer = null;
 let originalKopiKenanganMenu = null;
+
+const KOPI_KENANGAN_ALLOWED_API_BRANDS = new Set([
+  "kopi-kenangan",
+  "cerita-roti",
+  "kenangan-manis",
+]);
+
+const KOPI_KENANGAN_EXCLUDED_API_GROUPS = new Set([
+  "promo-api",
+  "manual-brew",
+  "kenangan-at-home",
+  "special-merchandise",
+]);
+
+const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
+  /\bseliter\b/i,
+  /\bliteran\b/i,
+];
+
+const API_GROUP_ALIASES = {
+  "baru": "baru",
+  "coffee": "coffee",
+  "kopi": "coffee",
+  "non-coffee": "non-coffee",
+  "non-kopi": "non-coffee",
+  "oatside": "oatside-series",
+  "oatside-series": "oatside-series",
+  "kenangan-frappe": "kenangan-frappe",
+  "chef-martin-prajas-signature-bake": "chef-martin",
+  "chef-martin-praja-s-signature-bake": "chef-martin",
+  "kenangan-toast": "kenangan-toast",
+  "food": "food",
+  "promo-and-combo": "promo-api",
+  "promo-combo": "promo-api",
+};
 
 window.kopiKenanganOutletState = window.kopiKenanganOutletState || {
   selected: false,
@@ -34,6 +71,18 @@ function normalizeMenuName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeApiText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/['\u2019]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 function firstNumber(...values) {
   for (const value of values) {
     const number = Number(value);
@@ -43,14 +92,150 @@ function firstNumber(...values) {
 }
 
 function normalizeApiMenuGroup(category) {
-  const normalized = String(category || "lainnya")
-    .trim()
-    .toLowerCase()
-    .replace(/[_\s]+/g, "-");
+  const normalized = normalizeApiText(category || "lainnya");
+  return API_GROUP_ALIASES[normalized] || normalized;
+}
 
-  if (normalized === "kopi" || normalized === "coffee") return "coffee";
-  if (normalized === "non-kopi" || normalized === "non-coffee") return "non-coffee";
-  return normalized;
+function isApiComboProduct(item) {
+  return Number(item?.type_code) === 4004 || Number(item?.product_type_id) === 0 || item?.is_combo_v2 === true;
+}
+
+function isApiProductExpired(item, now = Date.now()) {
+  const endTimestamp = Number(item?.available_end_timestamp);
+  return Number.isFinite(endTimestamp) && endTimestamp > 0 && endTimestamp < now;
+}
+
+function isSupportedKopiKenanganApiProduct(item) {
+  const itemGroup = normalizeApiMenuGroup(item?._category_name || item?.category || item?.group_name);
+  const itemBrand = normalizeApiText(item?.brand || "Kopi Kenangan");
+  const itemName = getApiProductName(item);
+
+  if (!KOPI_KENANGAN_ALLOWED_API_BRANDS.has(itemBrand)) return false;
+  if (KOPI_KENANGAN_EXCLUDED_API_GROUPS.has(itemGroup)) return false;
+  if (KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS.some((pattern) => pattern.test(itemName))) return false;
+  if (item?.is_restriction_customer === true) return false;
+  if (item?.delivery_restriction) return false;
+  if (isApiProductExpired(item)) return false;
+
+  return !isApiComboProduct(item);
+}
+
+function getApiMenuGroups(rawResponse) {
+  if (rawResponse?.data && Array.isArray(rawResponse.data.menu_groups)) {
+    return rawResponse.data.menu_groups;
+  }
+
+  if (Array.isArray(rawResponse?.menu)) {
+    return [{ group_name: "", menu_products: rawResponse.menu }];
+  }
+
+  return [];
+}
+
+function getApiProductPrice(item, localItem) {
+  const jasdorPrice = firstNumber(item.jasdorPrice, item.jasdor_price);
+  if (jasdorPrice) return jasdorPrice;
+
+  const apiPrice = firstNumber(item.price, item.salePrice, item.sale_price, item.orig_price, item.origPrice);
+  if (!apiPrice) return localItem.price || 0;
+
+  const adjustedPrice = Math.round(apiPrice / 2) + 3000;
+  const manualAdjustment = PRICE_ADJUSTMENTS[normalizeApiText(item.name)] || 0;
+  return adjustedPrice + manualAdjustment;
+}
+
+function getApiProductOldPrice(item, localItem) {
+  return firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price) || localItem.oldPrice;
+}
+
+function isLocalPromoMenuItem(item) {
+  const groups = Array.isArray(item?.group) ? item.group : [item?.group].filter(Boolean);
+  return groups.some((group) => normalizeApiText(group).includes("promo")) || Boolean(item?.bundleImages?.length);
+}
+
+function shouldKeepLocalKopiKenanganItem(item) {
+  return isLocalPromoMenuItem(item);
+}
+
+function mergeMenuGroups(...groups) {
+  const merged = [];
+  groups.flat().filter(Boolean).forEach((group) => {
+    if (!merged.includes(group)) merged.push(group);
+  });
+  return merged.length === 1 ? merged[0] : merged;
+}
+
+function getApiProductId(item) {
+  return String(item.product_code || item.code || item.product_id || item.id || item.name || "");
+}
+
+function getApiProductName(item) {
+  return String(item.name || "").trim() || "Menu Tanpa Nama";
+}
+
+function toKopiKenanganMenuItem(item, localMenuByName) {
+  const itemName = getApiProductName(item);
+  const localItem = localMenuByName.get(normalizeMenuName(itemName)) || {};
+  const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
+  const finalGroup = apiGroup || localItem.group || "food";
+  const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;
+  const image = item.image || item.img || localItem.image || null;
+
+  return {
+    ...localItem,
+    id: getApiProductId(item),
+    brand: "kopi-kenangan",
+    group: finalGroup,
+    name: itemName,
+    desc: item.description || localItem.desc,
+    price: getApiProductPrice(item, localItem),
+    oldPrice: getApiProductOldPrice(item, localItem),
+    image,
+    isNew: localItem.isNew === true || finalGroup === "baru" || item.isNew === true,
+    isSoldOut,
+  };
+}
+
+function mergeDuplicateMenuItems(items) {
+  const uniqueMap = new Map();
+
+  items.forEach((item) => {
+    if (!item?.name) return;
+
+    const key = `${item.brand || ""}|${normalizeMenuName(item.name)}`;
+    const existing = uniqueMap.get(key);
+
+    if (!existing) {
+      uniqueMap.set(key, item);
+      return;
+    }
+
+    uniqueMap.set(key, {
+      ...existing,
+      ...item,
+      group: mergeMenuGroups(existing.group, item.group),
+      isNew: existing.isNew === true || item.isNew === true,
+      isBestSeller: existing.isBestSeller === true || item.isBestSeller === true,
+      isSoldOut: existing.isSoldOut === true && item.isSoldOut === true,
+      image: existing.image || item.image,
+      desc: existing.desc || item.desc,
+    });
+  });
+
+  return Array.from(uniqueMap.values());
+}
+
+function buildDynamicKopiKenanganItems(rawResponse, localMenuByName) {
+  return getApiMenuGroups(rawResponse)
+    .flatMap((group) => {
+      const products = Array.isArray(group.menu_products) ? group.menu_products : [];
+      return products.map((product) => ({
+        ...product,
+        _category_name: group.group_name,
+      }));
+    })
+    .filter(isSupportedKopiKenanganApiProduct)
+    .map((item) => toKopiKenanganMenuItem(item, localMenuByName));
 }
 
 function updateOutletUi(outlet = null) {
@@ -229,65 +414,70 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     menuLoading: true,
     outletCode,
   });
+
   container.innerHTML = '<p class="no-results">Sedang memuat menu outlet...</p>';
 
   try {
-    const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
+    const response = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const apiMenu = Array.isArray(data.menu) ? data.menu : [];
-    if (!apiMenu.length) throw new Error("Menu outlet kosong");
+    const rawResponse = await response.json();
 
-    if (typeof menuItems === "undefined") throw new Error("Data menu lokal belum siap");
     cacheOriginalKopiKenanganMenu();
     const localMenuByName = new Map(
       (originalKopiKenanganMenu || []).map((item) => [normalizeMenuName(item.name), item])
     );
 
-const dynamicItems = apiMenu.map((item) => {
-  const localItem = localMenuByName.get(normalizeMenuName(item.name)) || {};
-  
-  // 1. Ambil harga dasar dari API
-  const apiPrice = firstNumber(item.price, item.discountPrice, item.origPrice);
-  
-  // 2. Hitung harga dasar menggunakan rumus: (API / 2 + 3000)
-  let basePrice = apiPrice ? Math.round(apiPrice / 2) + 3000 : (localItem.price || 0);
-  
-  // 3. Tentukan penyesuaian khusus (jika menu ada di daftar, tambahkan)
-  const slugName = slugifyAssetName(item.name);
-  const adjustment = PRICE_ADJUSTMENTS[slugName] || 0;
-  
-  // 4. Harga final adalah harga dasar + penyesuaian
-  const finalPrice = basePrice + adjustment;
+    const dynamicItems = buildDynamicKopiKenanganItems(rawResponse, localMenuByName);
+    const nonKopiKenanganItems = menuItems.filter((item) => item && item.brand !== "kopi-kenangan");
+    const localItemsToKeep = (originalKopiKenanganMenu || [])
+      .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
+      .map((item) => ({ ...item }));
 
-  return {
-    ...localItem,
-    id: String(item.id || item.name),
-    brand: "kopi-kenangan",
-    group: normalizeApiMenuGroup(item.category),
-    name: item.name,
-    price: finalPrice,
-    oldPrice: firstNumber(item.origPrice, item.oldPrice, item.originalPrice) || localItem.oldPrice,
-    image: item.img || localItem.image || null,
-  };
-});
-
-    const remainingItems = menuItems.filter((item) => item.brand !== "kopi-kenangan");
     menuItems.length = 0;
-    menuItems.push(...remainingItems, ...dynamicItems);
+    menuItems.push(...mergeDuplicateMenuItems([
+      ...nonKopiKenanganItems,
+      ...localItemsToKeep,
+      ...dynamicItems,
+    ]));
+
     setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode });
     if (typeof renderMenu === "function") renderMenu();
+
   } catch (error) {
+    console.error("Gagal memuat API Asli:", error);
     setKopiKenanganOutletState({ menuLoaded: false, menuLoading: false, outletCode });
-    container.innerHTML = '<p class="no-results">Gagal memuat menu outlet. Coba pilih outlet ulang.</p>';
+    container.innerHTML = '<p class="no-results">Gagal memuat menu API. Coba outlet lain.</p>';
+    restoreLocalKopiKenanganMenu();
   }
+};
+
+window.handleKopiKenanganData = function(data) {
+  cacheOriginalKopiKenanganMenu();
+  const localMenuByName = new Map((originalKopiKenanganMenu || []).map(i => [normalizeMenuName(i.name), i]));
+  const dynamicItems = buildDynamicKopiKenanganItems(data, localMenuByName);
+  const nonKopiKenanganItems = menuItems.filter(i => i.brand !== "kopi-kenangan");
+  const localItemsToKeep = (originalKopiKenanganMenu || [])
+    .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
+    .map((item) => ({ ...item }));
+
+  menuItems.length = 0;
+  menuItems.push(...mergeDuplicateMenuItems([
+    ...nonKopiKenanganItems,
+    ...localItemsToKeep,
+    ...dynamicItems,
+  ]));
+
+  if (typeof renderMenu === "function") renderMenu();
 };
 
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
+
+    // Pastikan ini tetap menggunakan NUFS_API_BASE agar pencarian outlet lancar
     const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     const outlets = Array.isArray(data.outlets) ? data.outlets : [];
@@ -295,7 +485,7 @@ window.searchOutlets = async function(keyword) {
     if (outletHint) outletHint.textContent = `${outlets.length} outlet ditemukan.`;
   } catch (error) {
     clearOutletResults();
-    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Coba lagi atau isi nama outlet manual di checkout.";
+    if (outletHint) outletHint.textContent = "Gagal mencari outlet.";
   }
 };
 
