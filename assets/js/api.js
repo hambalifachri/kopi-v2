@@ -1,3 +1,15 @@
+// Tambahkan ini di bagian awal script Anda
+window.addEventListener('load', function() {
+    const lastVersion = localStorage.getItem('app_version');
+    const currentVersion = '20260715'; // Samakan dengan versi file di atas
+
+    if (lastVersion !== currentVersion) {
+        localStorage.clear(); // Hapus sesi lama yang rusak
+        localStorage.setItem('app_version', currentVersion);
+        window.location.reload(); // Refresh paksa untuk pelanggan
+    }
+});
+
 // Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
