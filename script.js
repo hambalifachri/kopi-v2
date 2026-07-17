@@ -65,7 +65,7 @@ function checkStoreStatus(brandId) {
 
   // 2. Cek Sholat Jumat (Berlaku untuk semua)
   if (storeConfig.autoJumatan && day === 5 && hour === 12) {
-    return { closed: true, message: "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali otomatis pukul 13:00 WIB.<br><br>Punya pertanyaan atau mau titip pesanan? Langsung chat admin aja ya." + waLink };
+    return { closed: false, message: "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali otomatis pukul 13:00 WIB.<br><br>Punya pertanyaan atau mau titip pesanan? Langsung chat admin aja ya." + waLink };
   }
 
   return { closed: false };
