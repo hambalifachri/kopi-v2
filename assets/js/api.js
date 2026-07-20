@@ -35,6 +35,12 @@ const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
   /\bliteran\b/i,
 ];
 
+const KOPI_KENANGAN_API_MENU_OVERRIDES = {
+  "creamy-caramel-latte": {
+    largePrice: 24000,
+  },
+};
+
 const API_GROUP_ALIASES = {
   "baru": "baru",
   "coffee": "coffee",
@@ -188,6 +194,7 @@ function getApiProductName(item) {
 function toKopiKenanganMenuItem(item, localMenuByName) {
   const itemName = getApiProductName(item);
   const localItem = localMenuByName.get(normalizeMenuName(itemName)) || {};
+  const overrideItem = KOPI_KENANGAN_API_MENU_OVERRIDES[normalizeApiText(itemName)] || {};
   const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
   const finalGroup = apiGroup || localItem.group || "food";
   const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;
@@ -195,6 +202,7 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
 
   return {
     ...localItem,
+    ...overrideItem,
     id: getApiProductId(item),
     brand: "kopi-kenangan",
     group: finalGroup,

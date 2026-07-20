@@ -1140,7 +1140,17 @@ async function createOrderRecord(formData) {
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
   const proofFile = getPaymentProofFile();
   const orderId = makeOrderId();
-  const proofUrl = await uploadPaymentProof(proofFile, orderId);
+  let proofUrl = "";
+  let proofUploadError = "";
+
+  if (proofFile) {
+    try {
+      proofUrl = await uploadPaymentProof(proofFile, orderId);
+    } catch (error) {
+      proofUploadError = error?.message || "Gagal upload bukti transfer.";
+      console.error("Gagal upload bukti transfer:", error);
+    }
+  }
 
   return {
     id: orderId,
@@ -1153,7 +1163,13 @@ async function createOrderRecord(formData) {
     note: "",
     items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "" })),
     subtotal,
-    proof: { url: proofUrl, name: proofFile.name, type: proofFile.type, size: proofFile.size }
+    proof: {
+      url: proofUrl,
+      name: proofFile ? proofFile.name : "",
+      type: proofFile ? proofFile.type : "",
+      size: proofFile ? proofFile.size : 0,
+      uploadError: proofUploadError,
+    }
   };
 }
 
@@ -1315,6 +1331,13 @@ function formatItemNoteForWA(note) {
   return cleanNote ? `\n   Catatan: ${cleanNote}` : "";
 }
 
+function formatProofForWA(savedOrder) {
+  if (savedOrder?.proof?.url) return savedOrder.proof.url;
+
+  const fileName = savedOrder?.proof?.name || "file bukti";
+  return `${fileName} (upload otomatis gagal, customer diminta kirim bukti manual di chat ini)`;
+}
+
 function buildWhatsappMessage(formData, savedOrder) {
   const entries = [...cart.values()];
   
@@ -1404,8 +1427,9 @@ function buildWhatsappMessage(formData, savedOrder) {
   // ... (Sisa kode untuk messageLines tetap sama) ...
   const serviceFee = getServiceFee();
   const totalFinal = finalTotalBayar + serviceFee;
+  const proofText = formatProofForWA(savedOrder);
   const messageLines = [
-    "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${savedOrder.proof.url}`
+    "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${proofText}`
   ];
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (serviceFee > 0) messageLines.push(`*Biaya Layanan: ${rupiah.format(serviceFee)}*`);
@@ -1639,10 +1663,20 @@ orderForm.addEventListener("submit", async (event) => {
   submitButton.disabled = true;
   try {
     const savedOrder = await createOrderRecord(formData);
-    await saveOrderToSupabase(savedOrder);
+    try {
+      await saveOrderToSupabase(savedOrder);
+    } catch (error) {
+      savedOrder.saveError = error?.message || "Gagal menyimpan order ke Supabase.";
+      console.error("Gagal menyimpan order ke Supabase:", error);
+    }
+
     const message = encodeURIComponent(buildWhatsappMessage(formData, savedOrder));
     const links = buildWhatsappLinks(String(formData.get("adminPhone")).replace(/\D/g, ""), message);
-    
+
+    if (savedOrder.proof.uploadError || savedOrder.saveError) {
+      alert("Upload otomatis sedang bermasalah, tapi WhatsApp tetap dibuka. Mohon kirim bukti transfer manual di chat admin setelah pesan terkirim.");
+    }
+
     // 1. Bersihkan keranjang
     cart.clear(); 
     saveCartToStorage(); 
@@ -1655,7 +1689,8 @@ orderForm.addEventListener("submit", async (event) => {
     closeOrderModal();
     window.location.href = isAndroidDevice() ? links.appUrl : links.waMeUrl;
   } catch (error) { 
-    alert("Error menyimpan order. Pastikan Supabase Anda terkonfigurasi dengan benar."); 
+    console.error("Gagal menyiapkan order:", error);
+    alert("Gagal menyiapkan pesan WhatsApp. Coba refresh halaman lalu kirim ulang.");
   }
   finally { submitButton.disabled = false; }
 });
