@@ -4,7 +4,7 @@
 
 const STORE_CONFIG_DATA = {
   // Ganti 'false' menjadi 'true' jika ingin menutup toko secara spesifik
-  isKopkenClosed: false, // <-- Saklar khusus Kopi Kenangan
+  isKopkenClosed: true, // <-- Saklar khusus Kopi Kenangan
   isForeClosed: false,   // <-- Saklar khusus Fore Coffee
   
   manualClosedMessage: "Maaf, saat ini toko sedang tutup sementara. Silakan kembali lagi nanti.",
