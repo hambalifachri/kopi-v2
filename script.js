@@ -119,7 +119,15 @@ function getActiveSizeBlockNotes(item, now = getJakartaDate()) {
 const BRANDS = BRANDS_DATA;
 const menuItems = MENU_ITEMS_DATA;
 const productImages = PRODUCT_IMAGES_DATA;
-let activeBrandId = BRANDS[0]?.id || "kopi-kenangan";
+const BRAND_STORAGE_KEY = "kopiFachrindahPreferredBrand";
+const RESELLER_CREDENTIALS_KEY = "kopiFachrindahResellerCredentials";
+const CUSTOMER_IDENTITY_KEY = "kopiFachrindahCustomerIdentity";
+const RESELLER_DISCOUNT = 1000;
+const savedBrandId = localStorage.getItem(BRAND_STORAGE_KEY);
+let activeBrandId = BRANDS.some((brand) => !brand.hidden && brand.id === savedBrandId)
+  ? savedBrandId
+  : (BRANDS[0]?.id || "kopi-kenangan");
+let resellerSession = null;
 
 function slugifyAssetName(value) {
   return String(value)
@@ -221,6 +229,13 @@ const shareProofButton = document.querySelector("#shareProofButton");
 const selectedDrink = document.querySelector("#selectedDrink");
 const itemNoteInput = document.querySelector("#itemNote");
 const addConfiguredItemButton = document.querySelector("#addConfiguredItem");
+const brandChooserModal = document.querySelector("#brandChooserModal");
+const resellerModal = document.querySelector("#resellerModal");
+const resellerAccessButton = document.querySelector("#resellerAccessButton");
+const resellerLoginForm = document.querySelector("#resellerLoginForm");
+const resellerLoginStatus = document.querySelector("#resellerLoginStatus");
+const resellerStatusBar = document.querySelector("#resellerStatusBar");
+const resellerStatusText = document.querySelector("#resellerStatusText");
 
 const fallbackTestimonialImages = Array.from({ length: 52 }, (_, index) => `assets/ss-wa-${index + 2}.jpg`);
 const PICKUP_START_MINUTES = 8 * 60;
@@ -371,14 +386,33 @@ function syncOutletPanelVisibility() {
     addressFields.forEach((field) => {
       if (field && hasSelectedOutlet && field.value.trim() === outletName) field.value = "";
     });
+    syncCheckoutOutletField();
     return;
   }
 
   addressFields.forEach((field) => {
     if (field && hasSelectedOutlet && !field.value.trim()) field.value = outletName;
   });
+  syncCheckoutOutletField();
   renderWifiPassword();
 }
+
+function syncCheckoutOutletField() {
+  const field = document.getElementById("modalCustomerAddress");
+  const manualTools = document.getElementById("manualOutletTools");
+  if (!field) return;
+  const orderBrandId = getCartBrandId() || activeBrandId;
+  const isKopken = orderBrandId === "kopi-kenangan";
+  const outletName = getKopiKenanganOutletState().outletName || selectedOutletName?.textContent.trim() || "";
+  const hasOutlet = outletName && outletName !== "Belum dipilih";
+
+  field.readOnly = isKopken && hasOutlet;
+  field.setAttribute("aria-readonly", String(field.readOnly));
+  if (isKopken && hasOutlet) field.value = outletName;
+  if (manualTools) manualTools.hidden = isKopken;
+}
+
+window.syncCheckoutOutletField = syncCheckoutOutletField;
 
 function updateBrandHero() {
   const activeBrand = getActiveBrand();
@@ -832,6 +866,8 @@ function menuCard(item) {
   const itemBrand = getBrandById(item.brand);
   const sizeBlockNotes = getActiveSizeBlockNotes(item);
   const sizeBlockHtml = sizeBlockNotes.length ? `<span class="sale-note">${sizeBlockNotes.join(" · ")}</span>` : "";
+  const displayPrice = getDisplayPrice(item);
+  const resellerBadge = isResellerEligible(item) ? `<span class="reseller-price-badge">Reseller hemat ${rupiah.format(RESELLER_DISCOUNT)}</span>` : "";
   
   const buttonText = store.closed ? "Tutup" : (currentlySoldOut ? "Habis" : "Tambah");
   const buttonHtml = currentlySoldOut 
@@ -851,7 +887,8 @@ return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} 
     <!-- 👆 SAMPAI SINI 👆 -->
     
     ${item.oldPrice ? `<span class="old-price">${rupiah.format(item.oldPrice)}</span>` : ""}
-    <span class="price">${rupiah.format(item.price)}</span>
+    <span class="price">${rupiah.format(displayPrice)}</span>
+    ${resellerBadge}
     ${sizeBlockHtml}
     ${buttonHtml}
   </article>`;
@@ -867,7 +904,20 @@ function isPromoItem(item) {
   return getItemGroups(item).some((group) => String(group).toLowerCase().includes("promo")) || Boolean(item.bundleImages?.length);
 }
 
+function isResellerActive() {
+  return Boolean(resellerSession && new Date(resellerSession.expiresAt).getTime() > Date.now());
+}
+
+function isResellerEligible(item) {
+  return isResellerActive() && item.brand === "kopi-kenangan" && !isPromoItem(item);
+}
+
+function getDisplayPrice(item) {
+  return Math.max(0, item.price - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
+}
+
 function getModeItems(items) {
+  if (isResellerActive() && activeBrandId === "kopi-kenangan") return items.filter((item) => !isPromoItem(item));
   const hasPromo = items.some(isPromoItem);
   if (activeMenuMode === "bundle" && hasPromo) return items.filter(isPromoItem);
   if (activeMenuMode === "single" && hasPromo) return items.filter((item) => !isPromoItem(item));
@@ -887,13 +937,15 @@ function sortMenuItems(items) {
 
 function syncMenuControls(activeItems) {
   const hasPromo = activeItems.some(isPromoItem);
+  const bundlesBlocked = isResellerActive() && activeBrandId === "kopi-kenangan";
+  if (bundlesBlocked) activeMenuMode = "single";
   if (activeMenuMode === "bundle" && !hasPromo) activeMenuMode = "single";
 
   if (menuModeTabs) {
     menuModeTabs.querySelectorAll("[data-menu-mode]").forEach((button) => {
       const isActive = button.dataset.menuMode === activeMenuMode;
       button.classList.toggle("active", isActive);
-      if (button.dataset.menuMode === "bundle") button.disabled = !hasPromo;
+      if (button.dataset.menuMode === "bundle") button.disabled = !hasPromo || bundlesBlocked;
     });
   }
 
@@ -1253,8 +1305,9 @@ async function createOrderRecord(formData) {
       pickupTime: String(formData.get("pickupTime") || "").trim(),
     },
     note: "",
-    items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "" })),
+    items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "", resellerDiscount: item.resellerDiscount || 0 })),
     subtotal,
+    reseller: isResellerActive() ? { ...resellerSession, discountTotal: entries.reduce((sum, item) => sum + (item.resellerDiscount || 0) * item.qty, 0) } : null,
     proof: {
       url: proofUrl,
       name: proofFile ? proofFile.name : "",
@@ -1271,7 +1324,8 @@ async function saveOrderToSupabase(order) {
   const payload = {
     id: order.id, customer_name: order.customer.name, customer_phone: order.customer.phone, customer_address: order.customer.address,
     note: order.note || null, items: order.items, subtotal: order.subtotal, payment_proof_name: order.proof.name,
-    payment_proof_type: order.proof.type, payment_proof_size: order.proof.size, payment_proof_path: order.id, payment_proof_url: order.proof.url
+    payment_proof_type: order.proof.type, payment_proof_size: order.proof.size, payment_proof_path: order.id, payment_proof_url: order.proof.url,
+    reseller_code: order.reseller?.code || null, reseller_name: order.reseller?.name || null, reseller_discount: order.reseller?.discountTotal || 0
   };
   const { error } = await client.from(config.ordersTable).insert(payload);
   if (error) throw error;
@@ -1304,6 +1358,7 @@ function closeOrderModal() {
 }
 
 function setModalStage(stage) {
+  if (stage === "checkout") syncCheckoutOutletField();
   modalCustomize.hidden = stage !== "customize";
   modalCartStage.hidden = stage !== "cart";
   modalCheckoutStage.hidden = stage !== "checkout";
@@ -1318,7 +1373,7 @@ function calculateItemPrice(item, options) {
     if (typeof selectedOption.price === "number") price = selectedOption.price;
     if (typeof selectedOption.priceDelta === "number") price += selectedOption.priceDelta;
   });
-  return price;
+  return Math.max(0, price - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
 }
 
 function updateModalLivePrice(item) {
@@ -1355,6 +1410,10 @@ function syncIceOptions() {
 function selectItemForOptions(id) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
+  if (isResellerActive() && isPromoItem(item)) {
+    alert("Bundle tidak tersedia untuk akun reseller.");
+    return;
+  }
 
   if (!canAddBrandToCart(item)) return;
 
@@ -1398,6 +1457,7 @@ function addItem(id, note = "") {
     cartKey,
     options,
     bundleOptionGroups: item.dynamicOutletBundle ? cloneOptionGroups(item.options) : undefined,
+    resellerDiscount: isResellerEligible(item) ? RESELLER_DISCOUNT : 0,
     note: itemNote,
     qty: current ? current.qty + 1 : 1
   });
@@ -1463,7 +1523,8 @@ function formatOrderItemForWA(item, index) {
 
   const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
   const baseResmi = getOfficialItemPrice(item);
-  return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
+  const resellerLine = item.resellerDiscount ? `\n   Potongan reseller: -${rupiah.format(item.resellerDiscount)} / item` : "";
+  return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${resellerLine}${itemNote}`;
 }
 
 function formatProofForWA(savedOrder) {
@@ -1550,6 +1611,10 @@ function buildWhatsappMessage(formData, savedOrder) {
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${proofText}`
   ];
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
+  if (savedOrder.reseller) {
+    messageLines.splice(4, 0, "*Mode:* RESELLER", `*Kode Reseller:* ${savedOrder.reseller.code}`, `*Nama Reseller:* ${savedOrder.reseller.name}`);
+    messageLines.push(`*Total Potongan Reseller: -${rupiah.format(savedOrder.reseller.discountTotal)}*`);
+  }
   if (serviceFee > 0) messageLines.push(`*Biaya Layanan: ${rupiah.format(serviceFee)}*`);
   messageLines.push(`*TOTAL BAYAR: ${rupiah.format(totalFinal)}*`);
   return messageLines.join("\n");
@@ -1601,6 +1666,118 @@ function renderTestimonials() {
   )).join("");
 }
 
+function normalizeResellerPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  return digits;
+}
+
+function updateResellerUi() {
+  const active = isResellerActive();
+  resellerAccessButton?.classList.toggle("active", active);
+  if (resellerAccessButton) resellerAccessButton.textContent = active ? "Reseller Aktif" : "Reseller";
+  if (resellerStatusBar) resellerStatusBar.hidden = !active;
+  if (resellerStatusText && active) {
+    resellerStatusText.textContent = `${resellerSession.name} · berlaku sampai ${new Date(resellerSession.expiresAt).toLocaleDateString("id-ID")}`;
+  }
+}
+
+function activateReseller(session, credentials, clearExistingCart = true) {
+  resellerSession = session;
+  localStorage.setItem(RESELLER_CREDENTIALS_KEY, JSON.stringify(credentials));
+  activeBrandId = "kopi-kenangan";
+  activeMenuMode = "single";
+  localStorage.setItem(BRAND_STORAGE_KEY, activeBrandId);
+  if (clearExistingCart) cart.clear();
+  updateResellerUi();
+  renderMenu();
+  renderCart();
+}
+
+async function verifyResellerCredentials(codeValue, phoneValue) {
+  const code = String(codeValue || "").trim().toUpperCase();
+  const phone = normalizeResellerPhone(phoneValue);
+  const hostname = window.location.hostname;
+  const localHost = window.location.protocol !== "https:"
+    || ["localhost", "127.0.0.1", "::1"].includes(hostname)
+    || hostname.startsWith("192.168.")
+    || hostname.startsWith("10.")
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+  if (localHost && code === "LOCAL-RESELLER" && phone === "6281234567890") {
+    return { code, name: "Reseller Lokal", phone, expiresAt: new Date(Date.now() + 30 * 86400000).toISOString() };
+  }
+
+  const { data, error } = await getSupabaseClient().rpc("verify_reseller_code", { p_code: code, p_phone: phone });
+  if (error) throw error;
+  const reseller = Array.isArray(data) ? data[0] : data;
+  if (!reseller) throw new Error("Kode, WhatsApp, atau masa aktif reseller tidak valid.");
+  return { code: reseller.code, name: reseller.name, phone: reseller.phone, expiresAt: reseller.expires_at };
+}
+
+async function restoreResellerSession() {
+  try {
+    const credentials = JSON.parse(localStorage.getItem(RESELLER_CREDENTIALS_KEY) || "null");
+    if (!credentials?.code || !credentials?.phone) return;
+    const session = await verifyResellerCredentials(credentials.code, credentials.phone);
+    activateReseller(session, credentials, false);
+  } catch (error) {
+    localStorage.removeItem(RESELLER_CREDENTIALS_KEY);
+    resellerSession = null;
+    updateResellerUi();
+  }
+}
+
+function closeResellerAccess() {
+  if (resellerModal) resellerModal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+if (resellerAccessButton) {
+  resellerAccessButton.addEventListener("click", () => {
+    if (resellerLoginStatus) resellerLoginStatus.textContent = "";
+    resellerModal.hidden = false;
+    document.body.classList.add("modal-open");
+  });
+}
+
+document.querySelector("#closeResellerModal")?.addEventListener("click", closeResellerAccess);
+resellerModal?.addEventListener("click", (event) => { if (event.target === resellerModal) closeResellerAccess(); });
+document.querySelector("#resellerLogoutButton")?.addEventListener("click", () => {
+  resellerSession = null;
+  localStorage.removeItem(RESELLER_CREDENTIALS_KEY);
+  cart.clear();
+  updateResellerUi();
+  renderMenu();
+  renderCart();
+});
+
+resellerLoginForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = resellerLoginForm.querySelector('button[type="submit"]');
+  const code = document.querySelector("#resellerCodeInput").value;
+  const phone = document.querySelector("#resellerPhoneInput").value;
+  submitButton.disabled = true;
+  resellerLoginStatus.textContent = "Memeriksa membership...";
+  try {
+    const session = await verifyResellerCredentials(code, phone);
+    activateReseller(session, { code: session.code, phone: session.phone });
+    closeResellerAccess();
+  } catch (error) {
+    resellerLoginStatus.textContent = error?.message || "Kode reseller tidak dapat diverifikasi.";
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+brandChooserModal?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-choose-brand]");
+  if (!button) return;
+  activeBrandId = button.dataset.chooseBrand;
+  localStorage.setItem(BRAND_STORAGE_KEY, activeBrandId);
+  brandChooserModal.hidden = true;
+  renderMenu();
+});
+
 modalOptions.addEventListener("click", (event) => {
   const button = event.target.closest("[data-option-value]");
   if (!button || button.disabled || !pendingItemId) return;
@@ -1622,6 +1799,7 @@ if (brandTabs) {
     const button = event.target.closest("[data-brand]");
     if (!button || button.dataset.brand === activeBrandId) return;
     activeBrandId = button.dataset.brand;
+    localStorage.setItem(BRAND_STORAGE_KEY, activeBrandId);
     menuSearch.value = "";
     renderMenu();
   });
@@ -1809,7 +1987,8 @@ orderForm.addEventListener("submit", async (event) => {
     cart.clear(); 
     saveCartToStorage(); 
     
-    // 2. BERSIHKAN DRAFT BIODATA KARENA SUDAH SUKSES
+    // Simpan identitas untuk repeat order, tetapi buang lokasi dan jam pickup lama.
+    saveCustomerIdentity(formData.get("customerName"), formData.get("customerPhone"));
     localStorage.removeItem('kopiFachrindahBiodata');
     
     orderForm.reset(); 
@@ -1854,6 +2033,9 @@ populatePickupTimeOptions();
 renderTestimonials();
 renderMenu();
 renderCart();
+updateResellerUi();
+if (brandChooserModal && !savedBrandId) brandChooserModal.hidden = false;
+restoreResellerSession();
 
 // ==========================================
 // SATPAM KELILING (BACKGROUND CHECKER) Cerdas
@@ -2054,6 +2236,12 @@ const biodataFieldIds = [
   "pickupTime",
   "customerAddress"
 ];
+function saveCustomerIdentity(name, phone) {
+  localStorage.setItem(CUSTOMER_IDENTITY_KEY, JSON.stringify({
+    name: String(name || "").trim(),
+    phone: String(phone || "").trim(),
+  }));
+}
 
 function saveBiodataToStorage() {
   const savedData = {};
@@ -2065,6 +2253,21 @@ function saveBiodataToStorage() {
 }
 
 function loadBiodataFromStorage() {
+  try {
+    const identity = JSON.parse(localStorage.getItem(CUSTOMER_IDENTITY_KEY) || "null");
+    if (identity) {
+      ["modalCustomerName", "customerName"].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.value = identity.name || "";
+      });
+      ["modalCustomerPhone", "customerPhone"].forEach((id) => {
+        const field = document.getElementById(id);
+        if (field) field.value = identity.phone || "";
+      });
+    }
+  } catch (error) {
+    localStorage.removeItem(CUSTOMER_IDENTITY_KEY);
+  }
   const saved = localStorage.getItem('kopiFachrindahBiodata');
   if (saved) {
     try {

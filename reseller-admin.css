@@ -1,0 +1,33 @@
+:root { color-scheme: light; font-family: Arial, sans-serif; color: #35221c; background: #f4f1ed; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: #f4f1ed; }
+button, input, select { font: inherit; }
+.admin-shell { width: min(680px, 100%); min-height: 100vh; margin: 0 auto; background: #fff; }
+.admin-header { min-height: 64px; padding: 12px 20px; border-bottom: 1px solid #ded7d1; display: flex; align-items: center; justify-content: space-between; }
+.admin-header > div { display: flex; align-items: center; gap: 10px; }
+.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: #d94638; color: #fff; }
+.admin-panel { padding: 32px 24px; }
+.admin-panel h1 { margin: 7px 0 8px; font-size: 1.75rem; letter-spacing: 0; }
+.admin-panel > p { margin: 0 0 24px; color: #796960; }
+.eyebrow { color: #a92b23; font-size: .75rem; font-weight: 800; }
+.panel-heading { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+.membership-price { padding: 8px 10px; border: 1px solid #d9cec7; border-radius: 8px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.admin-form { display: grid; gap: 16px; }
+.admin-form label { display: grid; gap: 7px; font-size: .86rem; font-weight: 700; }
+.admin-form input, .admin-form select { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #cfc3ba; border-radius: 8px; background: #fff; color: #35221c; }
+.primary-button, .quiet-button { min-height: 42px; border-radius: 8px; padding: 10px 16px; font-weight: 800; cursor: pointer; text-align: center; text-decoration: none; }
+.primary-button { border: 0; background: #ad2d24; color: #fff; }
+.quiet-button { border: 1px solid #cfc3ba; background: #fff; color: #35221c; }
+.primary-button:disabled { opacity: .55; cursor: wait; }
+.form-status { min-height: 20px; margin: 0; color: #ad2d24; font-size: .84rem; font-weight: 700; }
+.result-panel { margin-top: 24px; padding: 20px; border: 1px solid #9fc7b2; border-radius: 8px; background: #eef8f2; }
+.result-panel > span { display: block; font-size: .72rem; font-weight: 800; color: #26704a; }
+.result-panel > strong { display: block; margin-top: 10px; font-size: 1.7rem; letter-spacing: 0; overflow-wrap: anywhere; }
+.result-panel > p { color: #53685d; line-height: 1.5; }
+.result-actions { display: flex; gap: 10px; }
+.result-actions > * { flex: 1; }
+@media (max-width: 520px) {
+  .admin-panel { padding: 26px 18px; }
+  .panel-heading, .result-actions { flex-direction: column; }
+  .result-actions > * { width: 100%; }
+}

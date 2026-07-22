@@ -426,6 +426,7 @@ function updateOutletUi(outlet = null) {
   if (typeof window.renderWifiPassword === "function") window.renderWifiPassword();
   if (modalAddress && name) modalAddress.value = name;
   if (pageAddress && name) pageAddress.value = name;
+  if (typeof window.syncCheckoutOutletField === "function") window.syncCheckoutOutletField();
 }
 
 function saveSelectedOutlet(outlet) {

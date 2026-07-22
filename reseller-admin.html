@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Reseller | kopi.fachrindah</title>
+  <link rel="stylesheet" href="reseller-admin.css" />
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header">
+      <div><span class="brand-mark">♥</span><strong>kopi.fachrindah</strong></div>
+      <button id="logoutButton" class="quiet-button" type="button" hidden>Keluar</button>
+    </header>
+
+    <section class="admin-panel" id="loginPanel">
+      <span class="eyebrow">AREA ADMIN</span>
+      <h1>Kelola Reseller</h1>
+      <p>Masuk memakai akun admin Supabase.</p>
+      <form id="loginForm" class="admin-form">
+        <label>Email admin<input id="adminEmail" type="email" autocomplete="username" required /></label>
+        <label>Password<input id="adminPassword" type="password" autocomplete="current-password" required /></label>
+        <p class="form-status" id="loginStatus" role="status"></p>
+        <button class="primary-button" type="submit">Masuk</button>
+      </form>
+    </section>
+
+    <section class="admin-panel" id="generatorPanel" hidden>
+      <div class="panel-heading">
+        <div><span class="eyebrow">KOPI KENANGAN</span><h1>Buat Kode Reseller</h1></div>
+        <span class="membership-price">Rp25.000 / 30 hari</span>
+      </div>
+      <form id="resellerForm" class="admin-form">
+        <label>Nama reseller<input id="resellerName" type="text" autocomplete="off" required /></label>
+        <label>Nomor WhatsApp<input id="resellerPhone" type="tel" placeholder="08xxxxxxxxxx" autocomplete="off" required /></label>
+        <label>Masa aktif
+          <select id="membershipDays"><option value="30">30 hari</option><option value="60">60 hari</option><option value="90">90 hari</option></select>
+        </label>
+        <p class="form-status" id="generatorStatus" role="status"></p>
+        <button class="primary-button" type="submit">Buat Kode Otomatis</button>
+      </form>
+
+      <article class="result-panel" id="resultPanel" hidden>
+        <span>KODE RESELLER BERHASIL DIBUAT</span>
+        <strong id="generatedCode"></strong>
+        <p id="generatedDetails"></p>
+        <div class="result-actions">
+          <button id="copyCodeButton" class="quiet-button" type="button">Salin Kode</button>
+          <a id="sendWhatsappButton" class="primary-button" target="_blank" rel="noopener">Kirim via WhatsApp</a>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="reseller-admin.js"></script>
+</body>
+</html>

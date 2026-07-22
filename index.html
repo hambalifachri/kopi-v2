@@ -40,6 +40,7 @@
           <strong>kopi.fachrindah</strong>
         </div>
         <div class="app-actions">
+          <button id="resellerAccessButton" class="header-nav-btn reseller-trigger" type="button">Reseller</button>
           <button id="headerGuideButton" class="header-nav-btn" type="button">Panduan</button>
           <button id="headerTestimonialButton" class="header-nav-btn" type="button">Testi</button>
           <button id="headerCartButton" class="header-cart-button" type="button" aria-label="Buka keranjang">
@@ -48,6 +49,13 @@
           </button>
         </div>
       </header>
+      <div class="reseller-status-bar" id="resellerStatusBar" hidden>
+        <div>
+          <span>Harga reseller Kopi Kenangan aktif</span>
+          <strong id="resellerStatusText"></strong>
+        </div>
+        <button id="resellerLogoutButton" type="button">Keluar</button>
+      </div>
       <div class="price-disclaimer">
         <p><strong>INFO PENTING:</strong> Harga pada website ini dapat berbeda dengan harga di outlet resmi. Jika ada selisih harga atau biaya tambahan, admin akan selalu menginfokan dan meminta persetujuanmu via WhatsApp sebelum memproses pesanan.</p>
       </div>
@@ -386,6 +394,7 @@
               
               <label for="modalCustomerAddress">Lokasi outlet</label>
               <div class="gps-search-block">
+                <div id="manualOutletTools">
                 <input id="searchCityInput" type="text" placeholder="Cari lokasi di Maps (tujuan untuk cari alamat saja)..." />
                 <button id="btnGPS" type="button">📍 Cari di Maps</button>
                 
@@ -394,6 +403,7 @@
                   *Tombol Maps hanya untuk cari lokasi. Harap isi/paste nama outlet lengkap pada kolom di bawah ini.
                 </p>
                 
+                </div>
                 <textarea id="modalCustomerAddress" name="customerAddress" rows="2" placeholder="Tulis/Paste Nama Outlet Lengkap di sini (Contoh: Kopi Kenangan Mall Kelapa Gading 3)" required></textarea>
               </div>
               <p id="gpsStatus" style="margin: 0; color: var(--muted); font-size: 0.75rem; font-weight: 800; line-height: 1.4;"></p>
@@ -502,6 +512,41 @@
         </ol>
         <p style="margin-top: 16px; color:#7a6456; font-size:0.95rem;">Untuk Android, tombol install akan memicu prompt PWA biasa jika tersedia.</p>
       </div>
+    </div>
+
+    <div class="access-modal" id="brandChooserModal" hidden>
+      <section class="access-dialog brand-choice-dialog" role="dialog" aria-modal="true" aria-labelledby="brandChooserTitle">
+        <span class="access-kicker">Mulai Order</span>
+        <h2 id="brandChooserTitle">Pilih brand kopi</h2>
+        <p>Semua brand tersedia. Pilihanmu akan diingat untuk kunjungan berikutnya.</p>
+        <div class="brand-choice-grid">
+          <button type="button" data-choose-brand="kopi-kenangan"><strong>Kopi Kenangan</strong><span>Menu outlet langsung</span></button>
+          <button type="button" data-choose-brand="tomoro"><strong>Tomoro</strong><span>Kopi dan non-kopi</span></button>
+          <button type="button" data-choose-brand="fore"><strong>Fore Coffee</strong><span>Signature dan deli</span></button>
+        </div>
+      </section>
+    </div>
+
+    <div class="access-modal" id="resellerModal" hidden>
+      <section class="access-dialog" role="dialog" aria-modal="true" aria-labelledby="resellerModalTitle">
+        <button class="access-close" id="closeResellerModal" type="button" aria-label="Tutup">X</button>
+        <span class="access-kicker">Khusus Kopi Kenangan</span>
+        <h2 id="resellerModalTitle">Akses Reseller</h2>
+        <p>Masukkan kode dan WhatsApp yang terdaftar. Membership aktif selama 30 hari.</p>
+        <form id="resellerLoginForm" class="reseller-login-form">
+          <label>
+            Kode reseller
+            <input id="resellerCodeInput" name="resellerCode" type="text" placeholder="KF-RSL-XXXXXX" autocomplete="off" required />
+          </label>
+          <label>
+            WhatsApp terdaftar
+            <input id="resellerPhoneInput" name="resellerPhone" type="tel" placeholder="08xxxxxxxxxx" autocomplete="tel" required />
+          </label>
+          <p class="reseller-login-status" id="resellerLoginStatus" role="status"></p>
+          <button class="send-button" type="submit">Aktifkan Harga Reseller</button>
+        </form>
+        <a class="reseller-register-link" href="https://wa.me/6281281400462?text=Halo%20admin%2C%20saya%20mau%20daftar%20reseller%20kopi.fachrindah" target="_blank" rel="noopener">Daftar reseller Rp25.000 / 30 hari</a>
+      </section>
     </div>
 
     <!-- SCRIPT (BIARKAN TETAP DI BAWAH) -->
