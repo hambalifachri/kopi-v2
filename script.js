@@ -6,7 +6,8 @@ const MY_SUPABASE_URL = "https://bpkpydfvevlktyeapunf.supabase.co";
 const MY_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwa3B5ZGZ2ZXZsa3R5ZWFwdW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODc2NTQsImV4cCI6MjA5NTE2MzY1NH0.GTnmA5rAfRwH_tDchpxtXXM6TmRpFaK0yOW5jRyVhY4";
 
 // Variabel bawaan
-let kopkenMinOrder = 3; 
+let kopkenMinimumEnabled = false;
+let kopkenMinimumOfficialTotal = 50000;
 
 async function fetchStoreSettings() {
   try {
@@ -19,7 +20,7 @@ async function fetchStoreSettings() {
     // Ambil data dari tabel app_settings
     const { data, error } = await mySupabase
       .from('app_settings')
-      .select('kopken_min_order')
+      .select('kopken_minimum_enabled, kopken_minimum_official_total')
       .limit(1);
 
     if (error) {
@@ -28,7 +29,14 @@ async function fetchStoreSettings() {
     }
 
     if (data && data.length > 0) {
-      kopkenMinOrder = data[0].kopken_min_order;
+      const settings = data[0];
+      kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
+      const configuredTotal = Number(settings.kopken_minimum_official_total);
+      if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
+        kopkenMinimumOfficialTotal = configuredTotal;
+      }
+      updatePromoLabelVisibility();
+      const kopkenMinOrder = kopkenMinimumEnabled ? "aktif" : "nonaktif";
       console.log("⚡ Aturan minimal order hari ini dari Supabase:", kopkenMinOrder);
     }
   } catch (error) {
@@ -151,6 +159,7 @@ let proofPreviewUrl = "";
 let supabaseClient = null;
 
 let selectedOptions = {};
+let bundleSelectionConstraints = {};
 
 const rupiah = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -468,6 +477,80 @@ function getMenuPriceValue(item, ...keys) {
   return undefined;
 }
 
+function getOfficialItemPrice(item) {
+  const sourceItem = menuItems.find((menuItem) => menuItem.id === item.id) || item;
+  if (item.dynamicOutletBundle) {
+    const bundleItem = item.bundleOptionGroups
+      ? { ...item, options: item.bundleOptionGroups }
+      : sourceItem;
+    return getDynamicBundleOfficialTotal(bundleItem, item.options || {});
+  }
+
+  let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
+
+  // Keep the existing official-price convention for the Large size.
+  if (item.options?.size === "Large") officialPrice += 5000;
+  return officialPrice;
+}
+
+function getOfficialCartTotal() {
+  return [...cart.values()].reduce((total, item) => total + (getOfficialItemPrice(item) * item.qty), 0);
+}
+
+function getDynamicBundleOfficialTotal(item, selections) {
+  if (!item.dynamicOutletBundle || !Array.isArray(item.options)) return 0;
+  return item.options.reduce((total, group) => {
+    const selectedOption = group.options.find((option) => option.value === selections[group.key]);
+    return total + (Number(selectedOption?.officialPrice) || 0);
+  }, 0);
+}
+
+function findDynamicBundleExactSelection(item, requiredSelections = {}) {
+  if (!item.dynamicOutletBundle || !Array.isArray(item.options)) return false;
+  const menuGroups = item.options.filter((group) => group.options.some((option) => Number(option.officialPrice) > 0));
+  const target = Number(item.bundleMinimum) || 0;
+  let matchedSelections = null;
+
+  function findMatch(groupIndex, total, candidate) {
+    if (matchedSelections || total > target) return;
+    if (groupIndex >= menuGroups.length) {
+      if (total === target) matchedSelections = candidate;
+      return;
+    }
+
+    const group = menuGroups[groupIndex];
+    const requiredValue = requiredSelections[group.key];
+    const options = requiredValue
+      ? group.options.filter((option) => option.value === requiredValue)
+      : group.options;
+    options.forEach((option) => {
+      findMatch(groupIndex + 1, total + Number(option.officialPrice || 0), {
+        ...candidate,
+        [group.key]: option.value,
+      });
+    });
+  }
+
+  findMatch(0, 0, {});
+  return matchedSelections;
+}
+
+function reconcileDynamicBundleSelections(item, fixedKey) {
+  const fixedValue = selectedOptions[fixedKey];
+  const requiredSelections = { ...bundleSelectionConstraints, [fixedKey]: fixedValue };
+  const matchedSelections = findDynamicBundleExactSelection(item, requiredSelections);
+  if (!matchedSelections) return false;
+  Object.assign(selectedOptions, matchedSelections);
+  bundleSelectionConstraints = requiredSelections;
+  return true;
+}
+
+function isDynamicBundleOptionDisabled(item, group, option) {
+  if (!item.dynamicOutletBundle || !Number(option.officialPrice)) return false;
+  const requiredSelections = { ...bundleSelectionConstraints, [group.key]: option.value };
+  return !findDynamicBundleExactSelection(item, requiredSelections);
+}
+
 function getKenanganOptionGroups(item) {
   const activeLargeBlock = getActiveSizeBlock(item, "Large")
   const regularPrice = getMenuPriceValue(item, "price") || 0;
@@ -638,6 +721,7 @@ function getVisibleOptionGroups(item) {
 }
 
 function getOptionPriceText(option, item) {
+  if (item.dynamicOutletBundle && option.priceDelta) return rupiah.format(option.priceDelta);
   if (option.priceDelta) return `+${rupiah.format(option.priceDelta)}`;
   if (option.price && option.price !== item.price) return rupiah.format(option.price);
   return "";
@@ -667,8 +751,9 @@ function renderDynamicOptions(item) {
       <div class="option-grid ${gridClass}">
         ${group.options.map((option) => {
           const isSelected = selectedOptions[group.key] === option.value;
+          const isDisabled = isDynamicBundleOptionDisabled(item, group, option);
           const priceText = getOptionPriceText(option, item);
-          return `<button class="option-card ${isSelected ? "selected" : ""}" type="button" data-option-group="${escapeHtml(group.key)}" data-option-value="${escapeHtml(option.value)}">
+          return `<button class="option-card ${isSelected ? "selected" : ""}" type="button" data-option-group="${escapeHtml(group.key)}" data-option-value="${escapeHtml(option.value)}" ${isDisabled ? "disabled" : ""}>
             ${optionIconHtml(option)}
             <strong>${escapeHtml(option.label || option.value)}</strong>
             ${priceText ? `<span class="option-price">${escapeHtml(priceText)}</span>` : ""}
@@ -694,6 +779,13 @@ function formatOptionKey(key) {
 }
 
 function menuVisual(item) {
+  if (item.bundleImageUrls && item.bundleImageUrls.length > 0) {
+    const collageClass = `items-${item.bundleImageUrls.length}`;
+    return `<div class="photo-frame bundle-collage ${collageClass}">
+      ${item.bundleImageUrls.map((img) => `<img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.remove();" />`).join('')}
+    </div>`;
+  }
+
   // KHUSUS UNTUK MENU BUNDLE (KOLASE FOTO)
   if (item.bundleImages && item.bundleImages.length > 0) {
     const collageClass = `items-${item.bundleImages.length}`;
@@ -1017,6 +1109,7 @@ function renderMenu(query = "") {
   htmlOutput += visibleCategories.map((category) => {
     const categoryMatches = normalizeText(category.title).includes(normalizedQuery);
     const items = sortMenuItems(modeItems.filter((item) => {
+      if (foundItems.has(item.id)) return false;
       if (!getItemGroups(item).includes(category.id)) return false;
       if (!normalizedQuery) return true;
       return categoryMatches || normalizeText(item.name).includes(normalizedQuery);
@@ -1193,6 +1286,7 @@ function isFoodItem(item) {
 
 function resetSelectedOptions(item) {
   selectedOptions = {};
+  bundleSelectionConstraints = {};
   ensureSelectedOptions(item);
   renderDynamicOptions(item);
 }
@@ -1217,7 +1311,7 @@ function setModalStage(stage) {
 }
 
 function calculateItemPrice(item, options) {
-  let price = item.price; 
+  let price = item.dynamicOutletBundle ? -(Number(item.bundleDiscount) || 0) : item.price;
   getItemOptionGroups(item).forEach((group) => {
     const selectedValue = options[group.key];
     const selectedOption = group.options.find((option) => option.value === selectedValue);
@@ -1231,8 +1325,14 @@ function calculateItemPrice(item, options) {
 function updateModalLivePrice(item) {
   const calculatedPrice = calculateItemPrice(item, selectedOptions);
   const priceEl = document.getElementById("modalItemPrice");
+  const bundleOfficialTotal = getDynamicBundleOfficialTotal(item, selectedOptions);
   if (priceEl) {
-    priceEl.textContent = rupiah.format(calculatedPrice);
+    priceEl.textContent = item.dynamicOutletBundle
+      ? `${rupiah.format(calculatedPrice)} | Harga outlet ${rupiah.format(bundleOfficialTotal)}`
+      : rupiah.format(calculatedPrice);
+  }
+  if (item.dynamicOutletBundle) {
+    addConfiguredItemButton.disabled = bundleOfficialTotal !== item.bundleMinimum;
   }
 }
 
@@ -1298,6 +1398,7 @@ function addItem(id, note = "") {
     price: calculatedPrice, // Pakai harga hasil hitungan
     cartKey,
     options,
+    bundleOptionGroups: item.dynamicOutletBundle ? cloneOptionGroups(item.options) : undefined,
     note: itemNote,
     qty: current ? current.qty + 1 : 1
   });
@@ -1331,6 +1432,41 @@ function formatItemNoteForWA(note) {
   return cleanNote ? `\n   Catatan: ${cleanNote}` : "";
 }
 
+function formatDynamicBundleForWA(item) {
+  const options = item.options || {};
+  const drinkIndexes = [1, 2].filter((index) => options[`minuman${index}`]);
+  const lines = ["   *ISI BUNDLE:*", ""];
+
+  drinkIndexes.forEach((index) => {
+    lines.push(`   *MINUMAN ${index}*`);
+    lines.push(`   - Menu: ${options[`minuman${index}`]}`);
+    lines.push(`   - Suhu: ${options[`suhuMinuman${index}`] || "-"}`);
+    lines.push(`   - Es: ${options[`esMinuman${index}`] || "-"}`);
+    lines.push(`   - Gula: ${options[`gulaMinuman${index}`] || "-"}`);
+    lines.push("");
+  });
+
+  lines.push("   *MAKANAN*");
+  lines.push(`   - Menu: ${options.makanan || "-"}`);
+  lines.push("");
+  lines.push("   *HARGA PER BUNDLE*");
+  lines.push(`   - Harga outlet: ${rupiah.format(getOfficialItemPrice(item))}`);
+  lines.push(`   - Diskon bundle: -${rupiah.format(Number(item.bundleDiscount) || 0)}`);
+  lines.push(`   - Harga bayar: *${rupiah.format(item.price)}*`);
+  return lines.join("\n");
+}
+
+function formatOrderItemForWA(item, index) {
+  const itemNote = formatItemNoteForWA(item.note);
+  if (item.dynamicOutletBundle) {
+    return `${index + 1}. *${item.qty}x ${item.name}*\n${formatDynamicBundleForWA(item)}${itemNote}`;
+  }
+
+  const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
+  const baseResmi = getOfficialItemPrice(item);
+  return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
+}
+
 function formatProofForWA(savedOrder) {
   if (savedOrder?.proof?.url) return savedOrder.proof.url;
 
@@ -1342,12 +1478,7 @@ function buildWhatsappMessage(formData, savedOrder) {
   const entries = [...cart.values()];
   
   // 1. Hitung Subtotal Asli (Harga Resmi)
-  const subtotalAsli = entries.reduce((total, item) => {
-    const originalItem = menuItems.find(m => m.id === item.id);
-    let basePrice = originalItem ? (originalItem.oldPrice || item.price) : item.price;
-    if (item.options && item.options.size === "Large") basePrice += 5000;
-    return total + (basePrice * item.qty);
-  }, 0);
+  const subtotalAsli = entries.reduce((total, item) => total + (getOfficialItemPrice(item) * item.qty), 0);
   
   const finalTotalBayar = entries.reduce((total, item) => total + (item.price * item.qty), 0);
   const brandName = getCartBrandName() || getActiveBrand().label;
@@ -1359,9 +1490,7 @@ function buildWhatsappMessage(formData, savedOrder) {
     // Flatten item dengan menyertakan harga resmi (batchPrice)
     let flattenedItems = [];
     entries.forEach(item => {
-      const originalItem = menuItems.find(m => m.id === item.id);
-      let baseBatch = originalItem ? (originalItem.oldPrice || item.price) : item.price;
-      if (item.options && item.options.size === "Large") baseBatch += 5000;
+      const baseBatch = getOfficialItemPrice(item);
       
       for (let i = 0; i < item.qty; i++) {
         flattenedItems.push({ ...item, qty: 1, batchPrice: baseBatch });
@@ -1399,12 +1528,7 @@ function buildWhatsappMessage(formData, savedOrder) {
       });
 
       let lines = groupedBucket.map((item, i) => {
-        const originalItem = menuItems.find((m) => m.id === item.id);
-        const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
-        const itemNote = formatItemNoteForWA(item.note);
-        let baseResmi = originalItem ? (originalItem.oldPrice || item.price) : item.price;
-        if (item.options && item.options.size === "Large") baseResmi += 5000;
-        return `${i + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
+        return formatOrderItemForWA(item, i);
       }).join("\n\n");
 
       const totalAsliBatch = bucket.reduce((sum, it) => sum + it.batchPrice, 0);
@@ -1415,12 +1539,7 @@ function buildWhatsappMessage(formData, savedOrder) {
   } else {
     // Logika non-kopken tetap sama
     orderLinesText = entries.map((item, index) => {
-      const originalItem = menuItems.find((m) => m.id === item.id);
-      const ops = item.options && Object.keys(item.options).length > 0 ? `\n${formatOptionsForWA(item.options)}` : "";
-      const itemNote = formatItemNoteForWA(item.note);
-      let baseResmi = originalItem ? (originalItem.oldPrice || item.price) : item.price;
-      if (item.options && item.options.size === "Large") baseResmi += 5000;
-      return `${index + 1}. *${item.qty}x ${item.name}* (~${rupiah.format(baseResmi)}~ *${rupiah.format(item.price)}*)${ops}${itemNote}`;
+      return formatOrderItemForWA(item, index);
     }).join("\n\n");
   }
 
@@ -1491,6 +1610,10 @@ modalOptions.addEventListener("click", (event) => {
   if (!item) return;
 
   selectedOptions[button.dataset.optionGroup] = button.dataset.optionValue;
+  const selectedGroup = item.options?.find((group) => group.key === button.dataset.optionGroup);
+  if (item.dynamicOutletBundle && selectedGroup?.options.some((option) => Number(option.officialPrice) > 0)) {
+    reconcileDynamicBundleSelections(item, button.dataset.optionGroup);
+  }
   renderDynamicOptions(item);
   updateModalLivePrice(item);
 });
@@ -1609,6 +1732,12 @@ document.addEventListener("click", (event) => {
 
 addConfiguredItemButton.addEventListener("click", () => {
   if (!pendingItemId) return;
+  const item = menuItems.find((menuItem) => menuItem.id === pendingItemId);
+  if (!item) return;
+  if (item.dynamicOutletBundle && getDynamicBundleOfficialTotal(item, selectedOptions) !== item.bundleMinimum) {
+    alert(`Pilih kombinasi minuman dan makanan dengan total harga outlet tepat ${rupiah.format(item.bundleMinimum)}.`);
+    return;
+  }
   addItem(pendingItemId, itemNoteInput ? itemNoteInput.value : "");
   setModalStage("cart");
 });
@@ -1630,21 +1759,21 @@ goCheckoutButton.addEventListener("click", () => {
   }
 
   const totalQty = getCartQuantity();
-  const hasBundling = [...cart.values()].some(item => item.group && item.group.includes("promo"));
   const requiresKopkenMinimum = cartBrandId === "kopi-kenangan";
 
   // 👇 SISTEM AKAN MEMBACA ANGKA TERBARU DARI SUPABASE 👇
-  const minimalBeli = kopkenMinOrder; 
+  const officialCartTotal = getOfficialCartTotal();
 
   if (totalQty === 0) {
     alert("Keranjang masih kosong. Pilih menu dulu ya.");
     return;
   }
 
-  if (!requiresKopkenMinimum || totalQty >= minimalBeli || hasBundling) {
+  if (!requiresKopkenMinimum || !kopkenMinimumEnabled || officialCartTotal >= kopkenMinimumOfficialTotal) {
     setModalStage("checkout"); 
   } else {
-    alert(`Pesanan kamu baru ${totalQty} menu.\nMinimal untuk Kopi Kenangan saat ini adalah ${minimalBeli} item (bisa gabung makanan/bundle).\nUntuk Tomoro dan Fore, tidak ada minimal pesanan.`);
+    const remaining = kopkenMinimumOfficialTotal - officialCartTotal;
+    alert(`Total harga normal menu kamu ${rupiah.format(officialCartTotal)}.\nMinimal order Kopi Kenangan adalah ${rupiah.format(kopkenMinimumOfficialTotal)} berdasarkan harga outlet.\nTambah menu minimal ${rupiah.format(remaining)} lagi ya.`);
   }
 });
 
@@ -2001,6 +2130,12 @@ function updatePromoLabelVisibility() {
   // Jika brand aktif adalah 'kopi-kenangan', tampilkan. Jika bukan (misal: 'fore'), sembunyikan total.
   if (activeBrandId === 'kopi-kenangan') {
     promoLabel.style.display = 'block'; 
+    const promoMain = promoLabel.querySelector('.promo-main');
+    if (promoMain) {
+      promoMain.textContent = kopkenMinimumEnabled
+        ? `Kopi Kenangan: Minimal harga outlet ${rupiah.format(kopkenMinimumOfficialTotal)}`
+        : 'Kopi Kenangan: Tanpa minimal order';
+    }
   } else {
     promoLabel.style.display = 'none'; // Benar-benar hilang dari layout
   }

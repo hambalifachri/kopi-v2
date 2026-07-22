@@ -48,7 +48,7 @@ Foto produk disimpan di `assets/menu`. Mapping foto ke produk ada di `script.js`
 
 ## Minimal Order
 
-Minimal order adalah 2 menu. Biaya jasa tidak dihitung di aplikasi ini.
+Pengaturan minimal order Kopi Kenangan disimpan di tabel `app_settings` Supabase. Ubah `kopken_minimum_enabled` menjadi `true` atau `false`, lalu isi `kopken_minimum_official_total` dengan nominal harga outlet yang diinginkan. Perubahan dipakai saat web dibuka atau di-refresh. Tomoro dan Fore tidak memiliki minimal order.
 
 ## Pembayaran
 

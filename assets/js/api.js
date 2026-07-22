@@ -41,6 +41,17 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   },
 };
 
+const KOPI_KENANGAN_BUNDLE_MINIMUM = 50000;
+const KOPI_KENANGAN_BUNDLE_DISCOUNT = 2000;
+const KOPI_KENANGAN_FOOD_GROUPS = new Set([
+  "food",
+  "chef-martin",
+  "kenangan-toast",
+  "cerita-roti",
+  "bakery",
+  "snack",
+]);
+
 const API_GROUP_ALIASES = {
   "baru": "baru",
   "coffee": "coffee",
@@ -172,7 +183,136 @@ function isLocalPromoMenuItem(item) {
 }
 
 function shouldKeepLocalKopiKenanganItem(item) {
-  return isLocalPromoMenuItem(item);
+  return false;
+}
+
+function isDynamicBundleFood(item) {
+  const groups = Array.isArray(item?.group) ? item.group : [item?.group].filter(Boolean);
+  const kind = normalizeApiText(item?.kind);
+  return ["food", "toast", "cookie"].includes(kind)
+    || groups.some((group) => KOPI_KENANGAN_FOOD_GROUPS.has(normalizeApiText(group)));
+}
+
+function getDynamicBundleDrinkDetails(index) {
+  return [
+    {
+      key: `suhuMinuman${index}`,
+      label: `Suhu Minuman ${index}`,
+      options: [
+        { value: "Ice", label: "Ice" },
+        { value: "Hot", label: "Hot" },
+      ],
+    },
+    {
+      key: `esMinuman${index}`,
+      label: `Es Minuman ${index}`,
+      dependsOn: { key: `suhuMinuman${index}`, value: "Ice" },
+      hiddenValue: "No Ice",
+      options: [
+        { value: "Normal Ice", label: "Normal Ice" },
+        { value: "Less Ice", label: "Less Ice" },
+        { value: "No Ice", label: "No Ice" },
+      ],
+    },
+    {
+      key: `gulaMinuman${index}`,
+      label: `Gula Minuman ${index}`,
+      options: [
+        { value: "Normal Sugar", label: "Normal Sugar" },
+        { value: "Less Sugar", label: "Less Sugar" },
+        { value: "No Sugar", label: "No Sugar" },
+      ],
+    },
+  ];
+}
+
+function buildDynamicBundleItem(drinks, foods, drinkCount) {
+  let defaultCombination = null;
+  const eligibleDrinkIds = new Set();
+  const eligibleFoodIds = new Set();
+
+  const considerCombination = (selectedDrinks, food) => {
+    const officialTotal = selectedDrinks.reduce((total, drink) => total + drink.oldPrice, food.oldPrice);
+    if (officialTotal !== KOPI_KENANGAN_BUNDLE_MINIMUM) return;
+
+    const sellingTotal = selectedDrinks.reduce((total, drink) => total + drink.price, food.price)
+      - KOPI_KENANGAN_BUNDLE_DISCOUNT;
+    selectedDrinks.forEach((drink) => eligibleDrinkIds.add(drink.id));
+    eligibleFoodIds.add(food.id);
+
+    if (!defaultCombination || sellingTotal < defaultCombination.sellingTotal) {
+      defaultCombination = { drinks: selectedDrinks, food, officialTotal, sellingTotal };
+    }
+  };
+
+  drinks.forEach((drinkOne) => {
+    if (drinkCount === 1) {
+      foods.forEach((food) => considerCombination([drinkOne], food));
+      return;
+    }
+    drinks.forEach((drinkTwo) => {
+      foods.forEach((food) => considerCombination([drinkOne, drinkTwo], food));
+    });
+  });
+
+  if (!defaultCombination) return null;
+
+  const toBundleOption = (item) => ({
+    value: item.name,
+    label: item.name,
+    priceDelta: item.price,
+    officialPrice: item.oldPrice,
+    menuId: item.id,
+  });
+  const orderWithDefault = (itemsToOrder, defaultItem, eligibleIds) => [
+    defaultItem,
+    ...itemsToOrder.filter((item) => item.id !== defaultItem.id && eligibleIds.has(item.id)),
+  ];
+  const options = [];
+
+  defaultCombination.drinks.forEach((defaultDrink, index) => {
+    const optionIndex = index + 1;
+    options.push({
+      key: `minuman${optionIndex}`,
+      label: `Pilih Minuman ${optionIndex}`,
+      options: orderWithDefault(drinks, defaultDrink, eligibleDrinkIds).map(toBundleOption),
+    });
+    options.push(...getDynamicBundleDrinkDetails(optionIndex));
+  });
+  options.push({
+    key: "makanan",
+    label: "Pilih Makanan",
+    options: orderWithDefault(foods, defaultCombination.food, eligibleFoodIds).map(toBundleOption),
+  });
+
+  const bundleLabel = drinkCount === 1 ? "1 Minuman + 1 Makanan" : "2 Minuman + 1 Makanan";
+  return {
+    id: `dynamic-outlet-bundle-50k-${drinkCount}-drink`,
+    brand: "kopi-kenangan",
+    group: "promo-50k",
+    name: `Bundle 50K - ${bundleLabel}`,
+    desc: `${bundleLabel}, bebas tukar dengan total harga outlet tepat Rp50.000. Diskon bundle Rp2.000.`,
+    price: defaultCombination.sellingTotal,
+    oldPrice: defaultCombination.officialTotal,
+    image: defaultCombination.drinks[0].image || defaultCombination.food.image || null,
+    bundleImageUrls: [...defaultCombination.drinks, defaultCombination.food]
+      .map((item) => item.image)
+      .filter(Boolean),
+    dynamicOutletBundle: true,
+    bundleMinimum: KOPI_KENANGAN_BUNDLE_MINIMUM,
+    bundleDiscount: KOPI_KENANGAN_BUNDLE_DISCOUNT,
+    options,
+  };
+}
+
+function buildDynamicKopiKenanganBundles(items) {
+  const availableItems = items.filter((item) => !item.isSoldOut && item.price > 0 && item.oldPrice > 0);
+  const drinks = availableItems.filter((item) => !isDynamicBundleFood(item));
+  const foods = availableItems.filter(isDynamicBundleFood);
+  return [
+    buildDynamicBundleItem(drinks, foods, 1),
+    buildDynamicBundleItem(drinks, foods, 2),
+  ].filter(Boolean);
 }
 
 function mergeMenuGroups(...groups) {
@@ -222,7 +362,7 @@ function mergeDuplicateMenuItems(items) {
   items.forEach((item) => {
     if (!item?.name) return;
 
-    const key = `${item.brand || ""}|${normalizeMenuName(item.name)}`;
+    const key = `${item.brand || ""}|${normalizeApiText(item.name)}`;
     const existing = uniqueMap.get(key);
 
     if (!existing) {
@@ -448,6 +588,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     );
 
     const dynamicItems = buildDynamicKopiKenanganItems(rawResponse, localMenuByName);
+    const dynamicBundles = buildDynamicKopiKenanganBundles(dynamicItems);
     const nonKopiKenanganItems = menuItems.filter((item) => item && item.brand !== "kopi-kenangan");
     const localItemsToKeep = (originalKopiKenanganMenu || [])
       .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
@@ -458,6 +599,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       ...nonKopiKenanganItems,
       ...localItemsToKeep,
       ...dynamicItems,
+      ...dynamicBundles,
     ]));
 
     setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode });
@@ -475,6 +617,7 @@ window.handleKopiKenanganData = function(data) {
   cacheOriginalKopiKenanganMenu();
   const localMenuByName = new Map((originalKopiKenanganMenu || []).map(i => [normalizeMenuName(i.name), i]));
   const dynamicItems = buildDynamicKopiKenanganItems(data, localMenuByName);
+  const dynamicBundles = buildDynamicKopiKenanganBundles(dynamicItems);
   const nonKopiKenanganItems = menuItems.filter(i => i.brand !== "kopi-kenangan");
   const localItemsToKeep = (originalKopiKenanganMenu || [])
     .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
@@ -485,6 +628,7 @@ window.handleKopiKenanganData = function(data) {
     ...nonKopiKenanganItems,
     ...localItemsToKeep,
     ...dynamicItems,
+    ...dynamicBundles,
   ]));
 
   if (typeof renderMenu === "function") renderMenu();

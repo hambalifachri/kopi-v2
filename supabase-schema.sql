@@ -14,6 +14,30 @@ create table if not exists public.orders (
   payment_proof_url text not null
 );
 
+-- Jalankan sekali untuk pengaturan minimum order dari Dashboard Supabase.
+create table if not exists public.app_settings (
+  id integer primary key,
+  kopken_minimum_enabled boolean not null default false,
+  kopken_minimum_official_total integer not null default 50000
+);
+
+alter table public.app_settings
+  add column if not exists kopken_minimum_enabled boolean not null default false,
+  add column if not exists kopken_minimum_official_total integer not null default 50000;
+
+insert into public.app_settings (id, kopken_minimum_enabled, kopken_minimum_official_total)
+values (1, false, 50000)
+on conflict (id) do nothing;
+
+alter table public.app_settings enable row level security;
+
+drop policy if exists "Allow public app settings read" on public.app_settings;
+create policy "Allow public app settings read"
+on public.app_settings
+for select
+to anon
+using (true);
+
 alter table public.orders enable row level security;
 
 drop policy if exists "Allow public order insert" on public.orders;
