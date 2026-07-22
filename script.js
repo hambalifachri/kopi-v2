@@ -488,8 +488,7 @@ function getOfficialItemPrice(item) {
 
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
 
-  // Keep the existing official-price convention for the Large size.
-  if (item.options?.size === "Large") officialPrice += 5000;
+  // Jangan menebak selisih ukuran; harga asli harus tetap mengikuti data outlet/API.
   return officialPrice;
 }
 
