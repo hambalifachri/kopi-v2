@@ -110,12 +110,16 @@ grant execute on function public.admin_create_reseller(text, text, integer) to a
 create table if not exists public.app_settings (
   id integer primary key,
   kopken_minimum_enabled boolean not null default false,
-  kopken_minimum_official_total integer not null default 50000
+  kopken_minimum_official_total integer not null default 50000,
+  all_stores_closed boolean not null default false,
+  store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.'
 );
 
 alter table public.app_settings
   add column if not exists kopken_minimum_enabled boolean not null default false,
-  add column if not exists kopken_minimum_official_total integer not null default 50000;
+  add column if not exists kopken_minimum_official_total integer not null default 50000,
+  add column if not exists all_stores_closed boolean not null default false,
+  add column if not exists store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.';
 
 insert into public.app_settings (id, kopken_minimum_enabled, kopken_minimum_official_total)
 values (1, false, 50000)

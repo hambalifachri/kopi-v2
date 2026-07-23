@@ -8,6 +8,9 @@ const MY_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 // Variabel bawaan
 let kopkenMinimumEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
+let allStoresClosed = false;
+let globalStoreClosedMessage = "Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.";
+let storeSettingsClient = null;
 
 async function fetchStoreSettings() {
   try {
@@ -15,13 +18,25 @@ async function fetchStoreSettings() {
     if (!window.supabase) return; 
     
     // Buat client khusus untuk membaca settingan
-    const mySupabase = window.supabase.createClient(MY_SUPABASE_URL, MY_SUPABASE_ANON_KEY);
+    if (!storeSettingsClient) {
+      storeSettingsClient = window.supabase.createClient(MY_SUPABASE_URL, MY_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+    }
     
     // Ambil data dari tabel app_settings
-    const { data, error } = await mySupabase
+    let { data, error } = await storeSettingsClient
       .from('app_settings')
-      .select('kopken_minimum_enabled, kopken_minimum_official_total')
+      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message')
       .limit(1);
+
+    // Tetap baca aturan minimum lama selama migrasi kolom tutup toko belum dijalankan.
+    if (error) {
+      const fallback = await storeSettingsClient
+        .from('app_settings')
+        .select('kopken_minimum_enabled, kopken_minimum_official_total')
+        .limit(1);
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) {
        console.log("Abaikan jika tabel belum dibuat di Supabase:", error.message);
@@ -30,12 +45,16 @@ async function fetchStoreSettings() {
 
     if (data && data.length > 0) {
       const settings = data[0];
+      const previousClosedState = allStoresClosed;
       kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
+      allStoresClosed = settings.all_stores_closed === true;
+      globalStoreClosedMessage = String(settings.store_closed_message || globalStoreClosedMessage).trim();
       const configuredTotal = Number(settings.kopken_minimum_official_total);
       if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
         kopkenMinimumOfficialTotal = configuredTotal;
       }
       updatePromoLabelVisibility();
+      if (previousClosedState !== allStoresClosed && typeof renderMenu === "function") renderMenu();
       const kopkenMinOrder = kopkenMinimumEnabled ? "aktif" : "nonaktif";
       console.log("⚡ Aturan minimal order hari ini dari Supabase:", kopkenMinOrder);
     }
@@ -46,6 +65,7 @@ async function fetchStoreSettings() {
 
 // Jalankan saat web dibuka
 fetchStoreSettings();
+setInterval(fetchStoreSettings, 30000);
 
 // ==========================================
 // (Lanjut ke kode Anda di bawahnya...)
@@ -62,6 +82,10 @@ function checkStoreStatus(brandId) {
   const hour = now.getHours(); 
   
   const waLink = "<br><br><a href='https://wa.me/6281281400462?text=Halo%20admin%20kopi.fachrindah,%20saya%20mau%20tanya-tanya%20dulu%20dong.' target='_blank' class='wa-direct-btn'>Chat WhatsApp Admin</a>";
+
+  if (allStoresClosed) {
+    return { closed: true, message: globalStoreClosedMessage + waLink };
+  }
 
   // 1. Cek penutupan spesifik per brand
   if (brandId === 'kopi-kenangan' && storeConfig.isKopkenClosed) {
@@ -2049,7 +2073,7 @@ setInterval(() => {
   // SKENARIO 1: Toko harusnya TUTUP, tapi di ingatan satpam masih BUKA
   if (store.closed && statusTokoSebelumnya === false) {
     statusTokoSebelumnya = true; // Update ingatan satpam jadi "Tutup"
-    alert("Waktu ibadah Sholat Jumat telah tiba. Toko ditutup sementara hingga pukul 13:00 WIB.");
+    alert("Semua pesanan sedang ditutup sementara. Silakan cek informasi pada halaman menu.");
     renderMenu(); // Tampilkan banner merah & kunci tombol
   } 
   
