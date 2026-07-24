@@ -42,14 +42,17 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   "korean-banana-latte": {
     largePrice: 21500,
     allowBeans: true,
+    noSugar: true,
   },
   "banana-americano": {
     largePrice: 19500,
     allowBeans: true,
+    noSugar: true,
   },
   "banana-choco": {
     largePrice: 22000,
     allowOatside: true,
+    noSugar: true,
   },
 };
 

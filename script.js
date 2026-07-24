@@ -156,12 +156,19 @@ const productImages = PRODUCT_IMAGES_DATA;
 const BRAND_STORAGE_KEY = "kopiFachrindahPreferredBrand";
 const RESELLER_CREDENTIALS_KEY = "kopiFachrindahResellerCredentials";
 const CUSTOMER_IDENTITY_KEY = "kopiFachrindahCustomerIdentity";
+const MANUAL_OUTLETS_KEY = "kopiFachrindahManualOutlets";
 const RESELLER_DISCOUNT = 1000;
 const savedBrandId = localStorage.getItem(BRAND_STORAGE_KEY);
 let activeBrandId = BRANDS.some((brand) => !brand.hidden && brand.id === savedBrandId)
   ? savedBrandId
   : (BRANDS[0]?.id || "kopi-kenangan");
 let resellerSession = null;
+let manualBrandOutlets = {};
+try {
+  manualBrandOutlets = JSON.parse(localStorage.getItem(MANUAL_OUTLETS_KEY) || "{}") || {};
+} catch (error) {
+  localStorage.removeItem(MANUAL_OUTLETS_KEY);
+}
 
 function slugifyAssetName(value) {
   return String(value)
@@ -241,6 +248,11 @@ const bundleTabs = document.querySelector("#bundleTabs");
 const sortSelect = document.querySelector("#sortSelect");
 const outletPanel = document.querySelector("#outletPanel");
 const selectedOutletName = document.querySelector("#selectedOutletName");
+const kopkenOutletSearchBox = document.querySelector("#kopkenOutletSearchBox");
+const manualBrandOutletControls = document.querySelector("#manualBrandOutletControls");
+const manualBrandOutletInput = document.querySelector("#manualBrandOutletInput");
+const manualBrandOutletLabel = document.querySelector("#manualBrandOutletLabel");
+const findManualOutletLink = document.querySelector("#findManualOutletLink");
 const wifiPasswordBar = document.querySelector("#wifiPasswordBar");
 const wifiPasswordText = document.querySelector("#wifiPasswordText");
 const wifiDateLabel = document.querySelector("#wifiDateLabel");
@@ -402,28 +414,43 @@ async function copyWifiPassword(password = getTodayWifiPassword()) {
 
 function syncOutletPanelVisibility() {
   if (!outletPanel) return;
-  const shouldShowOutletPanel = activeBrandId === "kopi-kenangan";
-  const outletName = selectedOutletName ? selectedOutletName.textContent.trim() : "";
+  const isKopken = activeBrandId === "kopi-kenangan";
+  const outletName = getSelectedOutletNameForBrand(activeBrandId);
   const hasSelectedOutlet = outletName && outletName !== "Belum dipilih";
   const addressFields = [
     document.getElementById("customerAddress"),
     document.getElementById("modalCustomerAddress"),
   ];
 
-  outletPanel.hidden = !shouldShowOutletPanel;
-  if (!shouldShowOutletPanel) {
+  outletPanel.hidden = false;
+  if (selectedOutletName) selectedOutletName.textContent = outletName || "Belum dipilih";
+  if (kopkenOutletSearchBox) kopkenOutletSearchBox.hidden = !isKopken;
+  const outletHint = document.getElementById("outletSearchHint");
+  if (outletHint) outletHint.hidden = !isKopken;
+  if (manualBrandOutletControls) manualBrandOutletControls.hidden = isKopken;
+  if (manualBrandOutletInput && !isKopken) manualBrandOutletInput.value = outletName;
+  if (manualBrandOutletLabel && !isKopken) manualBrandOutletLabel.textContent = getActiveBrand().label;
+  if (findManualOutletLink && !isKopken) {
+    findManualOutletLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${getActiveBrand().label} outlet`)}`;
+  }
+
+  if (!isKopken) {
     const outletResults = document.getElementById("outletResults");
     if (outletResults) outletResults.hidden = true;
     if (wifiDetailPanel) wifiDetailPanel.hidden = true;
-    if (wifiPasswordBar) wifiPasswordBar.setAttribute("aria-expanded", "false");
+    if (wifiPasswordBar) {
+      wifiPasswordBar.hidden = true;
+      wifiPasswordBar.setAttribute("aria-expanded", "false");
+    }
     if (wifiChevron) wifiChevron.classList.remove("open");
     addressFields.forEach((field) => {
-      if (field && hasSelectedOutlet && field.value.trim() === outletName) field.value = "";
+      if (field && hasSelectedOutlet) field.value = outletName;
     });
     syncCheckoutOutletField();
     return;
   }
 
+  if (wifiPasswordBar) wifiPasswordBar.hidden = false;
   addressFields.forEach((field) => {
     if (field && hasSelectedOutlet && !field.value.trim()) field.value = outletName;
   });
@@ -431,19 +458,25 @@ function syncOutletPanelVisibility() {
   renderWifiPassword();
 }
 
+function getSelectedOutletNameForBrand(brandId) {
+  if (brandId === "kopi-kenangan") {
+    return getKopiKenanganOutletState().outletName || "";
+  }
+  return String(manualBrandOutlets[brandId] || "").trim();
+}
+
 function syncCheckoutOutletField() {
   const field = document.getElementById("modalCustomerAddress");
   const manualTools = document.getElementById("manualOutletTools");
   if (!field) return;
   const orderBrandId = getCartBrandId() || activeBrandId;
-  const isKopken = orderBrandId === "kopi-kenangan";
-  const outletName = getKopiKenanganOutletState().outletName || selectedOutletName?.textContent.trim() || "";
+  const outletName = getSelectedOutletNameForBrand(orderBrandId);
   const hasOutlet = outletName && outletName !== "Belum dipilih";
 
-  field.readOnly = isKopken && hasOutlet;
+  field.readOnly = Boolean(hasOutlet);
   field.setAttribute("aria-readonly", String(field.readOnly));
-  if (isKopken && hasOutlet) field.value = outletName;
-  if (manualTools) manualTools.hidden = isKopken;
+  if (hasOutlet) field.value = outletName;
+  if (manualTools) manualTools.hidden = Boolean(hasOutlet);
 }
 
 window.syncCheckoutOutletField = syncCheckoutOutletField;
@@ -473,6 +506,10 @@ function getKopiKenanganOutletState() {
 function shouldGateKopiKenanganMenu() {
   const outletState = getKopiKenanganOutletState();
   return activeBrandId === "kopi-kenangan" && !outletState.menuLoaded;
+}
+
+function shouldGateManualBrandMenu() {
+  return activeBrandId !== "kopi-kenangan" && !getSelectedOutletNameForBrand(activeBrandId);
 }
 
 function getKopiKenanganGateMessage() {
@@ -1162,6 +1199,22 @@ function renderMenu(query = "") {
     return;
   }
 
+  if (shouldGateManualBrandMenu()) {
+    syncMenuControls([]);
+    if (bundleTabs) {
+      bundleTabs.hidden = true;
+      bundleTabs.innerHTML = "";
+    }
+    categoryNav.innerHTML = "";
+    catalogContainer.innerHTML = `${bannerHtml}
+      <div class="no-results outlet-required-message">
+        <strong>Pilih outlet ${escapeHtml(activeBrand.label)} dulu</strong>
+        <span>Masukkan nama outlet pada panel di atas agar pesanan dikirim ke lokasi yang benar.</span>
+      </div>`;
+    searchStatus.textContent = `Pilih outlet ${activeBrand.label} untuk melihat menu.`;
+    return;
+  }
+
   syncMenuControls(activeItems);
   const modeItems = getModeItems(activeItems);
   const visibleCategories = activeCategories.filter((category) => {
@@ -1811,6 +1864,40 @@ brandChooserModal?.addEventListener("click", (event) => {
   brandChooserModal.hidden = true;
   renderMenu();
 });
+
+function confirmManualBrandOutlet() {
+  if (activeBrandId === "kopi-kenangan" || !manualBrandOutletInput) return;
+  const outletName = manualBrandOutletInput.value.trim();
+  if (outletName.length < 3) {
+    alert("Masukkan nama outlet yang lebih lengkap.");
+    manualBrandOutletInput.focus();
+    return;
+  }
+  manualBrandOutlets[activeBrandId] = outletName;
+  localStorage.setItem(MANUAL_OUTLETS_KEY, JSON.stringify(manualBrandOutlets));
+  if (selectedOutletName) selectedOutletName.textContent = outletName;
+  syncCheckoutOutletField();
+  renderMenu();
+}
+
+document.querySelector("#confirmManualOutlet")?.addEventListener("click", confirmManualBrandOutlet);
+manualBrandOutletInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    confirmManualBrandOutlet();
+  }
+});
+
+document.querySelector("#outletClear")?.addEventListener("click", (event) => {
+  if (activeBrandId === "kopi-kenangan") return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  delete manualBrandOutlets[activeBrandId];
+  localStorage.setItem(MANUAL_OUTLETS_KEY, JSON.stringify(manualBrandOutlets));
+  if (manualBrandOutletInput) manualBrandOutletInput.value = "";
+  if (selectedOutletName) selectedOutletName.textContent = "Belum dipilih";
+  renderMenu();
+}, true);
 
 modalOptions.addEventListener("click", (event) => {
   const button = event.target.closest("[data-option-value]");

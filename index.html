@@ -194,7 +194,7 @@
             </div>
             <button id="outletClear" class="outlet-clear-btn" type="button" aria-label="Hapus outlet">X</button>
           </div>
-          <div class="outlet-search-box">
+          <div class="outlet-search-box" id="kopkenOutletSearchBox">
             <label for="outletSearch">Cari outlet</label>
             <div class="outlet-search-row">
               <input type="text" id="outletSearch" placeholder="Ketik kota atau nama gerai..." autocomplete="off" />
@@ -202,6 +202,15 @@
             <div id="outletResults" class="outlet-results" hidden></div>
           </div>
           <p id="outletSearchHint" class="outlet-hint">Ketik minimal 3 huruf untuk mencari gerai Kopi Kenangan.</p>
+          <div class="manual-brand-outlet" id="manualBrandOutletControls" hidden>
+            <label for="manualBrandOutletInput">Nama outlet <span id="manualBrandOutletLabel"></span></label>
+            <div class="outlet-search-row">
+              <input type="text" id="manualBrandOutletInput" placeholder="Contoh: Tomoro Grand Indonesia" autocomplete="off" />
+              <button id="confirmManualOutlet" type="button">Pilih</button>
+            </div>
+            <a id="findManualOutletLink" href="https://www.google.com/maps" target="_blank" rel="noopener">Cari outlet di Google Maps</a>
+            <p class="outlet-hint">Masukkan nama outlet lengkap agar admin tidak salah memproses pesanan.</p>
+          </div>
           <div class="wifi-row" id="wifiPasswordBar" role="button" tabindex="0" aria-expanded="false">
             <div>
               <span>Password WiFi - <span id="wifiDateLabel">hari ini</span></span>

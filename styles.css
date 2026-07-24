@@ -2639,6 +2639,54 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+.manual-brand-outlet {
+  display: grid;
+  gap: 8px;
+}
+
+.manual-brand-outlet[hidden] {
+  display: none;
+}
+
+#kopkenOutletSearchBox[hidden],
+#outletSearchHint[hidden],
+#wifiPasswordBar[hidden] {
+  display: none;
+}
+
+.manual-brand-outlet label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.manual-brand-outlet .outlet-search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.manual-brand-outlet input,
+.manual-brand-outlet button {
+  min-height: 44px;
+}
+
+.manual-brand-outlet button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0 18px;
+  background: #a92b23;
+  color: #fff;
+  font-weight: 800;
+}
+
+.manual-brand-outlet a {
+  width: fit-content;
+  color: #8d2d25;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
 .reseller-login-status {
   min-height: 18px;
   margin: 0;
