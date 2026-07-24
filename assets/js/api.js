@@ -39,6 +39,15 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   "creamy-caramel-latte": {
     largePrice: 24000,
   },
+  "korean-banana-latte": {
+    largePrice: 21500,
+  },
+  "banana-americano": {
+    largePrice: 19500,
+  },
+  "banana-choco": {
+    largePrice: 22000,
+  },
 };
 
 const KOPI_KENANGAN_BUNDLE_MINIMUM = 50000;
