@@ -112,14 +112,22 @@ create table if not exists public.app_settings (
   kopken_minimum_enabled boolean not null default false,
   kopken_minimum_official_total integer not null default 50000,
   all_stores_closed boolean not null default false,
-  store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.'
+  store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.',
+  jumatan_closed_enabled boolean not null default true,
+  jumatan_start_time time not null default '12:00',
+  jumatan_end_time time not null default '13:00',
+  jumatan_closed_message text not null default 'Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali pukul 13:00 WIB.'
 );
 
 alter table public.app_settings
   add column if not exists kopken_minimum_enabled boolean not null default false,
   add column if not exists kopken_minimum_official_total integer not null default 50000,
   add column if not exists all_stores_closed boolean not null default false,
-  add column if not exists store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.';
+  add column if not exists store_closed_message text not null default 'Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.',
+  add column if not exists jumatan_closed_enabled boolean not null default true,
+  add column if not exists jumatan_start_time time not null default '12:00',
+  add column if not exists jumatan_end_time time not null default '13:00',
+  add column if not exists jumatan_closed_message text not null default 'Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali pukul 13:00 WIB.';
 
 insert into public.app_settings (id, kopken_minimum_enabled, kopken_minimum_official_total)
 values (1, false, 50000)

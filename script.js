@@ -10,6 +10,10 @@ let kopkenMinimumEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
 let allStoresClosed = false;
 let globalStoreClosedMessage = "Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.";
+let jumatanClosedEnabled = true;
+let jumatanStartTime = "12:00";
+let jumatanEndTime = "13:00";
+let jumatanClosedMessage = "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali pukul 13:00 WIB.";
 let storeSettingsClient = null;
 
 async function fetchStoreSettings() {
@@ -25,7 +29,7 @@ async function fetchStoreSettings() {
     // Ambil data dari tabel app_settings
     let { data, error } = await storeSettingsClient
       .from('app_settings')
-      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message')
+      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message, jumatan_closed_enabled, jumatan_start_time, jumatan_end_time, jumatan_closed_message')
       .limit(1);
 
     // Tetap baca aturan minimum lama selama migrasi kolom tutup toko belum dijalankan.
@@ -49,6 +53,10 @@ async function fetchStoreSettings() {
       kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
       allStoresClosed = settings.all_stores_closed === true;
       globalStoreClosedMessage = String(settings.store_closed_message || globalStoreClosedMessage).trim();
+      jumatanClosedEnabled = settings.jumatan_closed_enabled !== false;
+      jumatanStartTime = String(settings.jumatan_start_time || jumatanStartTime).slice(0, 5);
+      jumatanEndTime = String(settings.jumatan_end_time || jumatanEndTime).slice(0, 5);
+      jumatanClosedMessage = String(settings.jumatan_closed_message || jumatanClosedMessage).trim();
       const configuredTotal = Number(settings.kopken_minimum_official_total);
       if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
         kopkenMinimumOfficialTotal = configuredTotal;
@@ -79,7 +87,7 @@ const storeConfig = STORE_CONFIG_DATA;
 function checkStoreStatus(brandId) {
   const now = getJakartaDate();
   const day = now.getDay(); 
-  const hour = now.getHours(); 
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
   
   const waLink = "<br><br><a href='https://wa.me/6281281400462?text=Halo%20admin%20kopi.fachrindah,%20saya%20mau%20tanya-tanya%20dulu%20dong.' target='_blank' class='wa-direct-btn'>Chat WhatsApp Admin</a>";
 
@@ -95,9 +103,11 @@ function checkStoreStatus(brandId) {
     return { closed: true, message: storeConfig.manualClosedMessage + waLink };
   }
 
-  // 2. Cek Sholat Jumat (Berlaku untuk semua)
-  if (storeConfig.autoJumatan && day === 5 && hour === 12) {
-    return { closed: false, message: "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali otomatis pukul 13:00 WIB.<br><br>Punya pertanyaan atau mau titip pesanan? Langsung chat admin aja ya." + waLink };
+  // 2. Jadwal Jumat dari Supabase (berlaku untuk semua brand)
+  const jumatanStartMinutes = timeToMinutes(jumatanStartTime);
+  const jumatanEndMinutes = timeToMinutes(jumatanEndTime);
+  if (jumatanClosedEnabled && day === 5 && currentMinutes >= jumatanStartMinutes && currentMinutes < jumatanEndMinutes) {
+    return { closed: true, message: jumatanClosedMessage + waLink };
   }
 
   return { closed: false };
