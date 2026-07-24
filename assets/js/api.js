@@ -49,6 +49,7 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   },
   "banana-choco": {
     largePrice: 22000,
+    allowOatside: true,
   },
 };
 

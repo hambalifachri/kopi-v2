@@ -1356,9 +1356,9 @@ async function saveOrderToSupabase(order) {
 }
 
 function isFoodItem(item) { 
-  // Sekarang sistem akan mengenali makanan dari 'group' ATAU dari 'kind' nya
-  return ["food", "chef-martin", "kenangan-toast", "fore-deli"].includes(item.group) || 
-         ["food", "toast", "cookie"].includes(item.kind); 
+  const foodGroups = new Set(["food", "chef-martin", "kenangan-toast", "fore-deli", "cerita-roti", "bakery", "snack"]);
+  return getItemGroups(item).some((group) => foodGroups.has(String(group).toLowerCase()))
+    || ["food", "toast", "cookie"].includes(String(item.kind || "").toLowerCase());
 }
 
 function resetSelectedOptions(item) {
