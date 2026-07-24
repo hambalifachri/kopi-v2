@@ -428,7 +428,10 @@ function syncOutletPanelVisibility() {
   const outletHint = document.getElementById("outletSearchHint");
   if (outletHint) outletHint.hidden = !isKopken;
   if (manualBrandOutletControls) manualBrandOutletControls.hidden = isKopken;
-  if (manualBrandOutletInput && !isKopken) manualBrandOutletInput.value = outletName;
+  if (manualBrandOutletInput && !isKopken) {
+    manualBrandOutletInput.value = outletName;
+    manualBrandOutletInput.placeholder = `Contoh: ${getActiveBrand().label} Grand Indonesia`;
+  }
   if (manualBrandOutletLabel && !isKopken) manualBrandOutletLabel.textContent = getActiveBrand().label;
   if (findManualOutletLink && !isKopken) {
     findManualOutletLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${getActiveBrand().label} outlet`)}`;
