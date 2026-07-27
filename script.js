@@ -98,32 +98,38 @@ function checkStoreStatus(brandId) {
   const waLink = "<br><br><a href='https://wa.me/6281281400462?text=Halo%20admin%20kopi.fachrindah,%20saya%20mau%20tanya-tanya%20dulu%20dong.' target='_blank' class='wa-direct-btn'>Chat WhatsApp Admin</a>";
 
   if (allStoresClosed) {
-    return { closed: true, message: globalStoreClosedMessage + waLink };
+    return { closed: true, scope: "all", message: globalStoreClosedMessage + waLink };
   }
 
   const closedFromDatabase = (brandId === "kopi-kenangan" && kopkenStoreClosed)
     || (brandId === "tomoro" && tomoroStoreClosed)
     || (brandId === "fore" && foreStoreClosed);
   if (closedFromDatabase) {
-    return { closed: true, message: storeConfig.manualClosedMessage + waLink };
+    return { closed: true, scope: "brand", message: storeConfig.manualClosedMessage + waLink };
   }
 
   // 1. Cek penutupan spesifik per brand
   if (brandId === 'kopi-kenangan' && storeConfig.isKopkenClosed) {
-    return { closed: true, message: storeConfig.manualClosedMessage + waLink };
+    return { closed: true, scope: "brand", message: storeConfig.manualClosedMessage + waLink };
   }
   if (brandId === 'fore' && storeConfig.isForeClosed) {
-    return { closed: true, message: storeConfig.manualClosedMessage + waLink };
+    return { closed: true, scope: "brand", message: storeConfig.manualClosedMessage + waLink };
   }
 
   // 2. Jadwal Jumat dari Supabase (berlaku untuk semua brand)
   const jumatanStartMinutes = timeToMinutes(jumatanStartTime);
   const jumatanEndMinutes = timeToMinutes(jumatanEndTime);
   if (jumatanClosedEnabled && day === 5 && currentMinutes >= jumatanStartMinutes && currentMinutes < jumatanEndMinutes) {
-    return { closed: true, message: jumatanClosedMessage + waLink };
+    return { closed: true, scope: "all", message: jumatanClosedMessage + waLink };
   }
 
   return { closed: false };
+}
+
+function getStoreClosedTitle(store, brandId = activeBrandId) {
+  return store.scope === "all"
+    ? "SEMUA TOKO SEDANG TUTUP"
+    : `${getBrandById(brandId).label.toUpperCase()} SEDANG TUTUP`;
 }
 
 function getJakartaDate() {
@@ -1115,7 +1121,7 @@ function renderMenuLegacy(query = "") {
   renderBrandTabs();
   updateBrandHero();
   const store = checkStoreStatus();
-  const bannerHtml = store.closed ? `<div class="store-closed-banner"><strong>TOKO SEDANG TUTUP</strong><p>${store.message}</p></div>` : "";
+  const bannerHtml = store.closed ? `<div class="store-closed-banner"><strong>${getStoreClosedTitle(store)}</strong><p>${store.message}</p></div>` : "";
   const normalizedQuery = normalizeText(query);
   const activeBrand = getActiveBrand();
   const activeCategories = getActiveCategories();
@@ -1191,7 +1197,7 @@ function renderMenu(query = "") {
 
   const store = checkStoreStatus(activeBrandId);
   const bannerHtml = store.closed
-    ? `<div class="store-closed-banner"><strong>TOKO SEDANG TUTUP</strong><p>${store.message}</p></div>`
+    ? `<div class="store-closed-banner"><strong>${getStoreClosedTitle(store, activeBrandId)}</strong><p>${store.message}</p></div>`
     : "";
   const normalizedQuery = normalizeText(query);
   const activeBrand = getActiveBrand();
@@ -2068,7 +2074,8 @@ goCheckoutButton.addEventListener("click", () => {
   const store = checkStoreStatus(cartBrandId);
   
   if (store.closed) {
-    alert("Maaf, saat ini toko untuk brand tersebut sedang tutup / istirahat. Silakan hubungi WhatsApp admin.");
+    const closedLabel = store.scope === "all" ? "Semua toko" : getBrandById(cartBrandId).label;
+    alert(`${closedLabel} sedang tutup sementara. Silakan hubungi WhatsApp admin.`);
     return;
   }
 
@@ -2186,7 +2193,8 @@ setInterval(() => {
   // SKENARIO 1: Toko harusnya TUTUP, tapi di ingatan satpam masih BUKA
   if (store.closed && statusTokoSebelumnya === false) {
     statusTokoSebelumnya = true; // Update ingatan satpam jadi "Tutup"
-    alert("Semua pesanan sedang ditutup sementara. Silakan cek informasi pada halaman menu.");
+    const closedLabel = store.scope === "all" ? "Semua toko" : getActiveBrand().label;
+    alert(`${closedLabel} sedang tutup sementara. Silakan cek informasi pada halaman menu.`);
     renderMenu(); // Tampilkan banner merah & kunci tombol
   } 
   
