@@ -10,6 +10,9 @@ let kopkenMinimumEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
 let allStoresClosed = false;
 let globalStoreClosedMessage = "Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.";
+let kopkenStoreClosed = false;
+let tomoroStoreClosed = false;
+let foreStoreClosed = false;
 let jumatanClosedEnabled = true;
 let jumatanStartTime = "12:00";
 let jumatanEndTime = "13:00";
@@ -29,7 +32,7 @@ async function fetchStoreSettings() {
     // Ambil data dari tabel app_settings
     let { data, error } = await storeSettingsClient
       .from('app_settings')
-      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message, jumatan_closed_enabled, jumatan_start_time, jumatan_end_time, jumatan_closed_message')
+      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message, kopken_store_closed, tomoro_store_closed, fore_store_closed, jumatan_closed_enabled, jumatan_start_time, jumatan_end_time, jumatan_closed_message')
       .limit(1);
 
     // Tetap baca aturan minimum lama selama migrasi kolom tutup toko belum dijalankan.
@@ -53,6 +56,9 @@ async function fetchStoreSettings() {
       kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
       allStoresClosed = settings.all_stores_closed === true;
       globalStoreClosedMessage = String(settings.store_closed_message || globalStoreClosedMessage).trim();
+      kopkenStoreClosed = settings.kopken_store_closed === true;
+      tomoroStoreClosed = settings.tomoro_store_closed === true;
+      foreStoreClosed = settings.fore_store_closed === true;
       jumatanClosedEnabled = settings.jumatan_closed_enabled !== false;
       jumatanStartTime = String(settings.jumatan_start_time || jumatanStartTime).slice(0, 5);
       jumatanEndTime = String(settings.jumatan_end_time || jumatanEndTime).slice(0, 5);
@@ -93,6 +99,13 @@ function checkStoreStatus(brandId) {
 
   if (allStoresClosed) {
     return { closed: true, message: globalStoreClosedMessage + waLink };
+  }
+
+  const closedFromDatabase = (brandId === "kopi-kenangan" && kopkenStoreClosed)
+    || (brandId === "tomoro" && tomoroStoreClosed)
+    || (brandId === "fore" && foreStoreClosed);
+  if (closedFromDatabase) {
+    return { closed: true, message: storeConfig.manualClosedMessage + waLink };
   }
 
   // 1. Cek penutupan spesifik per brand
