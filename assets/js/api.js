@@ -38,6 +38,7 @@ const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
 const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   "creamy-caramel-latte": {
     largePrice: 24000,
+    noSugar: true,
   },
   "korean-banana-latte": {
     largePrice: 21500,
