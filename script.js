@@ -761,37 +761,41 @@ function getKenanganOptionGroups(item) {
   });
 
   // 👇 KOTAK 1: KHUSUS TOPPING (+6000) 👇
-  groups.push({
-    key: "topping",
-    label: "Topping",
-    options: [
-      { value: "Tanpa Topping", label: "Tanpa Topping" },
-      { value: "Espresso Shot Kenangan Blend", label: "Espresso Shot Kenangan Blend", priceDelta: 6000 },
-      { value: "Espresso Shot Juwara Beans", label: "Espresso Shot Juwara Beans", priceDelta: 6000 },
-      { value: "Golden Boba", label: "Golden Boba", priceDelta: 6000 },
-      { value: "Grass Jelly", label: "Grass Jelly", priceDelta: 6000 },
-      { value: "Oreo", label: "Oreo", priceDelta: 6000 },
-      { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate", priceDelta: 6000 },
-      { value: "Whipped Cream Vanilla", label: "Whipped Cream Vanilla", priceDelta: 6000 },
-      { value: "Caramel Crumble", label: "Caramel Crumble", priceDelta: 6000 },
-      { value: "Gula Aren", label: "Gula Aren", priceDelta: 6000 }
-    ],
-  });
+  if (!item.noTopping) {
+    groups.push({
+      key: "topping",
+      label: "Topping",
+      options: [
+        { value: "Tanpa Topping", label: "Tanpa Topping" },
+        { value: "Espresso Shot Kenangan Blend", label: "Espresso Shot Kenangan Blend", priceDelta: 6000 },
+        { value: "Espresso Shot Juwara Beans", label: "Espresso Shot Juwara Beans", priceDelta: 6000 },
+        { value: "Golden Boba", label: "Golden Boba", priceDelta: 6000 },
+        { value: "Grass Jelly", label: "Grass Jelly", priceDelta: 6000 },
+        { value: "Oreo", label: "Oreo", priceDelta: 6000 },
+        { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate", priceDelta: 6000 },
+        { value: "Whipped Cream Vanilla", label: "Whipped Cream Vanilla", priceDelta: 6000 },
+        { value: "Caramel Crumble", label: "Caramel Crumble", priceDelta: 6000 },
+        { value: "Gula Aren", label: "Gula Aren", priceDelta: 6000 }
+      ],
+    });
+  }
 
   // 👇 KOTAK 2: KHUSUS ADD ON (+6000) 👇
-  groups.push({
-    key: "addon",
-    label: "Add On",
-    options: [
-      { value: "Tanpa Add On", label: "Tanpa Add On" },
-      { value: "Vanilla Syrup", label: "Vanilla Syrup", priceDelta: 6000 },
-      { value: "Hazelnut Syrup", label: "Hazelnut Syrup", priceDelta: 6000 },
-      { value: "Caramel Syrup", label: "Caramel Syrup", priceDelta: 6000 },
-      { value: "Salted Caramel Sauce", label: "Salted Caramel Sauce", priceDelta: 6000 },
-      { value: "Choco Sauce", label: "Choco Sauce", priceDelta: 6000 },
-      { value: "Butterscotch Sauce", label: "Butterscotch Sauce", priceDelta: 6000 }
-    ],
-  });
+  if (!item.noAddon) {
+    groups.push({
+      key: "addon",
+      label: "Add On",
+      options: [
+        { value: "Tanpa Add On", label: "Tanpa Add On" },
+        { value: "Vanilla Syrup", label: "Vanilla Syrup", priceDelta: 6000 },
+        { value: "Hazelnut Syrup", label: "Hazelnut Syrup", priceDelta: 6000 },
+        { value: "Caramel Syrup", label: "Caramel Syrup", priceDelta: 6000 },
+        { value: "Salted Caramel Sauce", label: "Salted Caramel Sauce", priceDelta: 6000 },
+        { value: "Choco Sauce", label: "Choco Sauce", priceDelta: 6000 },
+        { value: "Butterscotch Sauce", label: "Butterscotch Sauce", priceDelta: 6000 }
+      ],
+    });
+  }
 
   return groups;
 } 
