@@ -615,8 +615,33 @@ function getOfficialItemPrice(item) {
   }
 
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
+  const selectedSize = String(item.options?.size || item.options?.cupSize || "").toLowerCase();
+  const regularSellingPrice = getMenuPriceValue(sourceItem, "price") || 0;
 
-  // Jangan menebak selisih ukuran; harga asli harus tetap mengikuti data outlet/API.
+  if (selectedSize === "large") {
+    const explicitLargeOfficialPrice = getMenuPriceValue(
+      sourceItem,
+      "oldLargePrice",
+      "largeOldPrice",
+      "largeOrigPrice",
+      "large_orig_price"
+    );
+    const largeSellingPrice = getMenuPriceValue(sourceItem, "largePrice", "largeprice", "large_price");
+    officialPrice = explicitLargeOfficialPrice
+      || officialPrice + Math.max(0, (largeSellingPrice || regularSellingPrice) - regularSellingPrice);
+  } else if (selectedSize === "jumbo") {
+    const explicitJumboOfficialPrice = getMenuPriceValue(
+      sourceItem,
+      "oldJumboPrice",
+      "jumboOldPrice",
+      "jumboOrigPrice",
+      "jumbo_orig_price"
+    );
+    const jumboSellingPrice = getMenuPriceValue(sourceItem, "jumboPrice", "jumboprice", "jumbo_price");
+    officialPrice = explicitJumboOfficialPrice
+      || officialPrice + Math.max(0, (jumboSellingPrice || regularSellingPrice) - regularSellingPrice);
+  }
+
   return officialPrice;
 }
 
