@@ -89,6 +89,19 @@ const BRANDS_DATA = [
           { value: "Whipping Cream", label: "Whipping Cream", priceDelta: 5000 },
         ],
       },
+      {
+        key: "addon",
+        label: "Add On",
+        options: [
+          { value: "Sugar Syrup", label: "Sugar Syrup" },
+          { value: "Additional Espresso Shot", label: "Additional Espresso Shot", priceDelta: 5000 },
+          { value: "Caramel Sauce", label: "Caramel Sauce", priceDelta: 5000 },
+          { value: "Vanilla Syrup", label: "Vanilla Syrup", priceDelta: 5000 },
+          { value: "Aren Syrup", label: "Aren Syrup", priceDelta: 5000 },
+          { value: "Caramel Syrup", label: "Caramel Syrup", priceDelta: 5000 },
+          { value: "Manuka Honey Syrup", label: "Manuka Honey Syrup", priceDelta: 5000, disabled: true },
+        ],
+      },
     ],
   },
   {

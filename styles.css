@@ -1122,6 +1122,10 @@ button {
   font-weight: 900;
 }
 
+.item-note-field[hidden] {
+  display: none;
+}
+
 .item-note-field textarea {
   width: 100%;
   min-height: 64px;

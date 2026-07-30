@@ -293,6 +293,7 @@ const proofPreview = document.querySelector("#proofPreview");
 const shareProofButton = document.querySelector("#shareProofButton");
 const selectedDrink = document.querySelector("#selectedDrink");
 const itemNoteInput = document.querySelector("#itemNote");
+const itemNoteField = document.querySelector(".item-note-field");
 const addConfiguredItemButton = document.querySelector("#addConfiguredItem");
 const brandChooserModal = document.querySelector("#brandChooserModal");
 const resellerModal = document.querySelector("#resellerModal");
@@ -881,7 +882,7 @@ function renderDynamicOptions(item) {
       <div class="option-grid ${gridClass}">
         ${group.options.map((option) => {
           const isSelected = selectedOptions[group.key] === option.value;
-          const isDisabled = isDynamicBundleOptionDisabled(item, group, option);
+          const isDisabled = option.disabled === true || isDynamicBundleOptionDisabled(item, group, option);
           const priceText = getOptionPriceText(option, item);
           return `<button class="option-card ${isSelected ? "selected" : ""}" type="button" data-option-group="${escapeHtml(group.key)}" data-option-value="${escapeHtml(option.value)}" ${isDisabled ? "disabled" : ""}>
             ${optionIconHtml(option)}
@@ -1533,6 +1534,7 @@ function selectItemForOptions(id) {
   pendingItemId = id;
   resetSelectedOptions(item);
   if (itemNoteInput) itemNoteInput.value = "";
+  if (itemNoteField) itemNoteField.hidden = item.brand === "tomoro";
 
   const isFood = isFoodItem(item);
   const isBundle = item.group && item.group.includes("promo");
