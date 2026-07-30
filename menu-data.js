@@ -93,6 +93,7 @@ const BRANDS_DATA = [
         key: "addon",
         label: "Add On",
         options: [
+          { value: "Tanpa Add On", label: "Tanpa Add On" },
           { value: "Sugar Syrup", label: "Sugar Syrup" },
           { value: "Additional Espresso Shot", label: "Additional Espresso Shot", priceDelta: 5000 },
           { value: "Caramel Sauce", label: "Caramel Sauce", priceDelta: 5000 },
