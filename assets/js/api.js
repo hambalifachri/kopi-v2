@@ -59,7 +59,7 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   },
 };
 
-const KOPI_KENANGAN_BUNDLE_MINIMUM = 50000;
+const KOPI_KENANGAN_BUNDLE_TARGETS = [50000, 70000];
 const KOPI_KENANGAN_BUNDLE_DISCOUNT = 2000;
 const KOPI_KENANGAN_FOOD_GROUPS = new Set([
   "food",
@@ -244,14 +244,14 @@ function getDynamicBundleDrinkDetails(index) {
   ];
 }
 
-function buildDynamicBundleItem(drinks, foods, drinkCount) {
+function buildDynamicBundleItem(drinks, foods, drinkCount, bundleMinimum) {
   let defaultCombination = null;
   const eligibleDrinkIds = new Set();
   const eligibleFoodIds = new Set();
 
   const considerCombination = (selectedDrinks, food) => {
     const officialTotal = selectedDrinks.reduce((total, drink) => total + drink.oldPrice, food.oldPrice);
-    if (officialTotal !== KOPI_KENANGAN_BUNDLE_MINIMUM) return;
+    if (officialTotal !== bundleMinimum) return;
 
     const sellingTotal = selectedDrinks.reduce((total, drink) => total + drink.price, food.price)
       - KOPI_KENANGAN_BUNDLE_DISCOUNT;
@@ -303,13 +303,14 @@ function buildDynamicBundleItem(drinks, foods, drinkCount) {
     options: orderWithDefault(foods, defaultCombination.food, eligibleFoodIds).map(toBundleOption),
   });
 
+  const bundlePriceLabel = `${bundleMinimum / 1000}K`;
   const bundleLabel = drinkCount === 1 ? "1 Minuman + 1 Makanan" : "2 Minuman + 1 Makanan";
   return {
-    id: `dynamic-outlet-bundle-50k-${drinkCount}-drink`,
+    id: `dynamic-outlet-bundle-${bundlePriceLabel.toLowerCase()}-${drinkCount}-drink`,
     brand: "kopi-kenangan",
-    group: "promo-50k",
-    name: `Bundle 50K - ${bundleLabel}`,
-    desc: `${bundleLabel}, bebas tukar dengan total harga outlet tepat Rp50.000. Diskon bundle Rp2.000.`,
+    group: `promo-${bundlePriceLabel.toLowerCase()}`,
+    name: `Bundle ${bundlePriceLabel} - ${bundleLabel}`,
+    desc: `${bundleLabel}, bebas tukar dengan total harga outlet tepat Rp${bundleMinimum.toLocaleString("id-ID")}. Diskon bundle Rp2.000.`,
     price: defaultCombination.sellingTotal,
     oldPrice: defaultCombination.officialTotal,
     image: defaultCombination.drinks[0].image || defaultCombination.food.image || null,
@@ -317,7 +318,7 @@ function buildDynamicBundleItem(drinks, foods, drinkCount) {
       .map((item) => item.image)
       .filter(Boolean),
     dynamicOutletBundle: true,
-    bundleMinimum: KOPI_KENANGAN_BUNDLE_MINIMUM,
+    bundleMinimum,
     bundleDiscount: KOPI_KENANGAN_BUNDLE_DISCOUNT,
     options,
   };
@@ -327,10 +328,10 @@ function buildDynamicKopiKenanganBundles(items) {
   const availableItems = items.filter((item) => !item.isSoldOut && item.price > 0 && item.oldPrice > 0);
   const drinks = availableItems.filter((item) => !isDynamicBundleFood(item));
   const foods = availableItems.filter(isDynamicBundleFood);
-  return [
-    buildDynamicBundleItem(drinks, foods, 1),
-    buildDynamicBundleItem(drinks, foods, 2),
-  ].filter(Boolean);
+  return KOPI_KENANGAN_BUNDLE_TARGETS.flatMap((bundleMinimum) => [
+    buildDynamicBundleItem(drinks, foods, 1, bundleMinimum),
+    buildDynamicBundleItem(drinks, foods, 2, bundleMinimum),
+  ]).filter(Boolean);
 }
 
 function mergeMenuGroups(...groups) {
