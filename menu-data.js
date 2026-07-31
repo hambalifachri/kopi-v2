@@ -1511,7 +1511,7 @@ const MENU_ITEMS_DATA = [
 
   // Kategori: Coffee
   { id: "thai-tea-coffee-coffee", group: "coffee", name: "Thai Tea Coffee", oldPrice: 25000, price: 15500, largePrice: 15500, jumboPrice: 22500, allowBeans: true, allowOatside: true, color: "#7d3d1d", foam: "#f6d6ab", drizzle: "#e27521", isNew: true, noRegular: true, noSugar: true },
-  { id: "og-aren-speculoos-latte", group: "coffee", name: "OG Aren Speculoos Latte", oldPrice: 21000, oldLargePrice: 30000, price: 14500, largePrice: 21500, allowBeans: true, allowOatside: true, color: "#d2a06b", foam: "#fff2dc", drizzle: "#9a5a28" },
+  { id: "og-aren-speculoos-latte", group: "coffee", name: "OG Aren Speculoos Latte", oldPrice: 21000, price: 14500, largePrice: 21500, allowBeans: true, allowOatside: true, color: "#d2a06b", foam: "#fff2dc", drizzle: "#9a5a28" },
   { id: "dua-shot-og-aren", group: "coffee", name: "Dua Shot OG Aren", oldPrice: 25000, price: 16500, largePrice: 23500, allowBeans: true, allowOatside: true, noSugar: true, color: "#d7a36c", foam: "#fff2dc", drizzle: "#76401f" },
   { id: "mocha-caramel", group: "coffee", name: "Mocha Caramel", oldPrice: 26000, price: 17000, largePrice: 24000, jumboPrice: 34000, allowBeans: true, allowOatside: true, noSugar: true, color: "#70402c", foam: "#f4dcc4", drizzle: "#3b1c12" },
   { id: "cafe-malt-latte", group: "coffee", name: "Cafe Malt Latte", oldPrice: 23000, price: 15500, largePrice: 22500, color: "#2f2922", foam: "#e2c696", drizzle: "#b17a37" },
