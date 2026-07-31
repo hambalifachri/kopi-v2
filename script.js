@@ -617,6 +617,7 @@ function getOfficialItemPrice(item) {
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
   const selectedSize = String(item.options?.size || item.options?.cupSize || "").toLowerCase();
   const regularSellingPrice = getMenuPriceValue(sourceItem, "price") || 0;
+  const isKopiKenangan = sourceItem.brand === "kopi-kenangan";
 
   if (selectedSize === "large" && !sourceItem.noRegular) {
     const explicitLargeOfficialPrice = getMenuPriceValue(
@@ -627,8 +628,12 @@ function getOfficialItemPrice(item) {
       "large_orig_price"
     );
     const largeSellingPrice = getMenuPriceValue(sourceItem, "largePrice", "largeprice", "large_price");
-    officialPrice = explicitLargeOfficialPrice
-      || officialPrice + Math.max(0, (largeSellingPrice || regularSellingPrice) - regularSellingPrice);
+    const largeOfficialDelta = getMenuPriceValue(sourceItem, "largeOfficialDelta", "large_official_delta")
+      || (isKopiKenangan ? 10000 : 0);
+    officialPrice = explicitLargeOfficialPrice || officialPrice + (
+      largeOfficialDelta
+      || Math.max(0, (largeSellingPrice || regularSellingPrice) - regularSellingPrice)
+    );
   } else if (selectedSize === "jumbo") {
     const explicitJumboOfficialPrice = getMenuPriceValue(
       sourceItem,
@@ -641,8 +646,12 @@ function getOfficialItemPrice(item) {
     const baseSizeSellingPrice = sourceItem.noRegular
       ? getMenuPriceValue(sourceItem, "largePrice", "largeprice", "large_price") || regularSellingPrice
       : regularSellingPrice;
-    officialPrice = explicitJumboOfficialPrice
-      || officialPrice + Math.max(0, (jumboSellingPrice || baseSizeSellingPrice) - baseSizeSellingPrice);
+    const jumboOfficialDelta = getMenuPriceValue(sourceItem, "jumboOfficialDelta", "jumbo_official_delta")
+      || (isKopiKenangan ? (sourceItem.noRegular ? 10000 : 20000) : 0);
+    officialPrice = explicitJumboOfficialPrice || officialPrice + (
+      jumboOfficialDelta
+      || Math.max(0, (jumboSellingPrice || baseSizeSellingPrice) - baseSizeSellingPrice)
+    );
   }
 
   getItemOptionGroups(sourceItem).forEach((group) => {
