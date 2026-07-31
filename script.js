@@ -618,7 +618,7 @@ function getOfficialItemPrice(item) {
   const selectedSize = String(item.options?.size || item.options?.cupSize || "").toLowerCase();
   const regularSellingPrice = getMenuPriceValue(sourceItem, "price") || 0;
 
-  if (selectedSize === "large") {
+  if (selectedSize === "large" && !sourceItem.noRegular) {
     const explicitLargeOfficialPrice = getMenuPriceValue(
       sourceItem,
       "oldLargePrice",
@@ -638,9 +638,17 @@ function getOfficialItemPrice(item) {
       "jumbo_orig_price"
     );
     const jumboSellingPrice = getMenuPriceValue(sourceItem, "jumboPrice", "jumboprice", "jumbo_price");
+    const baseSizeSellingPrice = sourceItem.noRegular
+      ? getMenuPriceValue(sourceItem, "largePrice", "largeprice", "large_price") || regularSellingPrice
+      : regularSellingPrice;
     officialPrice = explicitJumboOfficialPrice
-      || officialPrice + Math.max(0, (jumboSellingPrice || regularSellingPrice) - regularSellingPrice);
+      || officialPrice + Math.max(0, (jumboSellingPrice || baseSizeSellingPrice) - baseSizeSellingPrice);
   }
+
+  getItemOptionGroups(sourceItem).forEach((group) => {
+    const selectedOption = group.options.find((option) => option.value === item.options?.[group.key]);
+    if (typeof selectedOption?.priceDelta === "number") officialPrice += selectedOption.priceDelta;
+  });
 
   return officialPrice;
 }
