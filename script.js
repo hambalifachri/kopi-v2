@@ -248,6 +248,7 @@ const grandTotalEl = document.querySelector("#modalGrandTotal");
 const checkoutSummary = document.querySelector("#checkoutSummary");
 const clearCartButton = document.querySelector("#modalClearCart");
 const orderForm = document.querySelector("#modalOrderForm");
+const takeawayPlasticInput = document.querySelector('#kopkenTakeawayOption input[name="takeawayPlastic"]');
 const reviewForm = document.querySelector("#reviewForm");
 const brandTitle = document.querySelector("#brandTitle");
 const brandSubtitle = document.querySelector("#brandSubtitle");
@@ -307,6 +308,7 @@ const fallbackTestimonialImages = Array.from({ length: 52 }, (_, index) => `asse
 const PICKUP_START_MINUTES = 8 * 60;
 const PICKUP_END_MINUTES = 23 * 60;
 const PICKUP_INTERVAL_MINUTES = 15;
+const TAKEAWAY_PLASTIC_FEE = 1000;
 const WIFI_PASSWORDS = [
   "TemanKenangan#01", "SelaluSeru@02", "WorkFromKenangan+03", "SahabatSetia=4", "PaduanPas!05",
   "AndalanMantan#06", "NyantaiNgopi@07", "KenanganNyaman+08", "SepenuhHati=09", "AsliAsik!10",
@@ -1344,7 +1346,8 @@ function renderCart() {
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
   const serviceFee = getServiceFee();
-  const grandTotal = subtotal + serviceFee;
+  const takeawayPlasticFee = getTakeawayPlasticFee();
+  const grandTotal = subtotal + serviceFee + takeawayPlasticFee;
 
   let targetCartHtml = entries.length === 0
     ? '<p class="empty">Pilih menu dari price list untuk mulai order.</p>'
@@ -1375,10 +1378,10 @@ function renderCart() {
   openCartCount.textContent = `${totalQty} menu`;
   openCartTotal.textContent = rupiah.format(grandTotal);
   if (headerCartCount) headerCartCount.textContent = String(totalQty);
-  renderCheckoutSummary(entries, subtotal, serviceFee, grandTotal);
+  renderCheckoutSummary(entries, subtotal, serviceFee, takeawayPlasticFee, grandTotal);
 }
 
-function renderCheckoutSummary(entries, subtotal, serviceFee, grandTotal) {
+function renderCheckoutSummary(entries, subtotal, serviceFee, takeawayPlasticFee, grandTotal) {
   if (!checkoutSummary) return;
   if (entries.length === 0) {
     checkoutSummary.innerHTML = '<p class="empty">Keranjang masih kosong.</p>';
@@ -1391,6 +1394,9 @@ function renderCheckoutSummary(entries, subtotal, serviceFee, grandTotal) {
 
   if (serviceFee > 0) {
     html += `<div><span>Biaya Layanan</span><strong>${rupiah.format(serviceFee)}</strong></div>`;
+  }
+  if (takeawayPlasticFee > 0) {
+    html += `<div><span>Plastik Take Away</span><strong>${rupiah.format(takeawayPlasticFee)}</strong></div>`;
   }
 
   html += `<div class="checkout-total"><span>Total bayar</span><strong>${rupiah.format(grandTotal)}</strong></div>`;
@@ -1438,6 +1444,7 @@ async function createOrderRecord(formData) {
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
   const takeawayPlastic = getCartBrandId() === "kopi-kenangan" && formData.get("takeawayPlastic") === "yes";
+  const takeawayPlasticFee = takeawayPlastic ? TAKEAWAY_PLASTIC_FEE : 0;
   const proofFile = getPaymentProofFile();
   const orderId = makeOrderId();
   let proofUrl = "";
@@ -1460,8 +1467,9 @@ async function createOrderRecord(formData) {
       address: String(formData.get("customerAddress")).trim(),
       pickupTime: String(formData.get("pickupTime") || "").trim(),
     },
-    note: takeawayPlastic ? "Plastik Take Away: Ya" : "",
+    note: takeawayPlastic ? `Plastik Take Away: Ya (${rupiah.format(takeawayPlasticFee)})` : "",
     takeawayPlastic,
+    takeawayPlasticFee,
     items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "", resellerDiscount: item.resellerDiscount || 0 })),
     subtotal,
     reseller: isResellerActive() ? { ...resellerSession, discountTotal: entries.reduce((sum, item) => sum + (item.resellerDiscount || 0) * item.qty, 0) } : null,
@@ -1763,14 +1771,15 @@ function buildWhatsappMessage(formData, savedOrder) {
 
   // ... (Sisa kode untuk messageLines tetap sama) ...
   const serviceFee = getServiceFee();
-  const totalFinal = finalTotalBayar + serviceFee;
+  const takeawayPlasticFee = formData.get("takeawayPlastic") === "yes" ? TAKEAWAY_PLASTIC_FEE : 0;
+  const totalFinal = finalTotalBayar + serviceFee + takeawayPlasticFee;
   const proofText = formatProofForWA(savedOrder);
   const messageLines = [
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${proofText}`
   ];
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (isKopken) {
-    const takeawayText = formData.get("takeawayPlastic") === "yes" ? "Ya" : "Tidak";
+    const takeawayText = takeawayPlasticFee > 0 ? `Ya (+${rupiah.format(takeawayPlasticFee)})` : "Tidak";
     messageLines.splice(7, 0, `*Plastik Take Away:* ${takeawayText}`);
   }
   if (savedOrder.reseller) {
@@ -1778,6 +1787,7 @@ function buildWhatsappMessage(formData, savedOrder) {
     messageLines.push(`*Total Potongan Reseller: -${rupiah.format(savedOrder.reseller.discountTotal)}*`);
   }
   if (serviceFee > 0) messageLines.push(`*Biaya Layanan: ${rupiah.format(serviceFee)}*`);
+  if (takeawayPlasticFee > 0) messageLines.push(`*Biaya Plastik Take Away: ${rupiah.format(takeawayPlasticFee)}*`);
   messageLines.push(`*TOTAL BAYAR: ${rupiah.format(totalFinal)}*`);
   return messageLines.join("\n");
 }
@@ -2158,6 +2168,7 @@ clearCartButton.addEventListener("click", () => { cart.clear(); renderCart(); })
 menuSearch.addEventListener("input", () => renderMenu(menuSearch.value));
 clearSearch.addEventListener("click", () => { menuSearch.value = ""; renderMenu(); });
 paymentProofInput.addEventListener("change", () => updateProofPreview());
+takeawayPlasticInput?.addEventListener("change", () => renderCart());
 
 orderForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2521,6 +2532,12 @@ function getServiceFee() {
     return 3000;
   }
   return 0;
+}
+
+function getTakeawayPlasticFee() {
+  return getCartBrandId() === "kopi-kenangan" && takeawayPlasticInput?.checked
+    ? TAKEAWAY_PLASTIC_FEE
+    : 0;
 }
 
 function updatePromoLabelVisibility() {
