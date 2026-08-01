@@ -491,6 +491,7 @@ function getSelectedOutletNameForBrand(brandId) {
 function syncCheckoutOutletField() {
   const field = document.getElementById("modalCustomerAddress");
   const manualTools = document.getElementById("manualOutletTools");
+  const takeawayOption = document.getElementById("kopkenTakeawayOption");
   if (!field) return;
   const orderBrandId = getCartBrandId() || activeBrandId;
   const outletName = getSelectedOutletNameForBrand(orderBrandId);
@@ -500,6 +501,13 @@ function syncCheckoutOutletField() {
   field.setAttribute("aria-readonly", String(field.readOnly));
   if (hasOutlet) field.value = outletName;
   if (manualTools) manualTools.hidden = Boolean(hasOutlet);
+  if (takeawayOption) {
+    takeawayOption.hidden = orderBrandId !== "kopi-kenangan";
+    if (takeawayOption.hidden) {
+      const checkbox = takeawayOption.querySelector('input[name="takeawayPlastic"]');
+      if (checkbox) checkbox.checked = false;
+    }
+  }
 }
 
 window.syncCheckoutOutletField = syncCheckoutOutletField;
@@ -1429,6 +1437,7 @@ async function uploadPaymentProof(file, orderId) {
 async function createOrderRecord(formData) {
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
+  const takeawayPlastic = getCartBrandId() === "kopi-kenangan" && formData.get("takeawayPlastic") === "yes";
   const proofFile = getPaymentProofFile();
   const orderId = makeOrderId();
   let proofUrl = "";
@@ -1451,7 +1460,8 @@ async function createOrderRecord(formData) {
       address: String(formData.get("customerAddress")).trim(),
       pickupTime: String(formData.get("pickupTime") || "").trim(),
     },
-    note: "",
+    note: takeawayPlastic ? "Plastik Take Away: Ya" : "",
+    takeawayPlastic,
     items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "", resellerDiscount: item.resellerDiscount || 0 })),
     subtotal,
     reseller: isResellerActive() ? { ...resellerSession, discountTotal: entries.reduce((sum, item) => sum + (item.resellerDiscount || 0) * item.qty, 0) } : null,
@@ -1759,6 +1769,10 @@ function buildWhatsappMessage(formData, savedOrder) {
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${proofText}`
   ];
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
+  if (isKopken) {
+    const takeawayText = formData.get("takeawayPlastic") === "yes" ? "Ya" : "Tidak";
+    messageLines.splice(7, 0, `*Plastik Take Away:* ${takeawayText}`);
+  }
   if (savedOrder.reseller) {
     messageLines.splice(4, 0, "*Mode:* RESELLER", `*Kode Reseller:* ${savedOrder.reseller.code}`, `*Nama Reseller:* ${savedOrder.reseller.name}`);
     messageLines.push(`*Total Potongan Reseller: -${rupiah.format(savedOrder.reseller.discountTotal)}*`);

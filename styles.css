@@ -1216,6 +1216,47 @@ button {
   border-radius: 12px;
 }
 
+.takeaway-option {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #fff8f1;
+}
+
+.takeaway-option[hidden] {
+  display: none;
+}
+
+.takeaway-option legend {
+  padding: 0 4px;
+  color: var(--brown);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.takeaway-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.takeaway-check input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--red);
+}
+
+.takeaway-check span {
+  color: var(--brown);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .proof-upload {
   display: grid;
   gap: 10px;
