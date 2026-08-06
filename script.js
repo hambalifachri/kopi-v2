@@ -1700,6 +1700,132 @@ function formatProofForWA(savedOrder) {
   return `${fileName} (upload otomatis gagal, customer diminta kirim bukti manual di chat ini)`;
 }
 
+const KOPKEN_BATCH_MIN_TOTAL = 50000;
+const KOPKEN_BATCH_MAX_TOTAL = 70000;
+
+function findValidKopkenBatchPartition(items, batchCount) {
+  const sortedItems = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
+  const buckets = Array.from({ length: batchCount }, () => []);
+  const totals = Array(batchCount).fill(0);
+  const failedStates = new Set();
+  let exploredStates = 0;
+  const maxExploredStates = 50000;
+
+  function assignItem(itemIndex) {
+    exploredStates += 1;
+    if (exploredStates > maxExploredStates) return false;
+    if (itemIndex === sortedItems.length) {
+      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= KOPKEN_BATCH_MAX_TOTAL);
+    }
+
+    const remainingTotal = sortedItems
+      .slice(itemIndex)
+      .reduce((total, item) => total + item.batchPrice, 0);
+    const totalDeficit = totals.reduce((total, value) => total + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - value), 0);
+    const totalCapacity = totals.reduce((total, value) => total + (KOPKEN_BATCH_MAX_TOTAL - value), 0);
+    if (remainingTotal < totalDeficit || remainingTotal > totalCapacity) return false;
+
+    const stateKey = `${itemIndex}|${[...totals].sort((a, b) => a - b).join(",")}`;
+    if (failedStates.has(stateKey)) return false;
+
+    const item = sortedItems[itemIndex];
+    const candidateIndexes = totals
+      .map((total, index) => ({ total, index }))
+      .filter(({ total }) => total + item.batchPrice <= KOPKEN_BATCH_MAX_TOTAL)
+      .sort((a, b) => b.total - a.total);
+    const attemptedTotals = new Set();
+
+    for (const { total, index } of candidateIndexes) {
+      if (attemptedTotals.has(total)) continue;
+      attemptedTotals.add(total);
+      buckets[index].push(item);
+      totals[index] += item.batchPrice;
+      if (assignItem(itemIndex + 1)) return true;
+      totals[index] -= item.batchPrice;
+      buckets[index].pop();
+    }
+
+    failedStates.add(stateKey);
+    return false;
+  }
+
+  return assignItem(0) ? buckets.filter((bucket) => bucket.length > 0) : null;
+}
+
+function getKopkenBatchScore(buckets) {
+  const totals = buckets.map((bucket) => bucket.reduce((sum, item) => sum + item.batchPrice, 0));
+  return {
+    underfilled: totals.filter((total) => total < KOPKEN_BATCH_MIN_TOTAL).length,
+    deficit: totals.reduce((sum, total) => sum + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - total), 0),
+  };
+}
+
+function isBetterKopkenBatchScore(candidate, current) {
+  return candidate.underfilled < current.underfilled
+    || (candidate.underfilled === current.underfilled && candidate.deficit < current.deficit);
+}
+
+function buildKopkenBatchFallback(items) {
+  const buckets = [];
+  [...items]
+    .sort((a, b) => b.batchPrice - a.batchPrice)
+    .forEach((item) => {
+      const target = buckets
+        .map((bucket, index) => ({
+          index,
+          total: bucket.reduce((sum, current) => sum + current.batchPrice, 0),
+        }))
+        .filter(({ total }) => total + item.batchPrice <= KOPKEN_BATCH_MAX_TOTAL)
+        .sort((a, b) => b.total - a.total)[0];
+
+      if (target) buckets[target.index].push(item);
+      else buckets.push([item]);
+    });
+
+  let improved = true;
+  while (improved) {
+    improved = false;
+    const currentScore = getKopkenBatchScore(buckets);
+
+    for (let fromIndex = 0; fromIndex < buckets.length && !improved; fromIndex += 1) {
+      for (let itemIndex = 0; itemIndex < buckets[fromIndex].length && !improved; itemIndex += 1) {
+        for (let toIndex = 0; toIndex < buckets.length; toIndex += 1) {
+          if (fromIndex === toIndex) continue;
+          const item = buckets[fromIndex][itemIndex];
+          const targetTotal = buckets[toIndex].reduce((sum, current) => sum + current.batchPrice, 0);
+          if (targetTotal + item.batchPrice > KOPKEN_BATCH_MAX_TOTAL) continue;
+
+          buckets[fromIndex].splice(itemIndex, 1);
+          buckets[toIndex].push(item);
+          const candidateBuckets = buckets.filter((bucket) => bucket.length > 0);
+          if (isBetterKopkenBatchScore(getKopkenBatchScore(candidateBuckets), currentScore)) {
+            buckets.splice(0, buckets.length, ...candidateBuckets);
+            improved = true;
+            break;
+          }
+          buckets[toIndex].pop();
+          buckets[fromIndex].splice(itemIndex, 0, item);
+        }
+      }
+    }
+  }
+
+  return buckets.filter((bucket) => bucket.length > 0);
+}
+
+function buildKopkenOrderBatches(items) {
+  const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
+  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
+  const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
+
+  for (let batchCount = minimumBatchCount; batchCount <= maximumBatchCount; batchCount += 1) {
+    const partition = findValidKopkenBatchPartition(items, batchCount);
+    if (partition) return partition;
+  }
+
+  return buildKopkenBatchFallback(items);
+}
+
 function buildWhatsappMessage(formData, savedOrder) {
   const entries = [...cart.values()];
   
@@ -1723,27 +1849,8 @@ function buildWhatsappMessage(formData, savedOrder) {
       }
     });
 
-    // Bucket berdasarkan batchPrice (Harga Resmi) agar tidak lebih dari 60rb
-    let buckets = [];
-    let bucketTotals = [];
-    const MAX_BATCH_LIMIT = 60000; 
-
-    for (let item of flattenedItems) {
-      let added = false;
-      for (let i = 0; i < buckets.length; i++) {
-        // PERBAIKAN: Gunakan batchPrice (harga resmi) untuk cek limit
-        if (bucketTotals[i] + item.batchPrice <= MAX_BATCH_LIMIT) {
-          buckets[i].push(item);
-          bucketTotals[i] += item.batchPrice;
-          added = true;
-          break;
-        }
-      }
-      if (!added) {
-        buckets.push([item]);
-        bucketTotals.push(item.batchPrice);
-      }
-    }
+    // Cari kombinasi dari seluruh item agar setiap batch berada di rentang Rp50-70 ribu.
+    const buckets = buildKopkenOrderBatches(flattenedItems);
 
     orderLinesText = buckets.map((bucket, index) => {
       let groupedBucket = [];
