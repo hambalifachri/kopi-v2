@@ -1111,7 +1111,21 @@ function loadCartFromStorage() {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      parsed.forEach(([k, v]) => cart.set(k, v));
+      parsed.forEach(([key, item]) => {
+        if (!supportsItemNotes(item)) {
+          const cleanKey = `${item.id}|${JSON.stringify(item.options || {})}|`;
+          const existing = cart.get(cleanKey);
+          cart.set(cleanKey, {
+            ...item,
+            cartKey: cleanKey,
+            note: "",
+            qty: Number(item.qty || 0) + Number(existing?.qty || 0),
+          });
+          return;
+        }
+        cart.set(key, item);
+      });
+      saveCartToStorage();
       renderCart();
     } catch(e) {}
   }
@@ -1502,6 +1516,10 @@ function isFoodItem(item) {
     || ["food", "toast", "cookie"].includes(String(item.kind || "").toLowerCase());
 }
 
+function supportsItemNotes(item) {
+  return !["tomoro", "fore"].includes(String(item?.brand || "").toLowerCase());
+}
+
 function resetSelectedOptions(item) {
   selectedOptions = {};
   bundleSelectionConstraints = {};
@@ -1585,7 +1603,8 @@ function selectItemForOptions(id) {
   pendingItemId = id;
   resetSelectedOptions(item);
   if (itemNoteInput) itemNoteInput.value = "";
-  if (itemNoteField) itemNoteField.hidden = item.brand === "tomoro";
+  const itemSupportsNotes = supportsItemNotes(item);
+  if (itemNoteField) itemNoteField.hidden = !itemSupportsNotes;
 
   const isFood = isFoodItem(item);
   const isBundle = item.group && item.group.includes("promo");
@@ -1597,7 +1616,7 @@ function selectItemForOptions(id) {
     <span>${escapeHtml(itemBrand.label)}</span>
     <strong id="modalProductTitleName">${escapeHtml(item.name)}</strong>
     <span id="modalItemPrice" style="font-size: 1.1rem; color: #d35c19; font-weight: 800; display: block; margin-top: 4px;">Rp0</span>
-    <small>${isBundle ? "Tulis request paket ini di catatan item." : (isFood ? "Tambahkan catatan item jika perlu." : "Sesuaikan rasa dan catatan item kamu di bawah ini.")}</small>
+    <small>${isBundle ? "Tulis request paket ini di catatan item." : (!itemSupportsNotes ? "Sesuaikan pilihan menu sebelum ditambahkan." : (isFood ? "Tambahkan catatan item jika perlu." : "Sesuaikan rasa dan catatan item kamu di bawah ini."))}</small>
   `;
 
   renderDynamicOptions(item);
@@ -1612,7 +1631,7 @@ function addItem(id, note = "") {
   if (!canAddBrandToCart(item)) return;
 
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
-  const itemNote = String(note || "").trim();
+  const itemNote = supportsItemNotes(item) ? String(note || "").trim() : "";
   const calculatedPrice = calculateItemPrice(item, options); // Kalkulasi ulang harga
   const cartKey = `${id}|${JSON.stringify(options)}|${itemNote}`;
   const current = cart.get(cartKey);
@@ -1682,7 +1701,7 @@ function formatDynamicBundleForWA(item) {
 }
 
 function formatOrderItemForWA(item, index) {
-  const itemNote = formatItemNoteForWA(item.note);
+  const itemNote = supportsItemNotes(item) ? formatItemNoteForWA(item.note) : "";
   if (item.dynamicOutletBundle) {
     return `${index + 1}. *${item.qty}x ${item.name}*\n${formatDynamicBundleForWA(item)}${itemNote}`;
   }
