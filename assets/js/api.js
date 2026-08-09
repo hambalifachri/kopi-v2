@@ -46,6 +46,7 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   },
   "creamy-caramel-latte": {
     largePrice: 24000,
+    allowBeans: true,
     noSugar: true,
     noTopping: true,
     noAddon: true,
