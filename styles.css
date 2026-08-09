@@ -2412,6 +2412,258 @@ textarea:focus {
     border: 1px solid #ddd;
 }
 
+/* ========================================= */
+/* VIDEO TUTORIAL CARA PESAN                 */
+/* ========================================= */
+#tutorialModal {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(36, 21, 15, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+#tutorialModal.hidden {
+  display: none;
+}
+
+body.tutorial-open {
+  overflow: hidden;
+}
+
+.tutorial-modal-content {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: min(92vh, 900px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 30px;
+  border: 1px solid #ead8cb;
+  border-radius: 24px;
+  background: #fffaf6;
+  box-shadow: 0 24px 70px rgba(35, 18, 12, 0.34);
+  animation: popUpAnim 0.25s ease-out;
+}
+
+.tutorial-modal-content .close-btn {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  float: right;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  margin: -12px -12px 0 10px;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: #4a2417;
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.guide-heading {
+  padding-right: 42px;
+  text-align: left;
+}
+
+.guide-kicker {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  color: #fff;
+  background: #1f7c5d;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.guide-heading h2 {
+  margin: 0;
+  color: #3b2118;
+  font-family: "Fredoka", sans-serif;
+  font-size: clamp(1.7rem, 5vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.guide-heading p {
+  margin: 8px 0 20px;
+  color: #715d53;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.tutorial-video-wrap {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 2px solid #ead8cb;
+  border-radius: 22px;
+  background: #2d1b15;
+}
+
+.tutorial-video-wrap video {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: min(62vh, 620px);
+  max-height: 620px;
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  background: #1b120e;
+  object-fit: contain;
+}
+
+.video-help {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin: 12px 0 16px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  color: #5c2a20;
+  background: #fff0e6;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.video-help > span {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #c12a29;
+  font-size: 0.8rem;
+}
+
+.video-help .video-help-text {
+  display: inline;
+  width: auto;
+  height: auto;
+  align-self: center;
+  border-radius: 0;
+  color: #5c2a20;
+  background: transparent;
+  font-size: inherit;
+}
+
+.beginner-note {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 15px 16px;
+  border-left: 5px solid #1f7c5d;
+  border-radius: 12px;
+  color: #3f332d;
+  background: #eef8f2;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.beginner-note strong {
+  color: #176044;
+  font-size: 0.95rem;
+}
+
+.tutorial-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tutorial-steps li {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 13px;
+  border: 1px solid #eadfd8;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.tutorial-steps li > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #c12a29;
+  font-weight: 900;
+}
+
+.tutorial-steps strong {
+  display: block;
+  margin: 1px 0 4px;
+  color: #3b2118;
+  font-size: 0.98rem;
+}
+
+.tutorial-steps p {
+  margin: 0;
+  color: #715d53;
+  font-size: 0.86rem;
+  line-height: 1.48;
+}
+
+.guide-start-order {
+  width: 100%;
+  margin-top: 18px;
+  padding: 15px 18px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: linear-gradient(135deg, #d13a31, #a51f1f);
+  box-shadow: 0 10px 24px rgba(165, 31, 31, 0.28);
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  #tutorialModal {
+    align-items: flex-end;
+    padding: 8px;
+  }
+
+  .tutorial-modal-content {
+    width: 100%;
+    max-height: 94dvh;
+    padding: 20px 16px 18px;
+    border-radius: 22px 22px 14px 14px;
+  }
+
+  .tutorial-video-wrap video {
+    height: min(58vh, 540px);
+  }
+
+  .tutorial-steps li {
+    grid-template-columns: 40px minmax(0, 1fr);
+    padding: 12px 10px;
+  }
+
+  .tutorial-steps li > span {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 /* App-style catalog refresh */
 .app-topbar {
   position: sticky;

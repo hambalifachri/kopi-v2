@@ -2167,8 +2167,7 @@ if (headerCartButton) {
 
 if (headerGuideButton) {
   headerGuideButton.addEventListener("click", () => {
-    const infoModal = document.getElementById("infoModal");
-    if (infoModal) infoModal.classList.remove("hidden");
+    openTutorialModal();
   });
 }
 
@@ -2397,75 +2396,69 @@ setInterval(() => {
 }, 3000); // <-- Untuk testing biarkan 3000 (3 detik) dulu
 
 // ==========================================
-// FITUR POP-UP JASDOR & CARA ORDER (2 TOMBOL)
+// PUSAT PANDUAN JASDOR & VIDEO CARA ORDER
 // ==========================================
+function openTutorialModal() {
+  const tutorialModal = document.getElementById("tutorialModal");
+  if (!tutorialModal) return;
+  tutorialModal.classList.remove("hidden");
+  tutorialModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("tutorial-open");
+  requestAnimationFrame(() => document.getElementById("closeTutorialModal")?.focus());
+}
+
+function closeTutorialGuide() {
+  const tutorialModal = document.getElementById("tutorialModal");
+  const tutorialVideo = document.getElementById("orderTutorialVideo");
+  if (!tutorialModal) return;
+  tutorialVideo?.pause();
+  tutorialModal.classList.add("hidden");
+  tutorialModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("tutorial-open");
+}
+
+function openJasdorInfo() {
+  const infoModal = document.getElementById("infoModal");
+  if (infoModal) infoModal.classList.remove("hidden");
+}
+
+function closeJasdorInfo() {
+  const infoModal = document.getElementById("infoModal");
+  if (infoModal) infoModal.classList.add("hidden");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-  // Ambil kedua ID tombol yang baru
-  const btnJasdor = document.getElementById('btnJasdor');
-  const btnCaraOrder = document.getElementById('btnCaraOrder');
-  
-  const infoModal = document.getElementById('infoModal');
-  const closeInfoBtn = document.getElementById('closeInfoBtn');
+  const btnJasdor = document.getElementById("btnJasdor");
+  const btnCaraOrder = document.getElementById("btnCaraOrder");
+  const infoModal = document.getElementById("infoModal");
+  const tutorialModal = document.getElementById("tutorialModal");
+  const closeInfoBtn = document.getElementById("closeInfoBtn");
+  const closeTutorialButton = document.getElementById("closeTutorialModal");
+  const guideStartOrderButton = document.getElementById("guideStartOrderButton");
 
-  // Fungsi praktis untuk membuka modal
-  const openModal = () => {
-    if (infoModal) infoModal.classList.remove('hidden');
-  };
+  btnJasdor?.addEventListener("click", openJasdorInfo);
+  btnCaraOrder?.addEventListener("click", openTutorialModal);
+  closeInfoBtn?.addEventListener("click", closeJasdorInfo);
+  closeTutorialButton?.addEventListener("click", closeTutorialGuide);
 
-  // Pasang sensor klik ke kedua tombol!
-  if (btnJasdor) btnJasdor.addEventListener('click', openModal);
-  if (btnCaraOrder) btnCaraOrder.addEventListener('click', openModal);
+  infoModal?.addEventListener("click", (event) => {
+    if (event.target === infoModal) closeJasdorInfo();
+  });
 
-  // Tombol silang untuk menutup
-  if (closeInfoBtn) {
-    closeInfoBtn.addEventListener('click', () => {
-      infoModal.classList.add('hidden');
-    });
-  }
+  tutorialModal?.addEventListener("click", (event) => {
+    if (event.target === tutorialModal) closeTutorialGuide();
+  });
 
-  // Menutup saat mengklik area gelap di luar kotak
-  if (infoModal) {
-    infoModal.addEventListener('click', (event) => {
-      if (event.target === infoModal) {
-        infoModal.classList.add('hidden');
-      }
-    });
-  }
-});// ==========================================
-// FITUR POP-UP JASDOR & CARA ORDER (2 TOMBOL)
-// ==========================================
-document.addEventListener("DOMContentLoaded", () => {
-  // Ambil kedua ID tombol yang baru
-  const btnJasdor = document.getElementById('btnJasdor');
-  const btnCaraOrder = document.getElementById('btnCaraOrder');
-  
-  const infoModal = document.getElementById('infoModal');
-  const closeInfoBtn = document.getElementById('closeInfoBtn');
+  guideStartOrderButton?.addEventListener("click", () => {
+    closeTutorialGuide();
+    document.querySelector(".search-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
-  // Fungsi praktis untuk membuka modal
-  const openModal = () => {
-    if (infoModal) infoModal.classList.remove('hidden');
-  };
-
-  // Pasang sensor klik ke kedua tombol!
-  if (btnJasdor) btnJasdor.addEventListener('click', openModal);
-  if (btnCaraOrder) btnCaraOrder.addEventListener('click', openModal);
-
-  // Tombol silang untuk menutup
-  if (closeInfoBtn) {
-    closeInfoBtn.addEventListener('click', () => {
-      infoModal.classList.add('hidden');
-    });
-  }
-
-  // Menutup saat mengklik area gelap di luar kotak
-  if (infoModal) {
-    infoModal.addEventListener('click', (event) => {
-      if (event.target === infoModal) {
-        infoModal.classList.add('hidden');
-      }
-    });
-  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (tutorialModal && !tutorialModal.classList.contains("hidden")) closeTutorialGuide();
+    if (infoModal && !infoModal.classList.contains("hidden")) closeJasdorInfo();
+  });
 });
 
 // ==========================================

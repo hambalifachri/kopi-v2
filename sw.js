@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fachrindah-pwa-v2'; // Nama cache baru
+const CACHE_NAME = 'fachrindah-pwa-v3';
 const urlsToCache = [
   './',
   './index.html',
@@ -34,6 +34,13 @@ self.addEventListener('activate', event => {
 
 // 3. Trik Jitu: Selalu utamakan Internet, kalau Offline baru pakai Memori
 self.addEventListener('fetch', event => {
+  // Video memakai range request. Biarkan browser mengambil potongan video langsung
+  // agar tombol play dan seek tetap lancar di ponsel.
+  if (event.request.headers.has('range')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then(response => {
