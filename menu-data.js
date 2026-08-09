@@ -1566,11 +1566,11 @@ const MENU_ITEMS_DATA = [
 
   // Kategori Frappe
   { id: "tiramisu-frappe", group: "kenangan-frappe", name: "Tiramisu Frappe", oldPrice: 28000, price: 18000, largePrice: 18000, jumboPrice: 22000, allowBeans: true, allowOatside: true, color: "#6d3b2a", foam: "#f6efe7", drizzle: "#3a1c12", kind: "frappe", noHot: true },
-  { id: "butterscotch-kenangan-frappe", group: "kenangan-frappe", name: "Butterscotch Kenangan Frappe", oldPrice: 30000, price: 20000, largePrice: 30000, allowBeans: true, allowOatside: true, color: "#d59a32", foam: "#fff3df", drizzle: "#b36a1f", kind: "frappe", noHot: true },
-  { id: "matcha-kenangan-frappe", group: "kenangan-frappe", name: "Matcha Kenangan Frappe", oldPrice: 32000, price: 20000, largePrice: 30000, allowBeans: false, allowOatside: true, color: "#69a63b", foam: "#dcf0b3", drizzle: "#2f5d22", kind: "frappe", noHot: true },
-  { id: "kopi-kenangan-mantan-frappe", group: "kenangan-frappe", name: "Kopi Kenangan Mantan Frappe", oldPrice: 27000, price: 18500, largePrice: 25500, allowBeans: true, allowOatside: true, color: "#9f5a2f", foam: "#f2dfcf", drizzle: "#5e2d17", kind: "frappe", noHot: true },
-  { id: "vanilla-kenangan-frappe", group: "kenangan-frappe", name: "Vanilla Kenangan Frappe", oldPrice: 25000, price: 17500, largePrice: 24500, allowBeans: false, allowOatside: true, color: "#f5f0e7", foam: "#ffffff", drizzle: "#e5d4bb", kind: "frappe", noHot: true },
-  { id: "dutch-choco-kenangan-frappe", group: "kenangan-frappe", name: "Dutch Choco Kenangan Frappe", oldPrice: 29000, price: 19500, largePrice: 26500, allowBeans: false, allowOatside: true, color: "#5a2d25", foam: "#e9c4ad", drizzle: "#28110c", kind: "frappe", noHot: true },
+  { id: "butterscotch-kenangan-frappe", group: "kenangan-frappe", name: "Butterscotch Kenangan Frappe", oldPrice: 30000, price: 20000, largePrice: 30000, allowBeans: true, allowOatside: true, color: "#d59a32", foam: "#fff3df", drizzle: "#b36a1f", kind: "frappe", noHot: true, frappeWhippedCreamOnly: true },
+  { id: "matcha-kenangan-frappe", group: "kenangan-frappe", name: "Matcha Kenangan Frappe", oldPrice: 32000, price: 20000, largePrice: 30000, allowBeans: false, allowOatside: true, color: "#69a63b", foam: "#dcf0b3", drizzle: "#2f5d22", kind: "frappe", noHot: true, frappeWhippedCreamOnly: true },
+  { id: "kopi-kenangan-mantan-frappe", group: "kenangan-frappe", name: "Kopi Kenangan Mantan Frappe", oldPrice: 27000, price: 18500, largePrice: 25500, allowBeans: true, allowOatside: true, color: "#9f5a2f", foam: "#f2dfcf", drizzle: "#5e2d17", kind: "frappe", noHot: true, frappeWhippedCreamOnly: true },
+  { id: "vanilla-kenangan-frappe", group: "kenangan-frappe", name: "Vanilla Kenangan Frappe", oldPrice: 25000, price: 17500, largePrice: 24500, allowBeans: false, allowOatside: true, color: "#f5f0e7", foam: "#ffffff", drizzle: "#e5d4bb", kind: "frappe", noHot: true, frappeWhippedCreamOnly: true },
+  { id: "dutch-choco-kenangan-frappe", group: "kenangan-frappe", name: "Dutch Choco Kenangan Frappe", oldPrice: 29000, price: 19500, largePrice: 26500, allowBeans: false, allowOatside: true, color: "#5a2d25", foam: "#e9c4ad", drizzle: "#28110c", kind: "frappe", noHot: true, frappeWhippedCreamOnly: true },
 
   // Kategori: Makanan
   { id: "canele-aren", group: "chef-martin", name: "Canele Aren", oldPrice: 15000, price: 10500, kind: "food", color: "#6b3a24" },

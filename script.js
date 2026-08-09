@@ -805,7 +805,18 @@ function getKenanganOptionGroups(item) {
   });
 
   // 👇 KOTAK 1: KHUSUS TOPPING (+6000) 👇
-  if (!item.noTopping) {
+  if (item.frappeWhippedCreamOnly) {
+    groups.push({
+      key: "whippedCream",
+      label: "Whipped Cream",
+      layout: "stacked",
+      options: [
+        { value: "Whipped Cream Vanilla", label: "Whipped Cream Vanilla" },
+        { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate" },
+        { value: "No Whipped Cream", label: "No Whipped Cream" },
+      ],
+    });
+  } else if (!item.noTopping) {
     groups.push({
       key: "topping",
       label: "Topping",
@@ -825,7 +836,7 @@ function getKenanganOptionGroups(item) {
   }
 
   // 👇 KOTAK 2: KHUSUS ADD ON (+6000) 👇
-  if (!item.noAddon) {
+  if (!item.frappeWhippedCreamOnly && !item.noAddon) {
     groups.push({
       key: "addon",
       label: "Add On",
@@ -916,7 +927,9 @@ function renderDynamicOptions(item) {
   }
 
   modalOptions.innerHTML = groups.map((group) => {
-    const gridClass = group.options.length <= 1 ? "one" : group.options.length === 2 ? "two" : "three";
+    const gridClass = group.layout === "stacked"
+      ? "stacked"
+      : group.options.length <= 1 ? "one" : group.options.length === 2 ? "two" : "three";
     return `<div class="option-group" data-option-group="${escapeHtml(group.key)}">
       <div class="option-heading">
         <strong>${escapeHtml(group.label)}</strong>
@@ -931,6 +944,7 @@ function renderDynamicOptions(item) {
             ${optionIconHtml(option)}
             <strong>${escapeHtml(option.label || option.value)}</strong>
             ${priceText ? `<span class="option-price">${escapeHtml(priceText)}</span>` : ""}
+            ${group.layout === "stacked" ? '<span class="option-radio" aria-hidden="true"></span>' : ""}
           </button>`;
         }).join("")}
       </div>
