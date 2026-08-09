@@ -810,6 +810,7 @@ function getKenanganOptionGroups(item) {
       key: "whippedCream",
       label: "Whipped Cream",
       layout: "stacked",
+      defaultValue: item.defaultWhippedCream || "Whipped Cream Vanilla",
       options: [
         { value: "Whipped Cream Vanilla", label: "Whipped Cream Vanilla" },
         { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate" },
@@ -889,7 +890,8 @@ function ensureSelectedOptions(item) {
   groups.forEach((group) => {
     const hasSelectedOption = group.options.some((option) => option.value === selectedOptions[group.key]);
     if (!hasSelectedOption && group.options[0]) {
-      selectedOptions[group.key] = group.options[0].value;
+      const defaultOption = group.options.find((option) => option.value === group.defaultValue) || group.options[0];
+      selectedOptions[group.key] = defaultOption.value;
     }
   });
   groups.forEach((group) => {

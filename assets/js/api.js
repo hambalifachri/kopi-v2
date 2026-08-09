@@ -40,7 +40,10 @@ const KOPI_KENANGAN_API_MENU_OVERRIDES = {
   "matcha-kenangan-frappe": { frappeWhippedCreamOnly: true },
   "kopi-kenangan-mantan-frappe": { frappeWhippedCreamOnly: true },
   "vanilla-kenangan-frappe": { frappeWhippedCreamOnly: true },
-  "dutch-choco-kenangan-frappe": { frappeWhippedCreamOnly: true },
+  "dutch-choco-kenangan-frappe": {
+    frappeWhippedCreamOnly: true,
+    defaultWhippedCream: "Whipped Cream Chocolate",
+  },
   "creamy-caramel-latte": {
     largePrice: 24000,
     noSugar: true,
