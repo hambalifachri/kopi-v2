@@ -451,9 +451,6 @@ function syncOutletPanelVisibility() {
   const outletHint = document.getElementById("outletSearchHint");
   if (outletHint) outletHint.hidden = !isKopken;
   if (manualBrandOutletControls) manualBrandOutletControls.hidden = isKopken;
-  if (manualBrandOutletControls && !isKopken) {
-    manualBrandOutletControls.style.setProperty("--outlet-brand-accent", getActiveBrand().accent);
-  }
   if (manualBrandOutletInput && !isKopken) {
     if (document.activeElement !== manualBrandOutletInput) manualBrandOutletInput.value = outletName;
     manualBrandOutletInput.placeholder = `Contoh: ${getActiveBrand().label} Grand Indonesia`;

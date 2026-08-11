@@ -2995,17 +2995,17 @@ body.tutorial-open {
 }
 
 .manual-brand-outlet button {
-  border: 0;
+  border: 1px solid #d5d1cd;
   border-radius: 8px;
   padding: 0 18px;
-  background: var(--outlet-brand-accent, #2f6b4f);
-  color: #fff;
+  background: #fff;
+  color: #292624;
   font-weight: 800;
 }
 
 .manual-brand-outlet a {
   width: fit-content;
-  color: var(--outlet-brand-accent, #2f6b4f);
+  color: #5f5a56;
   font-size: 0.8rem;
   font-weight: 800;
 }
