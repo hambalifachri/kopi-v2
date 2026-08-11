@@ -2998,14 +2998,14 @@ body.tutorial-open {
   border: 0;
   border-radius: 8px;
   padding: 0 18px;
-  background: #a92b23;
+  background: var(--outlet-brand-accent, #2f6b4f);
   color: #fff;
   font-weight: 800;
 }
 
 .manual-brand-outlet a {
   width: fit-content;
-  color: #8d2d25;
+  color: var(--outlet-brand-accent, #2f6b4f);
   font-size: 0.8rem;
   font-weight: 800;
 }
@@ -3195,7 +3195,8 @@ body.tutorial-open {
   box-shadow: 0 0 0 3px rgba(47, 107, 79, 0.12);
 }
 
-#outletResults.outlet-results {
+#outletResults.outlet-results,
+#manualBrandOutletResults.outlet-results {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -3210,7 +3211,8 @@ body.tutorial-open {
   box-shadow: 0 12px 32px rgba(26, 23, 21, 0.16);
 }
 
-#outletResults.outlet-results[hidden] {
+#outletResults.outlet-results[hidden],
+#manualBrandOutletResults.outlet-results[hidden] {
   display: none;
 }
 

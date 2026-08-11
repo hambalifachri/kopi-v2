@@ -14,8 +14,17 @@ window.addEventListener('load', function() {
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
+const BRAND_CATALOG_API = "https://bpkpydfvevlktyeapunf.supabase.co/functions/v1/brand-catalog";
+const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
 let outletSearchTimer = null;
+let liveBrandOutletSearchTimer = null;
 let originalKopiKenanganMenu = null;
+let originalLiveBrandMenus = null;
+
+window.brandOutletStates = window.brandOutletStates || {
+  tomoro: { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" },
+  fore: { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" },
+};
 
 const KOPI_KENANGAN_ALLOWED_API_BRANDS = new Set([
   "kopi-kenangan",
@@ -711,4 +720,284 @@ document.addEventListener("DOMContentLoaded", () => {
       clearSelectedOutletState();
     });
   }
+});
+
+function cacheOriginalLiveBrandMenus() {
+  if (originalLiveBrandMenus || typeof menuItems === "undefined") return;
+  originalLiveBrandMenus = {
+    tomoro: menuItems.filter((item) => item.brand === "tomoro").map((item) => ({ ...item })),
+    fore: menuItems.filter((item) => item.brand === "fore").map((item) => ({ ...item })),
+  };
+}
+
+function replaceLiveBrandMenu(brandId, items) {
+  const otherItems = menuItems.filter((item) => item.brand !== brandId);
+  menuItems.length = 0;
+  menuItems.push(...otherItems, ...items);
+}
+
+function restoreLiveBrandMenu(brandId) {
+  cacheOriginalLiveBrandMenus();
+  const originals = originalLiveBrandMenus?.[brandId] || [];
+  replaceLiveBrandMenu(brandId, originals.map((item) => ({ ...item })));
+}
+
+function setLiveBrandOutletState(brandId, patch) {
+  window.brandOutletStates[brandId] = {
+    ...window.brandOutletStates[brandId],
+    ...patch,
+  };
+}
+
+function saveLiveBrandOutlets() {
+  const saved = {};
+  ["tomoro", "fore"].forEach((brandId) => {
+    const state = window.brandOutletStates[brandId];
+    if (state?.outletCode && state?.outletName) {
+      saved[brandId] = { outletCode: state.outletCode, outletName: state.outletName };
+    }
+  });
+  localStorage.setItem(LIVE_BRAND_OUTLETS_KEY, JSON.stringify(saved));
+}
+
+function getLiveBrandResultsElement() {
+  return document.getElementById("manualBrandOutletResults");
+}
+
+function setLiveBrandHint(message) {
+  const hint = document.getElementById("manualBrandOutletHint");
+  if (hint) hint.textContent = message;
+}
+
+function clearLiveBrandResults() {
+  const results = getLiveBrandResultsElement();
+  if (!results) return;
+  results.innerHTML = "";
+  results.hidden = true;
+}
+
+function liveBrandOutletName(brandId, outlet) {
+  return brandId === "fore"
+    ? String(outlet?.name || "")
+    : String(outlet?.storeName || outlet?.name || "");
+}
+
+function liveBrandOutletCode(brandId, outlet) {
+  return brandId === "fore"
+    ? String(outlet?.code || "")
+    : String(outlet?.storeCode || outlet?.code || "");
+}
+
+function liveBrandOutletAddress(brandId, outlet) {
+  return brandId === "fore"
+    ? String(outlet?.city || "")
+    : String(outlet?.storeAddress || outlet?.address || "");
+}
+
+function renderLiveBrandOutletResults(brandId, outlets) {
+  const results = getLiveBrandResultsElement();
+  if (!results) return;
+  results.innerHTML = "";
+  results.hidden = false;
+
+  if (!outlets.length) {
+    results.innerHTML = '<p class="outlet-empty">Outlet tidak ditemukan.</p>';
+    return;
+  }
+
+  outlets.forEach((outlet) => {
+    const name = liveBrandOutletName(brandId, outlet);
+    const code = liveBrandOutletCode(brandId, outlet);
+    if (!name || !code) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outlet-result";
+    const title = document.createElement("strong");
+    title.textContent = name;
+    button.appendChild(title);
+    const address = liveBrandOutletAddress(brandId, outlet);
+    if (address) {
+      const detail = document.createElement("span");
+      detail.textContent = address;
+      button.appendChild(detail);
+    }
+    button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name }));
+    results.appendChild(button);
+  });
+}
+
+window.searchLiveBrandOutlets = async function(brandId, keyword) {
+  if (!["tomoro", "fore"].includes(brandId) || keyword.trim().length < 3) return;
+  setLiveBrandHint("Mencari outlet...");
+  try {
+    const url = `${BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+    const outlets = Array.isArray(data.outlets) ? data.outlets : [];
+    renderLiveBrandOutletResults(brandId, outlets);
+    setLiveBrandHint(`${outlets.length} outlet ditemukan. Pilih salah satu.`);
+  } catch (error) {
+    console.error(`Gagal mencari outlet ${brandId}:`, error);
+    clearLiveBrandResults();
+    setLiveBrandHint("Pencarian live sedang bermasalah. Coba lagi sebentar.");
+  }
+};
+
+function normalizedLiveName(value) {
+  return normalizeApiText(value)
+    .replace(/^(iced|ice|hot)-/, "")
+    .replace(/-parent$/, "")
+    .replace(/cappucino/g, "cappuccino");
+}
+
+function buildForeLiveMenu(payload) {
+  cacheOriginalLiveBrandMenus();
+  const originals = originalLiveBrandMenus?.fore || [];
+  const master = Array.isArray(payload?.master) ? payload.master : [];
+  const storeRows = new Map((payload?.storeMenu || []).map((row) => [String(row.product_code || "").toLowerCase(), row]));
+  const masterByName = new Map();
+  master.forEach((item) => {
+    const key = normalizedLiveName(item.name);
+    if (!masterByName.has(key) || /^iced?-/i.test(String(item.name))) masterByName.set(key, item);
+  });
+
+  return originals.flatMap((localItem) => {
+    const liveItem = masterByName.get(normalizedLiveName(localItem.name));
+    if (!liveItem?.product_code) return [];
+    const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
+    if (!storeItem || storeItem.is_sold_out === true) return [];
+
+    const officialRegular = firstNumber(storeItem.regular_price, storeItem.small_price, liveItem.regular_price, liveItem.small_price);
+    if (!officialRegular) return [];
+    const officialLarge = firstNumber(storeItem.large_price, liveItem.large_price);
+    const largeSellingPrice = officialLarge
+      ? localItem.price + Math.max(0, officialLarge - officialRegular)
+      : 0;
+    const defaultOptions = (BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || []).map((group) => ({
+      ...group,
+      options: (group.options || []).map((option) => ({ ...option })),
+    }));
+    const sizeGroup = defaultOptions.find((group) => group.key === "cupSize");
+    if (sizeGroup) {
+      sizeGroup.options = [{ value: "Reguler", label: "Reguler", price: localItem.price }];
+      if (officialLarge) sizeGroup.options.push({ value: "Large", label: "Large", price: largeSellingPrice });
+    }
+
+    return [{
+      ...localItem,
+      image: liveItem.image_url || localItem.image,
+      oldPrice: officialRegular,
+      oldLargePrice: officialLarge || undefined,
+      largePrice: largeSellingPrice || undefined,
+      options: defaultOptions,
+      liveOutletMenu: true,
+    }];
+  });
+}
+
+function collectTomoroProducts(value, products = []) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectTomoroProducts(entry, products));
+    return products;
+  }
+  if (!value || typeof value !== "object") return products;
+  const name = value.productName || value.menuName || value.goodsName || value.name;
+  const price = firstNumber(value.price, value.salePrice, value.originPrice, value.originalPrice);
+  if (name && price) products.push(value);
+  Object.values(value).forEach((entry) => collectTomoroProducts(entry, products));
+  return products;
+}
+
+function buildTomoroLiveMenu(payload) {
+  cacheOriginalLiveBrandMenus();
+  const originals = originalLiveBrandMenus?.tomoro || [];
+  const liveByName = new Map(collectTomoroProducts(payload).map((item) => [
+    normalizedLiveName(item.productName || item.menuName || item.goodsName || item.name),
+    item,
+  ]));
+  const matched = originals.flatMap((localItem) => {
+    const liveItem = liveByName.get(normalizedLiveName(localItem.name));
+    if (!liveItem || liveItem.isSoldOut === true || liveItem.soldOut === true) return [];
+    return [{
+      ...localItem,
+      oldPrice: firstNumber(liveItem.price, liveItem.salePrice, liveItem.originPrice, liveItem.originalPrice) || localItem.oldPrice,
+      image: liveItem.imageUrl || liveItem.image || localItem.image,
+      liveOutletMenu: true,
+    }];
+  });
+  if (matched.length < 3) throw new Error("Data menu Tomoro live belum lengkap");
+  return matched;
+}
+
+async function loadLiveBrandMenu(brandId, outletCode) {
+  setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
+  if (typeof renderMenu === "function") renderMenu();
+  try {
+    const response = await fetch(`${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+    const items = brandId === "fore" ? buildForeLiveMenu(data) : buildTomoroLiveMenu(data);
+    if (!items.length) throw new Error("Tidak ada menu yang cocok di outlet ini");
+    replaceLiveBrandMenu(brandId, items);
+    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "live" });
+    if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
+      setLiveBrandHint(`${items.length} menu tersedia sesuai outlet terpilih.`);
+    }
+  } catch (error) {
+    console.error(`Gagal memuat menu live ${brandId}:`, error);
+    restoreLiveBrandMenu(brandId);
+    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "fallback" });
+    if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
+      setLiveBrandHint("Menu live sedang tidak tersedia. Menu lokal cadangan ditampilkan.");
+    }
+  }
+  if (typeof renderMenu === "function") renderMenu();
+}
+
+async function selectLiveBrandOutlet(brandId, outlet) {
+  setLiveBrandOutletState(brandId, { ...outlet, menuLoading: true, menuLoaded: false });
+  saveLiveBrandOutlets();
+  clearLiveBrandResults();
+  const input = document.getElementById("manualBrandOutletInput");
+  if (input) input.value = outlet.outletName;
+  await loadLiveBrandMenu(brandId, outlet.outletCode);
+  if (typeof syncCheckoutOutletField === "function") syncCheckoutOutletField();
+}
+
+window.clearLiveBrandOutlet = function(brandId) {
+  if (!["tomoro", "fore"].includes(brandId)) return;
+  setLiveBrandOutletState(brandId, { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" });
+  restoreLiveBrandMenu(brandId);
+  saveLiveBrandOutlets();
+  clearLiveBrandResults();
+  setLiveBrandHint("Ketik minimal 3 huruf, lalu pilih outlet dari hasil pencarian.");
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  cacheOriginalLiveBrandMenus();
+  try {
+    const saved = JSON.parse(localStorage.getItem(LIVE_BRAND_OUTLETS_KEY) || "{}");
+    ["tomoro", "fore"].forEach((brandId) => {
+      if (!saved?.[brandId]?.outletCode || !saved?.[brandId]?.outletName) return;
+      setLiveBrandOutletState(brandId, { ...saved[brandId], menuLoaded: false });
+      loadLiveBrandMenu(brandId, saved[brandId].outletCode);
+    });
+  } catch (error) {
+    localStorage.removeItem(LIVE_BRAND_OUTLETS_KEY);
+  }
+
+  const input = document.getElementById("manualBrandOutletInput");
+  input?.addEventListener("input", (event) => {
+    const keyword = event.target.value.trim();
+    window.clearTimeout(liveBrandOutletSearchTimer);
+    if (keyword.length < 3) {
+      clearLiveBrandResults();
+      setLiveBrandHint("Ketik minimal 3 huruf, lalu pilih outlet dari hasil pencarian.");
+      return;
+    }
+    const brandId = typeof activeBrandId === "string" ? activeBrandId : "";
+    if (!["tomoro", "fore"].includes(brandId)) return;
+    liveBrandOutletSearchTimer = window.setTimeout(() => window.searchLiveBrandOutlets(brandId, keyword), 300);
+  });
 });

@@ -272,6 +272,7 @@ const kopkenOutletSearchBox = document.querySelector("#kopkenOutletSearchBox");
 const manualBrandOutletControls = document.querySelector("#manualBrandOutletControls");
 const manualBrandOutletInput = document.querySelector("#manualBrandOutletInput");
 const manualBrandOutletLabel = document.querySelector("#manualBrandOutletLabel");
+const manualBrandOutletHint = document.querySelector("#manualBrandOutletHint");
 const findManualOutletLink = document.querySelector("#findManualOutletLink");
 const wifiPasswordBar = document.querySelector("#wifiPasswordBar");
 const wifiPasswordText = document.querySelector("#wifiPasswordText");
@@ -450,8 +451,11 @@ function syncOutletPanelVisibility() {
   const outletHint = document.getElementById("outletSearchHint");
   if (outletHint) outletHint.hidden = !isKopken;
   if (manualBrandOutletControls) manualBrandOutletControls.hidden = isKopken;
+  if (manualBrandOutletControls && !isKopken) {
+    manualBrandOutletControls.style.setProperty("--outlet-brand-accent", getActiveBrand().accent);
+  }
   if (manualBrandOutletInput && !isKopken) {
-    manualBrandOutletInput.value = outletName;
+    if (document.activeElement !== manualBrandOutletInput) manualBrandOutletInput.value = outletName;
     manualBrandOutletInput.placeholder = `Contoh: ${getActiveBrand().label} Grand Indonesia`;
   }
   if (manualBrandOutletLabel && !isKopken) manualBrandOutletLabel.textContent = getActiveBrand().label;
@@ -487,7 +491,9 @@ function getSelectedOutletNameForBrand(brandId) {
   if (brandId === "kopi-kenangan") {
     return getKopiKenanganOutletState().outletName || "";
   }
-  return String(manualBrandOutlets[brandId] || "").trim();
+  const liveOutlet = window.brandOutletStates?.[brandId];
+  if (liveOutlet?.outletName) return liveOutlet.outletName;
+  return "";
 }
 
 function syncCheckoutOutletField() {
@@ -542,7 +548,25 @@ function shouldGateKopiKenanganMenu() {
 }
 
 function shouldGateManualBrandMenu() {
-  return activeBrandId !== "kopi-kenangan" && !getSelectedOutletNameForBrand(activeBrandId);
+  if (activeBrandId === "kopi-kenangan") return false;
+  const state = window.brandOutletStates?.[activeBrandId];
+  return Boolean(state?.menuLoading) || !getSelectedOutletNameForBrand(activeBrandId);
+}
+
+function getManualBrandGateMessage() {
+  const state = window.brandOutletStates?.[activeBrandId];
+  if (state?.menuLoading) {
+    return {
+      title: "Sedang memuat menu outlet...",
+      body: `Menu ${getActiveBrand().label} sedang disesuaikan dengan outlet pilihan.`,
+      status: "Sedang memuat menu outlet.",
+    };
+  }
+  return {
+    title: `Pilih outlet ${getActiveBrand().label} dulu`,
+    body: "Cari nama atau kota, lalu pilih outlet dari hasil pencarian agar menu dan stoknya sesuai.",
+    status: `Pilih outlet ${getActiveBrand().label} untuk melihat menu.`,
+  };
 }
 
 function getKopiKenanganGateMessage() {
@@ -1300,6 +1324,7 @@ function renderMenu(query = "") {
   }
 
   if (shouldGateManualBrandMenu()) {
+    const gateMessage = getManualBrandGateMessage();
     syncMenuControls([]);
     if (bundleTabs) {
       bundleTabs.hidden = true;
@@ -1308,10 +1333,10 @@ function renderMenu(query = "") {
     categoryNav.innerHTML = "";
     catalogContainer.innerHTML = `${bannerHtml}
       <div class="no-results outlet-required-message">
-        <strong>Pilih outlet ${escapeHtml(activeBrand.label)} dulu</strong>
-        <span>Masukkan nama outlet pada panel di atas agar pesanan dikirim ke lokasi yang benar.</span>
+        <strong>${escapeHtml(gateMessage.title)}</strong>
+        <span>${escapeHtml(gateMessage.body)}</span>
       </div>`;
-    searchStatus.textContent = `Pilih outlet ${activeBrand.label} untuk melihat menu.`;
+    searchStatus.textContent = gateMessage.status;
     return;
   }
 
@@ -2094,17 +2119,13 @@ brandChooserModal?.addEventListener("click", (event) => {
 
 function confirmManualBrandOutlet() {
   if (activeBrandId === "kopi-kenangan" || !manualBrandOutletInput) return;
-  const outletName = manualBrandOutletInput.value.trim();
-  if (outletName.length < 3) {
-    alert("Masukkan nama outlet yang lebih lengkap.");
+  const keyword = manualBrandOutletInput.value.trim();
+  if (keyword.length < 3) {
+    alert("Ketik minimal 3 huruf untuk mencari outlet.");
     manualBrandOutletInput.focus();
     return;
   }
-  manualBrandOutlets[activeBrandId] = outletName;
-  localStorage.setItem(MANUAL_OUTLETS_KEY, JSON.stringify(manualBrandOutlets));
-  if (selectedOutletName) selectedOutletName.textContent = outletName;
-  syncCheckoutOutletField();
-  renderMenu();
+  window.searchLiveBrandOutlets?.(activeBrandId, keyword);
 }
 
 document.querySelector("#confirmManualOutlet")?.addEventListener("click", confirmManualBrandOutlet);
@@ -2121,6 +2142,7 @@ document.querySelector("#outletClear")?.addEventListener("click", (event) => {
   event.stopImmediatePropagation();
   delete manualBrandOutlets[activeBrandId];
   localStorage.setItem(MANUAL_OUTLETS_KEY, JSON.stringify(manualBrandOutlets));
+  window.clearLiveBrandOutlet?.(activeBrandId);
   if (manualBrandOutletInput) manualBrandOutletInput.value = "";
   if (selectedOutletName) selectedOutletName.textContent = "Belum dipilih";
   renderMenu();
