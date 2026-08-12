@@ -54,11 +54,121 @@ function formatItemForCopy(item, index) {
   return lines.join("\n");
 }
 
+const KOPKEN_BATCH_MIN_TOTAL = 50000;
+const KOPKEN_BATCH_MAX_TOTAL = 70000;
+
+function getCatalogKopkenItem(item) {
+  if (typeof MENU_ITEMS_DATA === "undefined") return null;
+  return MENU_ITEMS_DATA.find((menuItem) => {
+    const isKopken = !menuItem.brand || menuItem.brand === "kopi-kenangan";
+    return isKopken && ((item.id && menuItem.id === item.id) || menuItem.name === item.name);
+  }) || null;
+}
+
+function getStoredOfficialPrice(item) {
+  const savedPrice = Number(item.officialPrice) || Number(item.oldPrice);
+  if (savedPrice > 0) return savedPrice;
+  const menuItem = getCatalogKopkenItem(item);
+  if (!menuItem) return Number(item.price) || 0;
+
+  let officialPrice = Number(menuItem.oldPrice) || Number(menuItem.price) || Number(item.price) || 0;
+  const size = String(item.options?.size || item.options?.cupSize || "").toLowerCase();
+  if (size === "large" && !menuItem.noRegular) {
+    officialPrice = Number(menuItem.oldLargePrice || menuItem.largeOldPrice || menuItem.largeOrigPrice)
+      || officialPrice + Math.max(0, (Number(menuItem.largePrice) || Number(menuItem.price) || 0) - (Number(menuItem.price) || 0));
+  } else if (size === "jumbo") {
+    const baseSellingPrice = menuItem.noRegular
+      ? Number(menuItem.largePrice) || Number(menuItem.price) || 0
+      : Number(menuItem.price) || 0;
+    officialPrice = Number(menuItem.oldJumboPrice || menuItem.jumboOldPrice || menuItem.jumboOrigPrice)
+      || officialPrice + Math.max(0, (Number(menuItem.jumboPrice) || baseSellingPrice) - baseSellingPrice);
+  }
+  return officialPrice;
+}
+
+function findValidBatchPartition(items, batchCount) {
+  const sortedItems = [...items].sort((a, b) => b.officialUnitPrice - a.officialUnitPrice);
+  const buckets = Array.from({ length: batchCount }, () => []);
+  const totals = Array(batchCount).fill(0);
+
+  function assignItem(itemIndex) {
+    if (itemIndex === sortedItems.length) {
+      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= KOPKEN_BATCH_MAX_TOTAL);
+    }
+    const item = sortedItems[itemIndex];
+    const attemptedTotals = new Set();
+    const candidates = totals
+      .map((total, index) => ({ total, index }))
+      .filter(({ total }) => total + item.officialUnitPrice <= KOPKEN_BATCH_MAX_TOTAL)
+      .sort((a, b) => b.total - a.total);
+    for (const { total, index } of candidates) {
+      if (attemptedTotals.has(total)) continue;
+      attemptedTotals.add(total);
+      buckets[index].push(item);
+      totals[index] += item.officialUnitPrice;
+      if (assignItem(itemIndex + 1)) return true;
+      totals[index] -= item.officialUnitPrice;
+      buckets[index].pop();
+    }
+    return false;
+  }
+
+  return assignItem(0) ? buckets.filter((bucket) => bucket.length) : null;
+}
+
+function buildBatchFallback(items) {
+  const buckets = [];
+  [...items].sort((a, b) => b.officialUnitPrice - a.officialUnitPrice).forEach((item) => {
+    const target = buckets
+      .map((bucket, index) => ({ index, total: bucket.reduce((sum, current) => sum + current.officialUnitPrice, 0) }))
+      .filter(({ total }) => total + item.officialUnitPrice <= KOPKEN_BATCH_MAX_TOTAL)
+      .sort((a, b) => b.total - a.total)[0];
+    if (target) buckets[target.index].push(item);
+    else buckets.push([item]);
+  });
+  return buckets;
+}
+
+function reconstructKopkenBatches(items) {
+  const units = items.flatMap((item) => Array.from({ length: Number(item.qty) || 1 }, () => ({
+    ...item,
+    qty: 1,
+    officialPrice: getStoredOfficialPrice(item),
+    officialUnitPrice: getStoredOfficialPrice(item),
+  })));
+  const total = units.reduce((sum, item) => sum + item.officialUnitPrice, 0);
+  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
+  const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
+  let buckets = null;
+  for (let count = minimumBatchCount; count <= maximumBatchCount && !buckets; count += 1) {
+    buckets = findValidBatchPartition(units, count);
+  }
+  buckets ||= buildBatchFallback(units);
+
+  return buckets.map((bucket, index) => {
+    const groupedItems = [];
+    bucket.forEach((item) => {
+      const key = `${item.id || item.name}|${JSON.stringify(item.options || {})}|${item.note || ""}`;
+      const existing = groupedItems.find((candidate) => candidate.batchKey === key);
+      if (existing) existing.qty += 1;
+      else groupedItems.push({ ...item, batchKey: key });
+    });
+    return {
+      number: index + 1,
+      officialTotal: bucket.reduce((sum, item) => sum + item.officialUnitPrice, 0),
+      sellingTotal: bucket.reduce((sum, item) => sum + (Number(item.price) || 0), 0),
+      items: groupedItems,
+    };
+  });
+}
+
 function getOrderBatches(order) {
   if (Array.isArray(order.batches) && order.batches.length) return order.batches;
   const items = Array.isArray(order.items) ? order.items : [];
+  const canReconstructKopken = items.length > 0 && items.every((item) => Boolean(getCatalogKopkenItem(item)));
+  if (canReconstructKopken) return reconstructKopkenBatches(items);
   const fallbackOfficialTotal = items.reduce((sum, item) => {
-    const unitPrice = Number(item.officialPrice) || Number(item.oldPrice) || Number(item.price) || 0;
+    const unitPrice = getStoredOfficialPrice(item);
     return sum + unitPrice * (Number(item.qty) || 1);
   }, 0);
   const fallbackSellingTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0);
