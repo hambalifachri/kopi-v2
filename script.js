@@ -262,6 +262,7 @@ const openCartCount = document.querySelector("#openCartCount");
 const openCartTotal = document.querySelector("#openCartTotal");
 const headerCartButton = document.querySelector("#headerCartButton");
 const headerCartCount = document.querySelector("#headerCartCount");
+const adminLogoTrigger = document.querySelector("#adminLogoTrigger");
 const headerGuideButton = document.querySelector("#headerGuideButton");
 const headerTestimonialButton = document.querySelector("#headerTestimonialButton");
 const menuModeTabs = document.querySelector("#menuModeTabs");
@@ -2558,6 +2559,20 @@ if (headerCartButton) {
 if (headerGuideButton) {
   headerGuideButton.addEventListener("click", () => {
     openTutorialModal();
+  });
+}
+
+if (adminLogoTrigger) {
+  let logoClickCount = 0;
+  let logoClickTimer = null;
+  adminLogoTrigger.addEventListener("click", () => {
+    logoClickCount += 1;
+    window.clearTimeout(logoClickTimer);
+    if (logoClickCount >= 3) {
+      window.location.assign("orders-admin.html");
+      return;
+    }
+    logoClickTimer = window.setTimeout(() => { logoClickCount = 0; }, 1000);
   });
 }
 

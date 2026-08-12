@@ -2722,16 +2722,27 @@ body.tutorial-open {
   gap: 8px;
 }
 
-.app-brand-mark {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  place-items: center;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--red-light);
-  font-size: 0.78rem;
+.app-brand-logo-button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.app-brand-logo-button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.app-brand-logo-button:focus-visible {
+  outline: 2px solid var(--red-light);
+  outline-offset: 2px;
 }
 
 .app-brand strong {
