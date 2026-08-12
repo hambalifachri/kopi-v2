@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260812" />
               <!-- Default Statcounter code for My Business Website
           https://hambalifachri.github.io/kopi.fachrindah/ -->
           <script type="text/javascript">
@@ -390,11 +390,23 @@
                   Nama
                   <input id="modalCustomerName" name="customerName" type="text" placeholder="Nama kamu" required />
                 </label>
-                <label>
+                <label id="customerPhoneField">
                   WhatsApp
                   <input id="modalCustomerPhone" name="customerPhone" type="tel" placeholder="08xxxxxxxxxx" required />
                 </label>
               </div>
+              <fieldset class="contact-method-field">
+                <legend>Metode kontak customer</legend>
+                <div class="contact-method-options">
+                  <label><input type="radio" name="contactMethod" value="whatsapp" checked /> WhatsApp</label>
+                  <label><input type="radio" name="contactMethod" value="email" /> Email</label>
+                </div>
+                <p class="proof-help">Pilihan email akan menyimpan order tanpa membuka WhatsApp. Bukti order langsung tersedia untuk dicetak.</p>
+              </fieldset>
+              <label id="customerEmailField" hidden>
+                Email
+                <input id="modalCustomerEmail" name="customerEmail" type="email" placeholder="nama@perusahaan.com" />
+              </label>
               <label>
                 Jam pickup
                 <select id="modalPickupTime" name="pickupTime" required>
@@ -444,7 +456,7 @@
                   Bukti akan disimpan bersama order. WhatsApp hanya berisi notifikasi dan ID order.
                 </p>
               </div>
-              <button class="send-button" type="submit">Simpan Order & Notifikasi WhatsApp</button>
+              <button class="send-button" id="submitOrderButton" type="submit">Simpan Order & Lanjut WhatsApp</button>
             </form>
             <form class="review-form modal-review" id="modalReviewForm">
               <div class="review-form-title">
@@ -608,8 +620,20 @@
       </section>
     </div>
 
+    <div class="access-modal receipt-modal" id="orderReceiptModal" hidden>
+      <section class="receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="orderReceiptTitle">
+        <button class="access-close" id="closeOrderReceipt" type="button" aria-label="Tutup">X</button>
+        <div id="orderReceiptContent"></div>
+        <div class="receipt-actions">
+          <button class="secondary-button" id="printOrderReceipt" type="button">Buka PDF</button>
+          <a class="send-button" id="continueOrderWhatsapp" href="#">Lanjut WhatsApp</a>
+        </div>
+      </section>
+    </div>
+
     <!-- SCRIPT (BIARKAN TETAP DI BAWAH) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
     <script src="supabase-config.js"></script>
     <script src="gallery-images.js"></script>
     <script src="menu-data.js"></script>

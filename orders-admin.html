@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Pesanan | kopi.fachrindah</title>
+  <link rel="stylesheet" href="orders-admin.css" />
+</head>
+<body>
+  <header class="admin-header">
+    <a class="brand" href="index.html"><span>♥</span><strong>kopi.fachrindah</strong></a>
+    <nav>
+      <a href="reseller-admin.html">Reseller</a>
+      <button id="logoutButton" class="quiet-button" type="button" hidden>Keluar</button>
+    </nav>
+  </header>
+
+  <main class="admin-shell">
+    <section class="login-panel" id="loginPanel">
+      <span class="eyebrow">AREA ADMIN</span>
+      <h1>Pesanan Masuk</h1>
+      <p>Masuk dengan akun admin Supabase yang sama seperti halaman reseller.</p>
+      <form id="loginForm" class="admin-form">
+        <label>Email admin<input id="adminEmail" type="email" autocomplete="username" required /></label>
+        <label>Password<input id="adminPassword" type="password" autocomplete="current-password" required /></label>
+        <p class="form-status" id="loginStatus" role="status"></p>
+        <button class="primary-button" type="submit">Masuk</button>
+      </form>
+    </section>
+
+    <section id="ordersPanel" hidden>
+      <div class="page-heading">
+        <div><span class="eyebrow">ORDER JASDOR</span><h1>Pesanan Masuk</h1></div>
+        <button id="refreshOrders" class="quiet-button" type="button">Muat Ulang</button>
+      </div>
+
+      <div class="order-metrics" aria-label="Ringkasan pesanan">
+        <div><span>Baru</span><strong id="newOrderCount">0</strong></div>
+        <div><span>Diproses</span><strong id="processingOrderCount">0</strong></div>
+        <div><span>Selesai</span><strong id="completedOrderCount">0</strong></div>
+      </div>
+
+      <div class="order-toolbar">
+        <label>Cari<input id="orderSearch" type="search" placeholder="ID, nama, outlet, atau brand" /></label>
+        <label>Status<select id="statusFilter"><option value="all">Semua</option><option value="new">Baru</option><option value="processing">Diproses</option><option value="completed">Selesai</option><option value="cancelled">Dibatalkan</option></select></label>
+      </div>
+
+      <p class="orders-status" id="ordersStatus" role="status">Memuat pesanan...</p>
+      <div class="orders-list" id="ordersList"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="orders-admin.js"></script>
+</body>
+</html>

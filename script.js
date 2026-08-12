@@ -225,6 +225,7 @@ const cart = new Map();
 let pendingItemId = "";
 let proofPreviewUrl = "";
 let supabaseClient = null;
+let latestOrderReceipt = null;
 
 let selectedOptions = {};
 let bundleSelectionConstraints = {};
@@ -304,6 +305,14 @@ const resellerLoginForm = document.querySelector("#resellerLoginForm");
 const resellerLoginStatus = document.querySelector("#resellerLoginStatus");
 const resellerStatusBar = document.querySelector("#resellerStatusBar");
 const resellerStatusText = document.querySelector("#resellerStatusText");
+const customerPhoneField = document.querySelector("#customerPhoneField");
+const customerEmailField = document.querySelector("#customerEmailField");
+const customerPhoneInput = document.querySelector("#modalCustomerPhone");
+const customerEmailInput = document.querySelector("#modalCustomerEmail");
+const submitOrderButton = document.querySelector("#submitOrderButton");
+const orderReceiptModal = document.querySelector("#orderReceiptModal");
+const orderReceiptContent = document.querySelector("#orderReceiptContent");
+const continueOrderWhatsapp = document.querySelector("#continueOrderWhatsapp");
 
 const fallbackTestimonialImages = Array.from({ length: 52 }, (_, index) => `assets/ss-wa-${index + 2}.jpg`);
 const PICKUP_START_MINUTES = 8 * 60;
@@ -1492,6 +1501,53 @@ async function uploadPaymentProof(file, orderId) {
   return client.storage.from(config.paymentProofBucket).getPublicUrl(data.path).data.publicUrl;
 }
 
+function serializeStoredOrderItem(item, qty = item.qty) {
+  return {
+    brand: getBrandById(item.brand).label,
+    name: item.name,
+    price: item.price,
+    officialPrice: getOfficialItemPrice(item),
+    qty,
+    options: item.options,
+    note: item.note || "",
+    resellerDiscount: item.resellerDiscount || 0,
+    cartKey: item.cartKey || item.id,
+  };
+}
+
+function buildStoredOrderBatches(entries) {
+  if (getCartBrandId() !== "kopi-kenangan") {
+    const items = entries.map((item) => serializeStoredOrderItem(item));
+    return [{
+      number: 1,
+      officialTotal: items.reduce((sum, item) => sum + (item.officialPrice * item.qty), 0),
+      sellingTotal: items.reduce((sum, item) => sum + (item.price * item.qty), 0),
+      items,
+    }];
+  }
+
+  const flattenedItems = entries.flatMap((item) => Array.from({ length: item.qty }, () => ({
+    ...item,
+    qty: 1,
+    batchPrice: getOfficialItemPrice(item),
+  })));
+
+  return buildKopkenOrderBatches(flattenedItems).map((bucket, index) => {
+    const groupedItems = [];
+    bucket.forEach((item) => {
+      const existing = groupedItems.find((candidate) => candidate.cartKey === item.cartKey);
+      if (existing) existing.qty += 1;
+      else groupedItems.push(serializeStoredOrderItem(item, 1));
+    });
+    return {
+      number: index + 1,
+      officialTotal: bucket.reduce((sum, item) => sum + item.batchPrice, 0),
+      sellingTotal: bucket.reduce((sum, item) => sum + item.price, 0),
+      items: groupedItems,
+    };
+  });
+}
+
 async function createOrderRecord(formData) {
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
@@ -1499,6 +1555,11 @@ async function createOrderRecord(formData) {
   const takeawayPlasticFee = takeawayPlastic ? TAKEAWAY_PLASTIC_FEE : 0;
   const proofFile = getPaymentProofFile();
   const orderId = makeOrderId();
+  const contactMethod = String(formData.get("contactMethod") || "whatsapp");
+  const customerEmail = String(formData.get("customerEmail") || "").trim();
+  const serviceFee = getServiceFee();
+  const officialTotal = getOfficialCartTotal();
+  const batches = buildStoredOrderBatches(entries);
   let proofUrl = "";
   let proofUploadError = "";
 
@@ -1513,17 +1574,28 @@ async function createOrderRecord(formData) {
 
   return {
     id: orderId,
+    createdAt: new Date().toISOString(),
     customer: {
       name: String(formData.get("customerName")).trim(),
-      phone: String(formData.get("customerPhone")).trim(),
+      phone: String(formData.get("customerPhone") || "").trim(),
+      email: customerEmail,
       address: String(formData.get("customerAddress")).trim(),
       pickupTime: String(formData.get("pickupTime") || "").trim(),
     },
-    note: takeawayPlastic ? `Plastik Take Away: Ya (${rupiah.format(takeawayPlasticFee)})` : "",
+    contactMethod,
+    note: [
+      takeawayPlastic ? `Plastik Take Away: Ya (${rupiah.format(takeawayPlasticFee)})` : "",
+      `Kontak: ${contactMethod === "email" ? `Email ${customerEmail}` : `WhatsApp ${String(formData.get("customerPhone") || "").trim()}`}`,
+    ].filter(Boolean).join(" | "),
     takeawayPlastic,
     takeawayPlasticFee,
-    items: entries.map(item => ({ brand: getBrandById(item.brand).label, name: item.name, price: item.price, qty: item.qty, options: item.options, note: item.note || "", resellerDiscount: item.resellerDiscount || 0 })),
+    brand: getCartBrandName() || getActiveBrand().label,
+    items: entries.map((item) => serializeStoredOrderItem(item)),
+    batches,
     subtotal,
+    officialTotal,
+    serviceFee,
+    total: subtotal + serviceFee + takeawayPlasticFee,
     reseller: isResellerActive() ? { ...resellerSession, discountTotal: entries.reduce((sum, item) => sum + (item.resellerDiscount || 0) * item.qty, 0) } : null,
     proof: {
       url: proofUrl,
@@ -1539,10 +1611,14 @@ async function saveOrderToSupabase(order) {
   const client = getSupabaseClient();
   const config = getSupabaseConfig();
   const payload = {
-    id: order.id, customer_name: order.customer.name, customer_phone: order.customer.phone, customer_address: order.customer.address,
+    id: order.id, customer_name: order.customer.name, customer_phone: order.customer.phone || "-", customer_address: order.customer.address,
     note: order.note || null, items: order.items, subtotal: order.subtotal, payment_proof_name: order.proof.name,
     payment_proof_type: order.proof.type, payment_proof_size: order.proof.size, payment_proof_path: order.id, payment_proof_url: order.proof.url,
-    reseller_code: order.reseller?.code || null, reseller_name: order.reseller?.name || null, reseller_discount: order.reseller?.discountTotal || 0
+    reseller_code: order.reseller?.code || null, reseller_name: order.reseller?.name || null, reseller_discount: order.reseller?.discountTotal || 0,
+    brand: order.brand, contact_method: order.contactMethod, customer_email: order.customer.email || null,
+    company_name: null, company_division: null,
+    pickup_time: order.customer.pickupTime || null, batches: order.batches, official_total: order.officialTotal,
+    service_fee: order.serviceFee, takeaway_plastic_fee: order.takeawayPlasticFee, total: order.total, status: "new"
   };
   const { error } = await client.from(config.ordersTable).insert(payload);
   if (error) throw error;
@@ -1941,6 +2017,10 @@ function buildWhatsappMessage(formData, savedOrder) {
   const messageLines = [
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀", "", `*ID Order:* ${savedOrder.id}`, `*Brand:* ${brandName}`, `*Nama:* ${formData.get("customerName")}`, `*Lokasi Outlet:* ${formData.get("customerAddress")}`, "", "🛒 *DAFTAR PESANAN:*", "===================================", orderLinesText, "===================================", `*Total Harga Asli Semua: ${rupiah.format(subtotalAsli)}*`, `*TOTAL BAYAR: ${rupiah.format(finalTotalBayar)}*`, "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._", "", `*Bukti Transfer:* ${proofText}`
   ];
+  const customerContact = savedOrder.contactMethod === "email"
+    ? `Email: ${savedOrder.customer.email}`
+    : `WhatsApp: ${savedOrder.customer.phone}`;
+  messageLines.splice(5, 0, `*Kontak Customer:* ${customerContact}`);
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (isKopken) {
     const takeawayText = takeawayPlasticFee > 0 ? `Ya (+${rupiah.format(takeawayPlasticFee)})` : "Tidak";
@@ -1959,6 +2039,274 @@ function buildWhatsappMessage(formData, savedOrder) {
 function buildWhatsappLinks(adminPhone, encodedMessage) {
   return { waMeUrl: `https://wa.me/${adminPhone}?text=${encodedMessage}`, appUrl: `whatsapp://send?phone=${adminPhone}&text=${encodedMessage}` };
 }
+
+function renderOrderReceipt(order, whatsappUrl = "") {
+  if (!orderReceiptModal || !orderReceiptContent) return;
+  const contactValue = order.contactMethod === "email" ? order.customer.email : order.customer.phone;
+  const issuedAt = new Date(order.createdAt || Date.now()).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+  orderReceiptContent.innerHTML = `
+    <article class="receipt-sheet">
+      <div class="receipt-brand-row">
+        <div class="receipt-brand"><img class="receipt-brand-logo" src="assets/icon-192.png" alt="Logo kopi.fachrindah"><div><strong>kopi.fachrindah</strong><span>Jasa pemesanan minuman & makanan</span></div></div>
+        <span class="receipt-document-label">Dokumen Transaksi<br>${escapeHtml(order.id)}</span>
+      </div>
+      <div class="receipt-title-row">
+        <div><h2 id="orderReceiptTitle">Bukti Penggunaan Jasa Order</h2><p>Diterbitkan ${escapeHtml(issuedAt)} WIB</p></div>
+        <span class="receipt-status">${order.saveError ? "PERLU DICEK" : "TERCATAT"}</span>
+      </div>
+      <div class="receipt-meta">
+        <div><span>Pelanggan</span><strong>${escapeHtml(order.customer.name)}</strong></div>
+        <div><span>Kontak</span><strong>${escapeHtml(contactValue || "-")}</strong></div>
+        <div><span>Brand</span><strong>${escapeHtml(order.brand || "-")}</strong></div>
+        <div><span>Outlet tujuan</span><strong>${escapeHtml(order.customer.address)}</strong></div>
+        <div><span>Waktu pickup</span><strong>${escapeHtml(order.customer.pickupTime || "-")}</strong></div>
+        <div><span>Metode pembayaran</span><strong>QRIS</strong></div>
+      </div>
+      <div class="receipt-items">
+        ${order.items.map((item) => `<div class="receipt-item"><span><strong>${item.qty}x ${escapeHtml(item.name)}</strong>${formatOptions(item.options) ? `<small>${escapeHtml(formatOptions(item.options))}</small>` : ""}</span><strong>${rupiah.format(item.price * item.qty)}</strong></div>`).join("")}
+      </div>
+      <div class="receipt-totals">
+        <div><span>Nilai pesanan</span><strong>${rupiah.format(order.subtotal)}</strong></div>
+        ${order.serviceFee ? `<div><span>Biaya layanan</span><strong>${rupiah.format(order.serviceFee)}</strong></div>` : ""}
+        ${order.takeawayPlasticFee ? `<div><span>Plastik take away</span><strong>${rupiah.format(order.takeawayPlasticFee)}</strong></div>` : ""}
+        <div><span>Total bayar</span><strong>${rupiah.format(order.total)}</strong></div>
+      </div>
+      <p class="receipt-note">Dokumen ini diterbitkan oleh kopi.fachrindah sebagai bukti penggunaan jasa pemesanan untuk order tersebut. Struk pembelian dari outlet, jika diperlukan, merupakan dokumen terpisah.</p>
+      <div class="receipt-footer"><span>kopi.fachrindah</span><span>Dokumen dibuat secara elektronik</span></div>
+    </article>`;
+  if (continueOrderWhatsapp) {
+    continueOrderWhatsapp.hidden = !whatsappUrl;
+    continueOrderWhatsapp.href = whatsappUrl || "#";
+  }
+  latestOrderReceipt = order;
+  orderReceiptModal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function closeOrderReceiptModal() {
+  if (orderReceiptModal) orderReceiptModal.hidden = true;
+  document.body.classList.remove("modal-open", "receipt-print-mode");
+}
+
+function syncContactMethodFields() {
+  const method = orderForm?.querySelector('input[name="contactMethod"]:checked')?.value || "whatsapp";
+  const useEmail = method === "email";
+  if (customerPhoneField) customerPhoneField.hidden = useEmail;
+  if (customerEmailField) customerEmailField.hidden = !useEmail;
+  if (customerPhoneInput) customerPhoneInput.required = !useEmail;
+  if (customerEmailInput) customerEmailInput.required = useEmail;
+  if (submitOrderButton) submitOrderButton.textContent = useEmail
+    ? "Simpan Order & Tampilkan Bukti"
+    : "Simpan Order & Lanjut WhatsApp";
+}
+
+orderForm?.querySelectorAll('input[name="contactMethod"]').forEach((input) => {
+  input.addEventListener("change", syncContactMethodFields);
+});
+document.querySelector("#closeOrderReceipt")?.addEventListener("click", closeOrderReceiptModal);
+orderReceiptModal?.addEventListener("click", (event) => {
+  if (event.target === orderReceiptModal) closeOrderReceiptModal();
+});
+function loadReceiptLogo() {
+  return new Promise((resolve, reject) => {
+    const logo = new Image();
+    logo.onload = () => resolve(logo);
+    logo.onerror = () => reject(new Error("Logo kopi.fachrindah gagal dimuat."));
+    logo.src = "assets/icon-192.png";
+  });
+}
+
+async function downloadOrderReceiptPdf(order) {
+  const JsPdf = window.jspdf?.jsPDF;
+  if (!JsPdf) throw new Error("Pembuat PDF belum selesai dimuat. Coba refresh halaman.");
+
+  const receiptLogo = await loadReceiptLogo();
+  const pdf = new JsPdf({ unit: "mm", format: "a4" });
+  const left = 17;
+  const right = 193;
+  const width = right - left;
+  const lineHeight = 5;
+  let y = 18;
+
+  function ensureSpace(height = lineHeight) {
+    if (y + height <= 274) return;
+    pdf.addPage();
+    y = 18;
+  }
+
+  function addText(text, options = {}) {
+    const size = options.size || 10;
+    const style = options.bold ? "bold" : "normal";
+    pdf.setFont("helvetica", style);
+    pdf.setFontSize(size);
+    const lines = pdf.splitTextToSize(String(text || "-"), options.width || width);
+    ensureSpace(lines.length * lineHeight);
+    pdf.setTextColor(...(options.color || [41, 38, 36]));
+    pdf.text(lines, options.x ?? left, y, options.align ? { align: options.align } : undefined);
+    y += lines.length * lineHeight;
+  }
+
+  pdf.addImage(receiptLogo, "PNG", left, y - 8, 15, 15);
+  pdf.setTextColor(41, 38, 36);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.text("kopi.fachrindah", left + 19, y - 1);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(116, 108, 102);
+  pdf.text("Jasa pemesanan minuman & makanan", left + 19, y + 4);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("DOKUMEN TRANSAKSI", right, y - 1, { align: "right" });
+  pdf.setFont("helvetica", "normal");
+  pdf.text(order.id, right, y + 4, { align: "right" });
+  y += 13;
+  pdf.setDrawColor(41, 38, 36);
+  pdf.setLineWidth(0.6);
+  pdf.line(left, y, right, y);
+  y += 12;
+
+  addText("BUKTI PENGGUNAAN JASA ORDER", { size: 16, bold: true });
+  addText(`Diterbitkan ${new Date(order.createdAt || Date.now()).toLocaleString("id-ID")} WIB`, { size: 8, color: [116, 108, 102] });
+  y += 4;
+
+  const infoRows = [
+    ["Pelanggan", order.customer.name],
+    ["Kontak", order.contactMethod === "email" ? order.customer.email : order.customer.phone],
+    ["Brand", order.brand || "-"],
+    ["Outlet tujuan", order.customer.address],
+    ["Waktu pickup", order.customer.pickupTime || "-"],
+    ["Pembayaran", "QRIS"],
+  ];
+  infoRows.forEach(([label, value]) => {
+    const valueLines = pdf.splitTextToSize(String(value || "-"), 125);
+    ensureSpace(Math.max(6, valueLines.length * lineHeight));
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.setTextColor(116, 108, 102);
+    pdf.text(label.toUpperCase(), left, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+    pdf.setTextColor(41, 38, 36);
+    pdf.text(valueLines, left + 42, y);
+    y += Math.max(6, valueLines.length * lineHeight);
+  });
+
+  y += 5;
+  ensureSpace(14);
+  pdf.setFillColor(244, 242, 239);
+  pdf.rect(left, y - 5, width, 9, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(8);
+  pdf.setTextColor(81, 75, 71);
+  pdf.text("RINCIAN PESANAN", left + 3, y + 1);
+  pdf.text("JUMLAH", right - 3, y + 1, { align: "right" });
+  y += 10;
+
+  order.items.forEach((item) => {
+    const optionsText = formatOptions(item.options);
+    const itemHeight = optionsText ? 14 : 9;
+    ensureSpace(itemHeight);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(9);
+    pdf.setTextColor(41, 38, 36);
+    pdf.text(pdf.splitTextToSize(`${item.qty}x ${item.name}`, 120), left + 3, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(rupiah.format(item.price * item.qty), right - 3, y, { align: "right" });
+    if (optionsText) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.setTextColor(116, 108, 102);
+      pdf.text(pdf.splitTextToSize(optionsText, 135), left + 3, y + 5);
+    }
+    y += itemHeight;
+    pdf.setDrawColor(225, 221, 217);
+    pdf.setLineWidth(0.2);
+    pdf.line(left, y - 3, right, y - 3);
+  });
+
+  y += 3;
+  const totals = [
+    ["Nilai pesanan", order.subtotal],
+    ...(order.serviceFee ? [["Biaya layanan", order.serviceFee]] : []),
+    ...(order.takeawayPlasticFee ? [["Plastik take away", order.takeawayPlasticFee]] : []),
+  ];
+  totals.forEach(([label, value]) => {
+    ensureSpace(6);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(81, 75, 71);
+    pdf.text(label, right - 62, y);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(41, 38, 36);
+    pdf.text(rupiah.format(value), right, y, { align: "right" });
+    y += 6;
+  });
+  ensureSpace(14);
+  pdf.setFillColor(41, 38, 36);
+  pdf.roundedRect(right - 70, y - 5, 70, 12, 1.5, 1.5, "F");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("TOTAL BAYAR", right - 66, y + 2);
+  pdf.text(rupiah.format(order.total), right - 4, y + 2, { align: "right" });
+  y += 18;
+
+  addText("Dokumen ini diterbitkan oleh kopi.fachrindah sebagai bukti penggunaan jasa pemesanan untuk order tersebut. Struk pembelian dari outlet, jika diperlukan, merupakan dokumen terpisah.", { size: 8, color: [104, 97, 92] });
+  y += 4;
+  pdf.setDrawColor(217, 212, 207);
+  pdf.line(left, y, right, y);
+  y += 6;
+  addText("kopi.fachrindah  |  Dokumen dibuat secara elektronik", { size: 7, color: [129, 120, 114] });
+  const pdfBlob = pdf.output("blob");
+  const pdfUrl = URL.createObjectURL(pdfBlob);
+  const link = document.createElement("a");
+  link.href = pdfUrl;
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.download = `Bukti-Jasa-Order-${order.id}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
+}
+
+document.querySelector("#printOrderReceipt")?.addEventListener("click", async () => {
+  if (!latestOrderReceipt) return;
+  try {
+    await downloadOrderReceiptPdf(latestOrderReceipt);
+  } catch (error) {
+    console.error("PDF bukti jasa gagal dibuat:", error);
+    alert(error?.message || "PDF gagal dibuat. Coba refresh halaman.");
+  }
+});
+window.addEventListener("afterprint", () => document.body.classList.remove("receipt-print-mode"));
+syncContactMethodFields();
+
+window.addEventListener("load", () => {
+  if (new URLSearchParams(window.location.search).get("receiptPreview") !== "1") return;
+  renderOrderReceipt({
+    id: "ORD-PREVIEW-20260812",
+    createdAt: new Date().toISOString(),
+    contactMethod: "email",
+    brand: "Kopi Kenangan",
+    customer: {
+      name: "Customer Tester",
+      email: "customer@example.com",
+      phone: "",
+      address: "Kopi Kenangan - Outlet Pilihan",
+      pickupTime: "12:30",
+    },
+    items: [
+      { name: "Kopi Kenangan Mantan", qty: 2, price: 14500, options: { size: "Regular", sugar: "Less Sugar", ice: "Normal Ice" } },
+      { name: "Bambang Choco Cheese Toast", qty: 1, price: 11500, options: {} },
+    ],
+    subtotal: 40500,
+    serviceFee: 0,
+    takeawayPlasticFee: 1000,
+    total: 41500,
+  });
+});
+
 function isAndroidDevice() { return /Android/i.test(navigator.userAgent); }
 function getCartQuantity() { return [...cart.values()].reduce((total, item) => total + item.qty, 0); }
 function getPaymentProofFile() { return paymentProofInput.files && paymentProofInput.files[0] ? paymentProofInput.files[0] : null; }
@@ -2348,7 +2696,7 @@ orderForm.addEventListener("submit", async (event) => {
     const links = buildWhatsappLinks(String(formData.get("adminPhone")).replace(/\D/g, ""), message);
 
     if (savedOrder.proof.uploadError || savedOrder.saveError) {
-      alert("Upload otomatis sedang bermasalah, tapi WhatsApp tetap dibuka. Mohon kirim bukti transfer manual di chat admin setelah pesan terkirim.");
+      alert("Penyimpanan otomatis sedang bermasalah. Bukti order tetap ditampilkan; kirim bukti pembayaran manual ke admin bila diperlukan.");
     }
 
     // 1. Bersihkan keranjang
@@ -2356,13 +2704,14 @@ orderForm.addEventListener("submit", async (event) => {
     saveCartToStorage(); 
     
     // Simpan identitas untuk repeat order, tetapi buang lokasi dan jam pickup lama.
-    saveCustomerIdentity(formData.get("customerName"), formData.get("customerPhone"));
+    saveCustomerIdentity(formData.get("customerName"), formData.get("customerPhone"), formData.get("customerEmail"));
     localStorage.removeItem('kopiFachrindahBiodata');
     
-    orderForm.reset(); 
+    orderForm.reset();
+    syncContactMethodFields();
     renderCart(); 
     closeOrderModal();
-    window.location.href = isAndroidDevice() ? links.appUrl : links.waMeUrl;
+    renderOrderReceipt(savedOrder, savedOrder.contactMethod === "whatsapp" ? links.waMeUrl : "");
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
     alert("Gagal menyiapkan pesan WhatsApp. Coba refresh halaman lalu kirim ulang.");
@@ -2590,6 +2939,7 @@ if (iosInstallModal) {
 const biodataFieldIds = [
   "modalCustomerName", 
   "modalCustomerPhone", 
+  "modalCustomerEmail",
   "modalPickupTime",
   "searchCityInput", 
   "modalCustomerAddress", 
@@ -2599,10 +2949,11 @@ const biodataFieldIds = [
   "pickupTime",
   "customerAddress"
 ];
-function saveCustomerIdentity(name, phone) {
+function saveCustomerIdentity(name, phone, email = "") {
   localStorage.setItem(CUSTOMER_IDENTITY_KEY, JSON.stringify({
     name: String(name || "").trim(),
     phone: String(phone || "").trim(),
+    email: String(email || "").trim(),
   }));
 }
 
@@ -2627,6 +2978,8 @@ function loadBiodataFromStorage() {
         const field = document.getElementById(id);
         if (field) field.value = identity.phone || "";
       });
+      const emailField = document.getElementById("modalCustomerEmail");
+      if (emailField) emailField.value = identity.email || "";
     }
   } catch (error) {
     localStorage.removeItem(CUSTOMER_IDENTITY_KEY);

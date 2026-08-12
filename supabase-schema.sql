@@ -17,7 +17,25 @@ create table if not exists public.orders (
 alter table public.orders
   add column if not exists reseller_code text,
   add column if not exists reseller_name text,
-  add column if not exists reseller_discount integer not null default 0;
+  add column if not exists reseller_discount integer not null default 0,
+  add column if not exists brand text,
+  add column if not exists contact_method text not null default 'whatsapp',
+  add column if not exists customer_email text,
+  add column if not exists company_name text,
+  add column if not exists company_division text,
+  add column if not exists pickup_time text,
+  add column if not exists batches jsonb not null default '[]'::jsonb,
+  add column if not exists official_total integer not null default 0,
+  add column if not exists service_fee integer not null default 0,
+  add column if not exists takeaway_plastic_fee integer not null default 0,
+  add column if not exists total integer not null default 0,
+  add column if not exists status text not null default 'new',
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.orders drop constraint if exists orders_contact_method_check;
+alter table public.orders add constraint orders_contact_method_check check (contact_method in ('whatsapp', 'email'));
+alter table public.orders drop constraint if exists orders_status_check;
+alter table public.orders add constraint orders_status_check check (status in ('new', 'processing', 'completed', 'cancelled'));
 
 -- Membership reseller dibuat admin setelah pembayaran Rp25.000 / 30 hari.
 create table if not exists public.resellers (
@@ -97,6 +115,7 @@ end;
 $$;
 
 revoke all on function public.admin_create_reseller(text, text, integer) from public;
+revoke execute on function public.admin_create_reseller(text, text, integer) from anon;
 grant execute on function public.admin_create_reseller(text, text, integer) to authenticated;
 
 -- Contoh membuat kode baru (nomor disimpan dengan format 62):
@@ -158,6 +177,45 @@ to anon
 with check (true);
 
 drop policy if exists "Allow public order read" on public.orders;
+
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+grant usage on schema private to authenticated;
+
+create or replace function private.is_kopi_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select auth.uid() is not null
+    and exists (select 1 from public.reseller_admins a where a.user_id = auth.uid());
+$$;
+
+revoke all on function private.is_kopi_admin() from public, anon;
+grant execute on function private.is_kopi_admin() to authenticated;
+
+drop policy if exists "Allow order admin read" on public.orders;
+create policy "Allow order admin read"
+on public.orders for select to authenticated
+using ((select private.is_kopi_admin()));
+
+drop policy if exists "Allow order admin update" on public.orders;
+create policy "Allow order admin update"
+on public.orders for update to authenticated
+using ((select private.is_kopi_admin()))
+with check ((select private.is_kopi_admin()));
+
+grant insert on table public.orders to anon;
+grant select, update on table public.orders to authenticated;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.orders;
+exception when duplicate_object then null;
+end
+$$;
 
 insert into storage.buckets (id, name, public)
 values ('payment-proofs', 'payment-proofs', true)
