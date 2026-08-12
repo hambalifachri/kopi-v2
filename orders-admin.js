@@ -32,10 +32,42 @@ function formatOptions(options) {
   return Object.entries(options).filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`).join(" / ");
 }
 
+function formatOptionLabel(key) {
+  return String(key || "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatItemForCopy(item, index) {
+  const qty = Number(item.qty) || 1;
+  const officialPrice = Number(item.officialPrice) || Number(item.price) || 0;
+  const sellingPrice = Number(item.price) || 0;
+  const lines = [`${index + 1}. *${qty}x ${item.name}* (~${rupiah.format(officialPrice * qty)}~ *${rupiah.format(sellingPrice * qty)}*)`];
+  const options = Object.entries(item.options || {}).filter(([, value]) => value);
+
+  options.forEach(([key, value], optionIndex) => {
+    const branch = optionIndex === options.length - 1 ? "└" : "├";
+    lines.push(`   ${branch} ${formatOptionLabel(key)}: ${value}`);
+  });
+  if (item.resellerDiscount) lines.push(`   Potongan reseller: -${rupiah.format(item.resellerDiscount)} / item`);
+  if (String(item.note || "").trim()) lines.push(`   Catatan: ${String(item.note).trim()}`);
+  return lines.join("\n");
+}
+
 function getOrderBatches(order) {
   if (Array.isArray(order.batches) && order.batches.length) return order.batches;
   const items = Array.isArray(order.items) ? order.items : [];
-  return [{ number: 1, officialTotal: order.official_total || 0, sellingTotal: order.subtotal || 0, items }];
+  const fallbackOfficialTotal = items.reduce((sum, item) => {
+    const unitPrice = Number(item.officialPrice) || Number(item.oldPrice) || Number(item.price) || 0;
+    return sum + unitPrice * (Number(item.qty) || 1);
+  }, 0);
+  const fallbackSellingTotal = items.reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.qty) || 1), 0);
+  return [{
+    number: 1,
+    officialTotal: Number(order.official_total) || fallbackOfficialTotal,
+    sellingTotal: Number(order.subtotal) || fallbackSellingTotal,
+    items,
+  }];
 }
 
 function showAuthenticated(authenticated) {
@@ -107,28 +139,42 @@ function renderOrders() {
 
 function buildAdminOrderText(order) {
   const contact = order.contact_method === "email" ? `Email: ${order.customer_email}` : `WhatsApp: ${order.customer_phone}`;
+  const batches = getOrderBatches(order);
+  const officialTotal = Number(order.official_total)
+    || batches.reduce((sum, batch) => sum + (Number(batch.officialTotal) || 0), 0);
   const lines = [
-    `ORDER ${order.id}`,
-    `Brand: ${order.brand || "-"}`,
-    `Customer: ${order.customer_name}`,
-    `Kontak: ${contact}`,
-    `Outlet: ${order.customer_address}`,
-    `Pickup: ${order.pickup_time || "-"}`,
+    "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀",
+    "",
+    `*ID Order:* ${order.id}`,
+    `*Brand:* ${order.brand || "-"}`,
+    `*Nama:* ${order.customer_name}`,
+    `*Kontak Customer:* ${contact}`,
+    `*Lokasi Outlet:* ${order.customer_address}`,
+    `*Jam Pickup:* ${order.pickup_time || "-"}`,
   ];
-  if (order.company_name) lines.push(`Reimburse: ${order.company_name}${order.company_division ? ` / ${order.company_division}` : ""}`);
-  lines.push("");
-  getOrderBatches(order).forEach((batch) => {
-    lines.push(`BATCH ${batch.number} (Outlet ${rupiah.format(batch.officialTotal || 0)} | Bayar ${rupiah.format(batch.sellingTotal || 0)})`);
+  if (order.brand === "Kopi Kenangan") {
+    lines.push(`*Plastik Take Away:* ${order.takeaway_plastic_fee > 0 ? `Ya (+${rupiah.format(order.takeaway_plastic_fee)})` : "Tidak"}`);
+  }
+  lines.push("", "🛒 *DAFTAR PESANAN:*", "===================================");
+
+  batches.forEach((batch, batchIndex) => {
+    lines.push(`📦 *Order Batch ${batch.number || batchIndex + 1}*`);
     (batch.items || []).forEach((item, index) => {
-      lines.push(`${index + 1}. ${item.qty}x ${item.name} - ${rupiah.format((item.price || 0) * (item.qty || 1))}`);
-      const options = formatOptions(item.options);
-      if (options) lines.push(`   ${options}`);
-      if (item.note) lines.push(`   Catatan: ${item.note}`);
+      lines.push(formatItemForCopy(item, index), "");
     });
-    lines.push("");
+    lines.push(`_*Total Batch ${batch.number || batchIndex + 1}: (~${rupiah.format(batch.officialTotal || 0)}~ *${rupiah.format(batch.sellingTotal || 0)}*)*_`);
+    if (batchIndex < batches.length - 1) lines.push("", "-----------------------------------", "");
   });
-  lines.push(`Total harga outlet: ${rupiah.format(order.official_total || 0)}`);
-  lines.push(`TOTAL BAYAR: ${rupiah.format(order.total || order.subtotal || 0)}`);
+  lines.push(
+    "===================================",
+    `*Total Harga Asli Semua: ${rupiah.format(officialTotal)}*`,
+    `*TOTAL BAYAR: ${rupiah.format(order.subtotal || 0)}*`,
+    "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._",
+  );
+  if (order.payment_proof_url) lines.push("", `*Bukti Transfer:* ${order.payment_proof_url}`);
+  if (order.service_fee > 0) lines.push(`*Biaya Layanan: ${rupiah.format(order.service_fee)}*`);
+  if (order.takeaway_plastic_fee > 0) lines.push(`*Biaya Plastik Take Away: ${rupiah.format(order.takeaway_plastic_fee)}*`);
+  lines.push(`*TOTAL BAYAR: ${rupiah.format(order.total || order.subtotal || 0)}*`);
   return lines.join("\n");
 }
 
