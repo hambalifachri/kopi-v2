@@ -196,6 +196,11 @@ $$;
 revoke all on function private.is_kopi_admin() from public, anon;
 grant execute on function private.is_kopi_admin() to authenticated;
 
+drop policy if exists "Allow admin order insert" on public.orders;
+create policy "Allow admin order insert"
+on public.orders for insert to authenticated
+with check ((select private.is_kopi_admin()));
+
 drop policy if exists "Allow order admin read" on public.orders;
 create policy "Allow order admin read"
 on public.orders for select to authenticated
@@ -208,7 +213,7 @@ using ((select private.is_kopi_admin()))
 with check ((select private.is_kopi_admin()));
 
 grant insert on table public.orders to anon;
-grant select, update on table public.orders to authenticated;
+grant insert, select, update on table public.orders to authenticated;
 
 do $$
 begin

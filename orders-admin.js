@@ -12,6 +12,7 @@ const statusFilter = document.querySelector("#statusFilter");
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 let orders = [];
 let ordersChannel = null;
+let ordersRefreshTimer = null;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -344,9 +345,13 @@ async function loadOrders() {
 
 function subscribeToOrders() {
   if (ordersChannel) client.removeChannel(ordersChannel);
+  if (ordersRefreshTimer) window.clearInterval(ordersRefreshTimer);
   ordersChannel = client.channel("admin-orders")
     .on("postgres_changes", { event: "*", schema: "public", table: config.ordersTable }, () => loadOrders())
     .subscribe();
+  ordersRefreshTimer = window.setInterval(() => {
+    if (!document.hidden) loadOrders();
+  }, 10000);
 }
 
 loginForm.addEventListener("submit", async (event) => {
@@ -399,9 +404,15 @@ statusFilter.addEventListener("change", renderOrders);
 document.querySelector("#refreshOrders").addEventListener("click", loadOrders);
 logoutButton.addEventListener("click", async () => {
   if (ordersChannel) client.removeChannel(ordersChannel);
+  if (ordersRefreshTimer) window.clearInterval(ordersRefreshTimer);
+  ordersRefreshTimer = null;
   await client.auth.signOut();
   orders = [];
   showAuthenticated(false);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !ordersPanel.hidden) loadOrders();
 });
 
 client.auth.getSession().then(async ({ data }) => {

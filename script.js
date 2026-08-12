@@ -1481,7 +1481,14 @@ function getSupabaseClient() {
   if (!isSupabaseConfigured()) throw new Error("Supabase belum dikonfigurasi.");
   if (!supabaseClient) {
     const config = getSupabaseConfig();
-    supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+    supabaseClient = window.supabase.createClient(config.url, config.anonKey, {
+      auth: {
+        storageKey: "kopi-public-order-anon",
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
   }
   return supabaseClient;
 }
