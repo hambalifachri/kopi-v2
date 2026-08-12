@@ -3185,10 +3185,10 @@ body.tutorial-open {
 }
 
 .poster-hero { order: 1; }
-.search-panel { order: 2; }
-.category-nav { order: 3; }
-#catalogContainer { order: 4; }
-.info-action-cards { order: 5; }
+.info-action-cards { order: 2; }
+.search-panel { order: 3; }
+.category-nav { order: 4; }
+#catalogContainer { order: 5; }
 .reviews-section { order: 6; }
 #installAppContainer { order: 7; }
 .quick-order { order: 8; }
