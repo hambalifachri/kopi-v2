@@ -42,8 +42,15 @@ function formatItemForCopy(item, index) {
   const qty = Number(item.qty) || 1;
   const officialPrice = Number(item.officialPrice) || Number(item.price) || 0;
   const sellingPrice = Number(item.price) || 0;
-  const lines = [`${index + 1}. *${qty}x ${item.name}* (~${rupiah.format(officialPrice * qty)}~ *${rupiah.format(sellingPrice * qty)}*)`];
-  const options = Object.entries(item.options || {}).filter(([, value]) => value);
+  const lines = [`${index + 1}. *${qty}x ${item.name}* (~${rupiah.format(officialPrice)}~ *${rupiah.format(sellingPrice)}*)`];
+  const optionOrder = ["temperature", "size", "beans", "milk", "sugar", "ice", "topping", "addon"];
+  const options = Object.entries(item.options || {})
+    .filter(([, value]) => value)
+    .sort(([firstKey], [secondKey]) => {
+      const firstIndex = optionOrder.indexOf(firstKey);
+      const secondIndex = optionOrder.indexOf(secondKey);
+      return (firstIndex < 0 ? optionOrder.length : firstIndex) - (secondIndex < 0 ? optionOrder.length : secondIndex);
+    });
 
   options.forEach(([key, value], optionIndex) => {
     const branch = optionIndex === options.length - 1 ? "└" : "├";
@@ -126,7 +133,42 @@ function buildBatchFallback(items) {
     if (target) buckets[target.index].push(item);
     else buckets.push([item]);
   });
-  return buckets;
+
+  let improved = true;
+  while (improved) {
+    improved = false;
+    const currentDeficit = buckets.reduce(
+      (sum, bucket) => sum + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - bucket.reduce((total, item) => total + item.officialUnitPrice, 0)),
+      0,
+    );
+
+    for (let fromIndex = 0; fromIndex < buckets.length && !improved; fromIndex += 1) {
+      for (let itemIndex = 0; itemIndex < buckets[fromIndex].length && !improved; itemIndex += 1) {
+        for (let toIndex = 0; toIndex < buckets.length; toIndex += 1) {
+          if (fromIndex === toIndex) continue;
+          const item = buckets[fromIndex][itemIndex];
+          const targetTotal = buckets[toIndex].reduce((sum, current) => sum + current.officialUnitPrice, 0);
+          if (targetTotal + item.officialUnitPrice > KOPKEN_BATCH_MAX_TOTAL) continue;
+
+          buckets[fromIndex].splice(itemIndex, 1);
+          buckets[toIndex].push(item);
+          const candidateBuckets = buckets.filter((bucket) => bucket.length);
+          const candidateDeficit = candidateBuckets.reduce(
+            (sum, bucket) => sum + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - bucket.reduce((total, current) => total + current.officialUnitPrice, 0)),
+            0,
+          );
+          if (candidateDeficit < currentDeficit) {
+            buckets.splice(0, buckets.length, ...candidateBuckets);
+            improved = true;
+            break;
+          }
+          buckets[toIndex].pop();
+          buckets[fromIndex].splice(itemIndex, 0, item);
+        }
+      }
+    }
+  }
+  return buckets.filter((bucket) => bucket.length);
 }
 
 function reconstructKopkenBatches(items) {
@@ -248,21 +290,21 @@ function renderOrders() {
 }
 
 function buildAdminOrderText(order) {
-  const contact = order.contact_method === "email" ? `Email: ${order.customer_email}` : `WhatsApp: ${order.customer_phone}`;
   const batches = getOrderBatches(order);
   const officialTotal = Number(order.official_total)
     || batches.reduce((sum, batch) => sum + (Number(batch.officialTotal) || 0), 0);
+  const inferredBrand = order.brand
+    || ((order.items || []).every((item) => getCatalogKopkenItem(item)) ? "Kopi Kenangan" : "-");
   const lines = [
     "Halo admin kopi.fachrindah, ada pesanan *JASDOR* baru! 🚀",
     "",
     `*ID Order:* ${order.id}`,
-    `*Brand:* ${order.brand || "-"}`,
+    `*Brand:* ${inferredBrand}`,
     `*Nama:* ${order.customer_name}`,
-    `*Kontak Customer:* ${contact}`,
     `*Lokasi Outlet:* ${order.customer_address}`,
-    `*Jam Pickup:* ${order.pickup_time || "-"}`,
+    `*Jam Pickup:* ${order.pickup_time || "Sekarang"}`,
   ];
-  if (order.brand === "Kopi Kenangan") {
+  if (inferredBrand === "Kopi Kenangan") {
     lines.push(`*Plastik Take Away:* ${order.takeaway_plastic_fee > 0 ? `Ya (+${rupiah.format(order.takeaway_plastic_fee)})` : "Tidak"}`);
   }
   lines.push("", "🛒 *DAFTAR PESANAN:*", "===================================");
@@ -272,14 +314,14 @@ function buildAdminOrderText(order) {
     (batch.items || []).forEach((item, index) => {
       lines.push(formatItemForCopy(item, index), "");
     });
-    lines.push(`_*Total Batch ${batch.number || batchIndex + 1}: (~${rupiah.format(batch.officialTotal || 0)}~ *${rupiah.format(batch.sellingTotal || 0)}*)*_`);
+    lines.push(`*Total Batch ${batch.number || batchIndex + 1}: (~${rupiah.format(batch.officialTotal || 0)}~* *${rupiah.format(batch.sellingTotal || 0)})*`);
     if (batchIndex < batches.length - 1) lines.push("", "-----------------------------------", "");
   });
   lines.push(
     "===================================",
     `*Total Harga Asli Semua: ${rupiah.format(officialTotal)}*`,
     `*TOTAL BAYAR: ${rupiah.format(order.subtotal || 0)}*`,
-    "_Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu._",
+    "*Catatan: Jika harga outlet berbeda, mohon konfirmasi selisihnya terlebih dahulu.*",
   );
   if (order.payment_proof_url) lines.push("", `*Bukti Transfer:* ${order.payment_proof_url}`);
   if (order.service_fee > 0) lines.push(`*Biaya Layanan: ${rupiah.format(order.service_fee)}*`);
