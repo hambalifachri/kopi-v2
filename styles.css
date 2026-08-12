@@ -2730,7 +2730,7 @@ body.tutorial-open {
   border: 0;
   border-radius: 4px;
   background: #fff;
-  cursor: pointer;
+  cursor: default;
 }
 
 .app-brand-logo-button img {
