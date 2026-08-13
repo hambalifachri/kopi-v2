@@ -874,7 +874,10 @@ function buildForeLiveMenu(payload) {
     const largeSellingPrice = officialLarge
       ? localItem.price + Math.max(0, officialLarge - officialRegular)
       : 0;
-    const defaultOptions = (BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || []).map((group) => ({
+    const optionTemplate = Array.isArray(localItem.options)
+      ? localItem.options
+      : (BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || []);
+    const defaultOptions = optionTemplate.map((group) => ({
       ...group,
       options: (group.options || []).map((option) => ({ ...option })),
     }));

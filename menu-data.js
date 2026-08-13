@@ -1803,6 +1803,68 @@ const MENU_ITEMS_DATA = [
     price: 19500,
   },
   {
+    id: "fore-starrycano",
+    brand: "fore",
+    group: "americano-series",
+    name: "Starrycano",
+    oldPrice: 29000,
+    price: 24000,
+    largePrice: 31000,
+    image: "https://static.fore.coffee/product/Starrycano%20(1).jpg",
+    options: [
+      {
+        key: "temperature",
+        label: "Temperature",
+        options: [{ value: "Ice", label: "Ice", icon: "ice" }],
+      },
+      {
+        key: "cupSize",
+        label: "Ukuran Cup",
+        options: [
+          { value: "Reguler", label: "Reguler", price: 24000 },
+          { value: "Large", label: "Large", price: 31000 },
+        ],
+      },
+      {
+        key: "sweetness",
+        label: "Sweetness",
+        options: [
+          { value: "Normal Sweet", label: "Normal Sweet" },
+          { value: "Less Sweet", label: "Less Sweet" },
+        ],
+      },
+      {
+        key: "iceCube",
+        label: "Ice Cube",
+        options: [
+          { value: "Normal Ice", label: "Normal Ice" },
+          { value: "Less Ice", label: "Less Ice" },
+          { value: "More Ice", label: "More Ice" },
+        ],
+      },
+      {
+        key: "espresso",
+        label: "Espresso",
+        options: [
+          { value: "Normal Shot", label: "Normal Shot" },
+          { value: "+1 Shot", label: "+1 Shot", priceDelta: 7000 },
+          { value: "+2 Shot", label: "+2 Shot", priceDelta: 14000 },
+        ],
+      },
+      {
+        key: "syrup",
+        label: "Syrup",
+        options: [
+          { value: "Tanpa Syrup", label: "Tanpa Syrup" },
+          { value: "Aren", label: "Aren", priceDelta: 7000 },
+          { value: "Manuka", label: "Manuka", priceDelta: 7000 },
+          { value: "Vanilla", label: "Vanilla", priceDelta: 7000 },
+          { value: "Salted Caramel", label: "Salted Caramel", priceDelta: 7000 },
+        ],
+      },
+    ],
+  },
+  {
     id: "fore-manuka-americano",
     brand: "fore",
     group: "americano-series",
