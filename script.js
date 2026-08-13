@@ -1842,9 +1842,10 @@ function formatProofForWA(savedOrder) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_MAX_TOTAL = 70000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 62000;
+const KOPKEN_BATCH_MAX_TOTAL = 72000;
 
-function findValidKopkenBatchPartition(items, batchCount) {
+function findValidKopkenBatchPartition(items, batchCount, maximumTotal) {
   const sortedItems = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
   const buckets = Array.from({ length: batchCount }, () => []);
   const totals = Array(batchCount).fill(0);
@@ -1856,14 +1857,14 @@ function findValidKopkenBatchPartition(items, batchCount) {
     exploredStates += 1;
     if (exploredStates > maxExploredStates) return false;
     if (itemIndex === sortedItems.length) {
-      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= KOPKEN_BATCH_MAX_TOTAL);
+      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= maximumTotal);
     }
 
     const remainingTotal = sortedItems
       .slice(itemIndex)
       .reduce((total, item) => total + item.batchPrice, 0);
     const totalDeficit = totals.reduce((total, value) => total + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - value), 0);
-    const totalCapacity = totals.reduce((total, value) => total + (KOPKEN_BATCH_MAX_TOTAL - value), 0);
+    const totalCapacity = totals.reduce((total, value) => total + (maximumTotal - value), 0);
     if (remainingTotal < totalDeficit || remainingTotal > totalCapacity) return false;
 
     const stateKey = `${itemIndex}|${[...totals].sort((a, b) => a - b).join(",")}`;
@@ -1872,7 +1873,7 @@ function findValidKopkenBatchPartition(items, batchCount) {
     const item = sortedItems[itemIndex];
     const candidateIndexes = totals
       .map((total, index) => ({ total, index }))
-      .filter(({ total }) => total + item.batchPrice <= KOPKEN_BATCH_MAX_TOTAL)
+      .filter(({ total }) => total + item.batchPrice <= maximumTotal)
       .sort((a, b) => b.total - a.total);
     const attemptedTotals = new Set();
 
@@ -1956,12 +1957,14 @@ function buildKopkenBatchFallback(items) {
 
 function buildKopkenOrderBatches(items) {
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
-  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
   const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
 
-  for (let batchCount = minimumBatchCount; batchCount <= maximumBatchCount; batchCount += 1) {
-    const partition = findValidKopkenBatchPartition(items, batchCount);
-    if (partition) return partition;
+  for (const maximumTotal of [KOPKEN_BATCH_PREFERRED_MAX_TOTAL, KOPKEN_BATCH_MAX_TOTAL]) {
+    const minimumBatchCount = Math.max(1, Math.ceil(total / maximumTotal));
+    for (let batchCount = minimumBatchCount; batchCount <= maximumBatchCount; batchCount += 1) {
+      const partition = findValidKopkenBatchPartition(items, batchCount, maximumTotal);
+      if (partition) return partition;
+    }
   }
 
   return buildKopkenBatchFallback(items);
@@ -1990,7 +1993,7 @@ function buildWhatsappMessage(formData, savedOrder) {
       }
     });
 
-    // Cari kombinasi dari seluruh item agar setiap batch berada di rentang Rp50-70 ribu.
+    // Utamakan Rp50-62 ribu; gunakan toleransi sampai Rp72 ribu hanya jika diperlukan.
     const buckets = buildKopkenOrderBatches(flattenedItems);
 
     orderLinesText = buckets.map((bucket, index) => {

@@ -9,10 +9,19 @@ const ordersStatus = document.querySelector("#ordersStatus");
 const ordersList = document.querySelector("#ordersList");
 const orderSearch = document.querySelector("#orderSearch");
 const statusFilter = document.querySelector("#statusFilter");
+const dateFilter = document.querySelector("#dateFilter");
+const completeActiveOrdersButton = document.querySelector("#completeActiveOrders");
+const ordersPagination = document.querySelector("#ordersPagination");
+const ordersPageInfo = document.querySelector("#ordersPageInfo");
+const previousOrdersPage = document.querySelector("#previousOrdersPage");
+const nextOrdersPage = document.querySelector("#nextOrdersPage");
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+const ORDERS_FETCH_PAGE_SIZE = 1000;
+const ORDERS_DISPLAY_PAGE_SIZE = 50;
 let orders = [];
 let ordersChannel = null;
 let ordersRefreshTimer = null;
+let currentOrdersPage = 1;
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -26,6 +35,16 @@ function statusLabel(status) {
 
 function formatDate(value) {
   return new Date(value).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatOrderDay(value) {
+  return new Date(value).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+
+function localDateKey(value) {
+  const date = new Date(value);
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 10);
 }
 
 function formatOptions(options) {
@@ -63,7 +82,8 @@ function formatItemForCopy(item, index) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_MAX_TOTAL = 70000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 62000;
+const KOPKEN_BATCH_MAX_TOTAL = 72000;
 
 function getCatalogKopkenItem(item) {
   if (typeof MENU_ITEMS_DATA === "undefined") return null;
@@ -94,20 +114,20 @@ function getStoredOfficialPrice(item) {
   return officialPrice;
 }
 
-function findValidBatchPartition(items, batchCount) {
+function findValidBatchPartition(items, batchCount, maximumTotal) {
   const sortedItems = [...items].sort((a, b) => b.officialUnitPrice - a.officialUnitPrice);
   const buckets = Array.from({ length: batchCount }, () => []);
   const totals = Array(batchCount).fill(0);
 
   function assignItem(itemIndex) {
     if (itemIndex === sortedItems.length) {
-      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= KOPKEN_BATCH_MAX_TOTAL);
+      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= maximumTotal);
     }
     const item = sortedItems[itemIndex];
     const attemptedTotals = new Set();
     const candidates = totals
       .map((total, index) => ({ total, index }))
-      .filter(({ total }) => total + item.officialUnitPrice <= KOPKEN_BATCH_MAX_TOTAL)
+      .filter(({ total }) => total + item.officialUnitPrice <= maximumTotal)
       .sort((a, b) => b.total - a.total);
     for (const { total, index } of candidates) {
       if (attemptedTotals.has(total)) continue;
@@ -180,11 +200,14 @@ function reconstructKopkenBatches(items) {
     officialUnitPrice: getStoredOfficialPrice(item),
   })));
   const total = units.reduce((sum, item) => sum + item.officialUnitPrice, 0);
-  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
   const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
   let buckets = null;
-  for (let count = minimumBatchCount; count <= maximumBatchCount && !buckets; count += 1) {
-    buckets = findValidBatchPartition(units, count);
+  for (const maximumTotal of [KOPKEN_BATCH_PREFERRED_MAX_TOTAL, KOPKEN_BATCH_MAX_TOTAL]) {
+    const minimumBatchCount = Math.max(1, Math.ceil(total / maximumTotal));
+    for (let count = minimumBatchCount; count <= maximumBatchCount && !buckets; count += 1) {
+      buckets = findValidBatchPartition(units, count, maximumTotal);
+    }
+    if (buckets) break;
   }
   buckets ||= buildBatchFallback(units);
 
@@ -230,6 +253,7 @@ function showAuthenticated(authenticated) {
 }
 
 function renderMetrics() {
+  document.querySelector("#totalOrderCount").textContent = orders.length;
   document.querySelector("#newOrderCount").textContent = orders.filter((order) => order.status === "new").length;
   document.querySelector("#processingOrderCount").textContent = orders.filter((order) => order.status === "processing").length;
   document.querySelector("#completedOrderCount").textContent = orders.filter((order) => order.status === "completed").length;
@@ -238,6 +262,7 @@ function renderMetrics() {
 function orderMatches(order) {
   const filter = statusFilter.value;
   if (filter !== "all" && order.status !== filter) return false;
+  if (dateFilter.value && localDateKey(order.created_at) !== dateFilter.value) return false;
   const query = orderSearch.value.trim().toLowerCase();
   if (!query) return true;
   return [order.id, order.customer_name, order.customer_address, order.brand, order.customer_phone, order.customer_email]
@@ -286,8 +311,24 @@ function renderOrderCard(order) {
 function renderOrders() {
   renderMetrics();
   const filtered = orders.filter(orderMatches);
-  ordersStatus.textContent = `${filtered.length} dari ${orders.length} pesanan ditampilkan.`;
-  ordersList.innerHTML = filtered.length ? filtered.map(renderOrderCard).join("") : '<div class="empty-orders">Tidak ada pesanan yang cocok.</div>';
+  const pageCount = Math.max(1, Math.ceil(filtered.length / ORDERS_DISPLAY_PAGE_SIZE));
+  currentOrdersPage = Math.min(currentOrdersPage, pageCount);
+  const pageStart = (currentOrdersPage - 1) * ORDERS_DISPLAY_PAGE_SIZE;
+  const pageOrders = filtered.slice(pageStart, pageStart + ORDERS_DISPLAY_PAGE_SIZE);
+  let lastDate = "";
+  const orderHtml = pageOrders.map((order) => {
+    const dateKey = localDateKey(order.created_at);
+    const heading = dateKey === lastDate ? "" : `<h2 class="order-date-heading">${escapeHtml(formatOrderDay(order.created_at))}</h2>`;
+    lastDate = dateKey;
+    return `${heading}${renderOrderCard(order)}`;
+  }).join("");
+
+  ordersStatus.textContent = `${filtered.length} dari ${orders.length} pesanan ditemukan. Menampilkan ${pageOrders.length} pesanan di halaman ini.`;
+  ordersList.innerHTML = filtered.length ? orderHtml : '<div class="empty-orders">Tidak ada pesanan yang cocok.</div>';
+  ordersPagination.hidden = filtered.length <= ORDERS_DISPLAY_PAGE_SIZE;
+  ordersPageInfo.textContent = `Halaman ${currentOrdersPage} / ${pageCount}`;
+  previousOrdersPage.disabled = currentOrdersPage <= 1;
+  nextOrdersPage.disabled = currentOrdersPage >= pageCount;
 }
 
 function buildAdminOrderText(order) {
@@ -332,15 +373,53 @@ function buildAdminOrderText(order) {
 }
 
 async function loadOrders() {
-  ordersStatus.textContent = "Memuat pesanan...";
-  const { data, error } = await client.from(config.ordersTable).select("*").order("created_at", { ascending: false }).limit(100);
-  if (error) {
-    ordersStatus.textContent = error.message.includes("permission") ? "Akun ini tidak memiliki akses admin pesanan." : `Gagal memuat pesanan: ${error.message}`;
-    orders = [];
-  } else {
-    orders = data || [];
+  ordersStatus.textContent = "Memuat seluruh riwayat pesanan...";
+  const loadedOrders = [];
+  let loadError = null;
+  for (let from = 0; ; from += ORDERS_FETCH_PAGE_SIZE) {
+    const { data, error } = await client.from(config.ordersTable)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(from, from + ORDERS_FETCH_PAGE_SIZE - 1);
+    if (error) {
+      loadError = error;
+      break;
+    }
+    loadedOrders.push(...(data || []));
+    if (!data || data.length < ORDERS_FETCH_PAGE_SIZE) break;
+    ordersStatus.textContent = `${loadedOrders.length} pesanan sudah dimuat...`;
   }
+  if (loadError) {
+    orders = [];
+    renderOrders();
+    ordersStatus.textContent = loadError.message.includes("permission") ? "Akun ini tidak memiliki akses admin pesanan." : `Gagal memuat pesanan: ${loadError.message}`;
+    return;
+  }
+  orders = loadedOrders;
   renderOrders();
+}
+
+async function completeActiveOrders() {
+  const activeOrders = orders.filter((order) => order.status === "new" || order.status === "processing");
+  if (!activeOrders.length) {
+    ordersStatus.textContent = "Tidak ada order Baru atau Diproses yang perlu diselesaikan.";
+    return;
+  }
+  if (!window.confirm(`Selesaikan ${activeOrders.length} order berstatus Baru dan Diproses?`)) return;
+
+  completeActiveOrdersButton.disabled = true;
+  completeActiveOrdersButton.textContent = "Menyelesaikan...";
+  const { error } = await client.from(config.ordersTable)
+    .update({ status: "completed", updated_at: new Date().toISOString() })
+    .in("status", ["new", "processing"]);
+  if (error) {
+    ordersStatus.textContent = `Order gagal diselesaikan: ${error.message}`;
+  } else {
+    await loadOrders();
+    ordersStatus.textContent = `${activeOrders.length} order aktif berhasil diselesaikan.`;
+  }
+  completeActiveOrdersButton.disabled = false;
+  completeActiveOrdersButton.textContent = "Selesaikan Semua Aktif";
 }
 
 function subscribeToOrders() {
@@ -399,9 +478,13 @@ ordersList.addEventListener("click", async (event) => {
   window.setTimeout(() => { button.textContent = "Salin Format Order"; }, 1400);
 });
 
-orderSearch.addEventListener("input", renderOrders);
-statusFilter.addEventListener("change", renderOrders);
+orderSearch.addEventListener("input", () => { currentOrdersPage = 1; renderOrders(); });
+statusFilter.addEventListener("change", () => { currentOrdersPage = 1; renderOrders(); });
+dateFilter.addEventListener("change", () => { currentOrdersPage = 1; renderOrders(); });
 document.querySelector("#refreshOrders").addEventListener("click", loadOrders);
+completeActiveOrdersButton.addEventListener("click", completeActiveOrders);
+previousOrdersPage.addEventListener("click", () => { currentOrdersPage -= 1; renderOrders(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+nextOrdersPage.addEventListener("click", () => { currentOrdersPage += 1; renderOrders(); window.scrollTo({ top: 0, behavior: "smooth" }); });
 logoutButton.addEventListener("click", async () => {
   if (ordersChannel) client.removeChannel(ordersChannel);
   if (ordersRefreshTimer) window.clearInterval(ordersRefreshTimer);

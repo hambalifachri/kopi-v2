@@ -31,10 +31,14 @@
     <section id="ordersPanel" hidden>
       <div class="page-heading">
         <div><span class="eyebrow">ORDER JASDOR</span><h1>Pesanan Masuk</h1></div>
-        <button id="refreshOrders" class="quiet-button" type="button">Muat Ulang</button>
+        <div class="heading-actions">
+          <button id="completeActiveOrders" class="primary-button" type="button">Selesaikan Semua Aktif</button>
+          <button id="refreshOrders" class="quiet-button" type="button">Muat Ulang</button>
+        </div>
       </div>
 
       <div class="order-metrics" aria-label="Ringkasan pesanan">
+        <div><span>Total</span><strong id="totalOrderCount">0</strong></div>
         <div><span>Baru</span><strong id="newOrderCount">0</strong></div>
         <div><span>Diproses</span><strong id="processingOrderCount">0</strong></div>
         <div><span>Selesai</span><strong id="completedOrderCount">0</strong></div>
@@ -43,10 +47,16 @@
       <div class="order-toolbar">
         <label>Cari<input id="orderSearch" type="search" placeholder="ID, nama, outlet, atau brand" /></label>
         <label>Status<select id="statusFilter"><option value="all">Semua</option><option value="new">Baru</option><option value="processing">Diproses</option><option value="completed">Selesai</option><option value="cancelled">Dibatalkan</option></select></label>
+        <label>Tanggal<input id="dateFilter" type="date" /></label>
       </div>
 
       <p class="orders-status" id="ordersStatus" role="status">Memuat pesanan...</p>
       <div class="orders-list" id="ordersList"></div>
+      <nav class="orders-pagination" id="ordersPagination" aria-label="Navigasi halaman pesanan" hidden>
+        <button id="previousOrdersPage" class="quiet-button" type="button">Sebelumnya</button>
+        <span id="ordersPageInfo"></span>
+        <button id="nextOrdersPage" class="quiet-button" type="button">Berikutnya</button>
+      </nav>
     </section>
   </main>
 
