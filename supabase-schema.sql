@@ -37,6 +37,31 @@ alter table public.orders add constraint orders_contact_method_check check (cont
 alter table public.orders drop constraint if exists orders_status_check;
 alter table public.orders add constraint orders_status_check check (status in ('new', 'processing', 'completed', 'cancelled'));
 
+-- Pengeluaran aktual dari histori DANA, diinput oleh admin.
+create table if not exists public.dana_expenses (
+  id uuid primary key default gen_random_uuid(),
+  spent_at timestamptz not null,
+  amount integer not null check (amount > 0),
+  description text not null,
+  order_id text,
+  proof_path text,
+  proof_url text,
+  created_by uuid not null default auth.uid() references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists dana_expenses_spent_at_idx on public.dana_expenses (spent_at desc);
+create index if not exists dana_expenses_order_id_idx on public.dana_expenses (order_id) where order_id is not null;
+
+create table if not exists public.finance_settings (
+  id smallint primary key default 1 check (id = 1),
+  dana_opening_balance integer not null default 0,
+  dana_cutoff_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid default auth.uid() references auth.users(id)
+);
+
 -- Membership reseller dibuat admin setelah pembayaran Rp25.000 / 30 hari.
 create table if not exists public.resellers (
   id uuid primary key default gen_random_uuid(),
@@ -168,6 +193,8 @@ to anon
 using (true);
 
 alter table public.orders enable row level security;
+alter table public.dana_expenses enable row level security;
+alter table public.finance_settings enable row level security;
 
 drop policy if exists "Allow public order insert" on public.orders;
 create policy "Allow public order insert"
@@ -215,6 +242,47 @@ with check ((select private.is_kopi_admin()));
 grant insert on table public.orders to anon;
 grant insert, select, update on table public.orders to authenticated;
 
+drop policy if exists "Allow expense admin read" on public.dana_expenses;
+create policy "Allow expense admin read"
+on public.dana_expenses for select to authenticated
+using ((select private.is_kopi_admin()));
+
+drop policy if exists "Allow expense admin insert" on public.dana_expenses;
+create policy "Allow expense admin insert"
+on public.dana_expenses for insert to authenticated
+with check ((select private.is_kopi_admin()) and created_by = (select auth.uid()));
+
+drop policy if exists "Allow expense admin update" on public.dana_expenses;
+create policy "Allow expense admin update"
+on public.dana_expenses for update to authenticated
+using ((select private.is_kopi_admin()))
+with check ((select private.is_kopi_admin()) and created_by = (select auth.uid()));
+
+drop policy if exists "Allow expense admin delete" on public.dana_expenses;
+create policy "Allow expense admin delete"
+on public.dana_expenses for delete to authenticated
+using ((select private.is_kopi_admin()));
+
+grant select, insert, update, delete on table public.dana_expenses to authenticated;
+
+drop policy if exists "Allow finance admin read" on public.finance_settings;
+create policy "Allow finance admin read"
+on public.finance_settings for select to authenticated
+using ((select private.is_kopi_admin()));
+
+drop policy if exists "Allow finance admin insert" on public.finance_settings;
+create policy "Allow finance admin insert"
+on public.finance_settings for insert to authenticated
+with check ((select private.is_kopi_admin()));
+
+drop policy if exists "Allow finance admin update" on public.finance_settings;
+create policy "Allow finance admin update"
+on public.finance_settings for update to authenticated
+using ((select private.is_kopi_admin()))
+with check ((select private.is_kopi_admin()));
+
+grant select, insert, update on table public.finance_settings to authenticated;
+
 do $$
 begin
   alter publication supabase_realtime add table public.orders;
@@ -239,3 +307,22 @@ on storage.objects
 for select
 to anon
 using (bucket_id = 'payment-proofs');
+
+insert into storage.buckets (id, name, public)
+values ('dana-expense-proofs', 'dana-expense-proofs', false)
+on conflict (id) do update set public = excluded.public;
+
+drop policy if exists "Allow admin DANA expense proof upload" on storage.objects;
+create policy "Allow admin DANA expense proof upload"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'dana-expense-proofs' and (select private.is_kopi_admin()));
+
+drop policy if exists "Allow admin DANA expense proof read" on storage.objects;
+create policy "Allow admin DANA expense proof read"
+on storage.objects for select to authenticated
+using (bucket_id = 'dana-expense-proofs' and (select private.is_kopi_admin()));
+
+drop policy if exists "Allow admin DANA expense proof delete" on storage.objects;
+create policy "Allow admin DANA expense proof delete"
+on storage.objects for delete to authenticated
+using (bucket_id = 'dana-expense-proofs' and (select private.is_kopi_admin()));

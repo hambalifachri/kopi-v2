@@ -30,13 +30,19 @@
 
     <section id="ordersPanel" hidden>
       <div class="page-heading">
-        <div><span class="eyebrow">ORDER JASDOR</span><h1>Pesanan Masuk</h1></div>
+        <div><span class="eyebrow">ORDER JASDOR</span><h1 id="adminPageTitle">Pesanan Masuk</h1></div>
         <div class="heading-actions">
           <button id="completeActiveOrders" class="primary-button" type="button">Selesaikan Semua Aktif</button>
           <button id="refreshOrders" class="quiet-button" type="button">Muat Ulang</button>
         </div>
       </div>
 
+      <div class="admin-view-tabs" role="tablist" aria-label="Menu admin">
+        <button class="active" type="button" role="tab" aria-selected="true" data-admin-view="orders">Pesanan</button>
+        <button type="button" role="tab" aria-selected="false" data-admin-view="analytics">Analisis</button>
+      </div>
+
+      <div id="ordersView">
       <div class="order-metrics" aria-label="Ringkasan pesanan">
         <div><span>Total</span><strong id="totalOrderCount">0</strong></div>
         <div><span>Baru</span><strong id="newOrderCount">0</strong></div>
@@ -57,6 +63,61 @@
         <span id="ordersPageInfo"></span>
         <button id="nextOrdersPage" class="quiet-button" type="button">Berikutnya</button>
       </nav>
+      </div>
+
+      <section class="analytics-view" id="analyticsView" hidden>
+        <div class="analytics-heading">
+          <div><span class="eyebrow">RINGKASAN BISNIS</span><h2>Analisis Penjualan</h2></div>
+          <p id="analyticsPeriodLabel"></p>
+        </div>
+
+        <div class="analytics-filters">
+          <div class="period-segments" role="group" aria-label="Periode analisis">
+            <button class="active" type="button" data-analytics-period="all">Semua</button>
+            <button type="button" data-analytics-period="day">Harian</button>
+            <button type="button" data-analytics-period="month">Bulanan</button>
+            <button type="button" data-analytics-period="year">Tahunan</button>
+          </div>
+          <label id="analyticsDayField" hidden>Tanggal<input id="analyticsDay" type="date" /></label>
+          <label id="analyticsMonthField" hidden>Bulan<input id="analyticsMonth" type="month" /></label>
+          <label id="analyticsYearField" hidden>Tahun<input id="analyticsYear" type="number" min="2020" max="2100" step="1" /></label>
+        </div>
+
+        <div class="analytics-metrics" id="analyticsMetrics"></div>
+        <p class="analytics-note">Order dibatalkan tidak dihitung. Keuntungan aktual memakai pengeluaran DANA yang sudah dicatat; modal dan margin estimasi memakai harga normal outlet dibagi dua.</p>
+
+        <div class="analytics-grid">
+          <section class="analytics-section analytics-wide expense-section">
+            <div class="section-heading"><h3>Pengeluaran dari Histori DANA</h3><span>Catat setelah membayar pesanan di outlet</span></div>
+            <form class="expense-form" id="expenseForm">
+              <label>Tanggal & waktu<input id="expenseSpentAt" type="datetime-local" required /></label>
+              <label>Nominal<input id="expenseAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="Contoh: 50000" required /></label>
+              <label>Keterangan<input id="expenseDescription" type="text" maxlength="120" placeholder="Contoh: Bayar Kopi Kenangan" required /></label>
+              <label>Order ID (opsional)<input id="expenseOrderId" type="text" maxlength="40" placeholder="ORD-..." /></label>
+              <label class="expense-proof-field">Screenshot histori (opsional)<input id="expenseProof" type="file" accept="image/*" /></label>
+              <button class="primary-button" id="saveExpense" type="submit">Simpan Pengeluaran</button>
+            </form>
+            <p class="form-status" id="expenseFormStatus" role="status"></p>
+            <div class="analytics-table-wrap expense-history"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Order ID</th><th>Bukti</th><th>Nominal</th><th></th></tr></thead><tbody id="expenseList"></tbody></table></div>
+          </section>
+          <section class="analytics-section analytics-wide">
+            <div class="section-heading"><h3>Tren Penjualan</h3><span id="trendSummary"></span></div>
+            <div class="trend-list" id="salesTrend"></div>
+          </section>
+          <section class="analytics-section">
+            <div class="section-heading"><h3>Brand Terlaris</h3><span>Berdasarkan jumlah item</span></div>
+            <div class="rank-list" id="brandRanking"></div>
+          </section>
+          <section class="analytics-section">
+            <div class="section-heading"><h3>Pelanggan Teratas</h3><span>Berdasarkan jumlah order</span></div>
+            <div class="analytics-table-wrap"><table><thead><tr><th>#</th><th>Nama & WhatsApp</th><th>Order</th><th>Total Bayar</th></tr></thead><tbody id="customerRanking"></tbody></table></div>
+          </section>
+          <section class="analytics-section analytics-wide">
+            <div class="section-heading"><h3>Menu Paling Laku</h3><span>15 menu teratas</span></div>
+            <div class="analytics-table-wrap"><table><thead><tr><th>#</th><th>Menu</th><th>Brand</th><th>Terjual</th><th>Nilai Penjualan</th></tr></thead><tbody id="menuRanking"></tbody></table></div>
+          </section>
+        </div>
+      </section>
     </section>
   </main>
 
