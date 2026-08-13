@@ -862,7 +862,7 @@ function buildForeLiveMenu(payload) {
     if (!masterByName.has(key) || /^iced?-/i.test(String(item.name))) masterByName.set(key, item);
   });
 
-  return originals.flatMap((localItem) => {
+  const matchedItems = originals.flatMap((localItem) => {
     const liveItem = masterByName.get(normalizedLiveName(localItem.name));
     if (!liveItem?.product_code) return [];
     const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
@@ -897,6 +897,42 @@ function buildForeLiveMenu(payload) {
       liveOutletMenu: true,
     }];
   });
+
+  const literItems = master.flatMap((liveItem) => {
+    const isLiterItem = (liveItem.categories || []).some((category) => /foreveryone\s*1l/i.test(String(category)))
+      || /\b1l\b/i.test(String(liveItem.name || ""));
+    if (!isLiterItem || !liveItem.product_code) return [];
+
+    const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
+    if (!storeItem || storeItem.is_sold_out === true) return [];
+    const officialPrice = firstNumber(storeItem.regular_price, liveItem.regular_price);
+    if (!officialPrice) return [];
+
+    const options = (liveItem.addons || []).map((group) => ({
+      key: normalizeApiText(group.group_name).replace(/-/g, "") || "option",
+      label: group.group_name || "Option",
+      defaultValue: (group.options || []).find((option) => option.is_default)?.label,
+      options: (group.options || []).map((option) => ({
+        value: option.label,
+        label: option.label,
+        priceDelta: firstNumber(option.price) || 0,
+      })),
+    })).filter((group) => group.options.length);
+
+    return [{
+      id: `fore-live-${normalizeApiText(liveItem.product_code)}`,
+      brand: "fore",
+      group: "fore-literan",
+      name: liveItem.name,
+      oldPrice: officialPrice,
+      price: Math.max(0, officialPrice - 7000),
+      image: liveItem.image_url,
+      options,
+      liveOutletMenu: true,
+    }];
+  });
+
+  return [...matchedItems, ...literItems];
 }
 
 function collectTomoroProducts(value, products = []) {

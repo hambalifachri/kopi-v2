@@ -114,6 +114,7 @@ const BRANDS_DATA = [
     categories: [
       { id: "sunny-burst-series", title: "Sunny Burst Series" },
       { id: "fore-signature", title: "Fore Signature" },
+      { id: "fore-literan", title: "FOREveryone 1L" },
       { id: "coffee-of-the-day", title: "Coffee of the Day" },
       { id: "coffee", title: "Coffee" },
       { id: "americano-series", title: "Americano Series" },
