@@ -84,21 +84,22 @@
         </div>
 
         <div class="analytics-metrics" id="analyticsMetrics"></div>
-        <p class="analytics-note">Order dibatalkan tidak dihitung. Keuntungan aktual memakai pengeluaran DANA yang sudah dicatat; modal dan margin estimasi memakai harga normal outlet dibagi dua.</p>
+        <p class="analytics-note">Order dibatalkan tidak dihitung. Keuntungan aktual memakai seluruh pengeluaran DANA, termasuk refund customer; modal dan margin estimasi memakai harga normal outlet dibagi dua.</p>
 
         <div class="analytics-grid">
           <section class="analytics-section analytics-wide expense-section">
-            <div class="section-heading"><h3>Pengeluaran dari Histori DANA</h3><span>Catat setelah membayar pesanan di outlet</span></div>
+            <div class="section-heading"><h3>Pengeluaran dari Histori DANA</h3><span>Catat pembayaran outlet dan refund customer</span></div>
             <form class="expense-form" id="expenseForm">
               <label>Tanggal & waktu<input id="expenseSpentAt" type="datetime-local" required /></label>
               <label>Nominal<input id="expenseAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="Contoh: 50000" required /></label>
+              <label>Jenis transaksi<select id="expenseType" required><option value="outlet">Belanja Outlet</option><option value="refund">Refund Customer</option><option value="other">Pengeluaran Lain</option></select></label>
               <label>Keterangan<input id="expenseDescription" type="text" maxlength="120" placeholder="Contoh: Bayar Kopi Kenangan" required /></label>
               <label>Order ID (opsional)<input id="expenseOrderId" type="text" maxlength="40" placeholder="ORD-..." /></label>
               <label class="expense-proof-field">Screenshot histori (opsional)<input id="expenseProof" type="file" accept="image/*" /></label>
               <button class="primary-button" id="saveExpense" type="submit">Simpan Pengeluaran</button>
             </form>
             <p class="form-status" id="expenseFormStatus" role="status"></p>
-            <div class="analytics-table-wrap expense-history"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Order ID</th><th>Bukti</th><th>Nominal</th><th></th></tr></thead><tbody id="expenseList"></tbody></table></div>
+            <div class="analytics-table-wrap expense-history"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th>Order ID</th><th>Bukti</th><th>Nominal</th><th></th></tr></thead><tbody id="expenseList"></tbody></table></div>
           </section>
           <section class="analytics-section analytics-wide">
             <div class="section-heading"><h3>Tren Penjualan</h3><span id="trendSummary"></span></div>

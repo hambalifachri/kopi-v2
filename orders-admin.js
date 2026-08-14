@@ -31,6 +31,7 @@ const adminPageTitle = document.querySelector("#adminPageTitle");
 const expenseForm = document.querySelector("#expenseForm");
 const expenseSpentAt = document.querySelector("#expenseSpentAt");
 const expenseAmount = document.querySelector("#expenseAmount");
+const expenseType = document.querySelector("#expenseType");
 const expenseDescription = document.querySelector("#expenseDescription");
 const expenseOrderId = document.querySelector("#expenseOrderId");
 const expenseProof = document.querySelector("#expenseProof");
@@ -139,6 +140,10 @@ function analyticsMetric(label, value, detail = "", tone = "") {
   return `<div class="analytics-metric ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small>${escapeHtml(detail)}</small>` : ""}</div>`;
 }
 
+function expenseTypeLabel(type) {
+  return { outlet: "Belanja Outlet", refund: "Refund Customer", other: "Lainnya" }[type] || "Belanja Outlet";
+}
+
 function getOrderBrand(order) {
   return String(order.brand || order.items?.[0]?.brand || "Tidak diketahui").trim() || "Tidak diketahui";
 }
@@ -155,6 +160,9 @@ function renderAnalytics() {
   const filteredExpenses = getAnalyticsExpenses();
   const revenue = filteredOrders.reduce((sum, order) => sum + effectiveOrderRevenue(order), 0);
   const danaExpenses = filteredExpenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+  const refundTotal = filteredExpenses
+    .filter((expense) => expense.expense_type === "refund")
+    .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
   const actualProfit = revenue - danaExpenses;
   const officialTotal = filteredOrders.reduce((sum, order) => sum + effectiveOrderOfficialTotal(order), 0);
   const estimatedCost = officialTotal / 2;
@@ -179,6 +187,7 @@ function renderAnalytics() {
     analyticsMetric("Saldo Awal Cut-off", rupiah.format(openingBalance), cutoffLabel),
     analyticsMetric("Uang Masuk Web", rupiah.format(revenue), `${filteredOrders.length} order non-batal`),
     analyticsMetric("Uang Keluar DANA", rupiah.format(danaExpenses), `${filteredExpenses.length} transaksi dicatat`),
+    analyticsMetric("Refund Customer", rupiah.format(refundTotal), "DANA ke QRIS Kukusan.Fachrindah"),
     analyticsMetric("Keuntungan Aktual", rupiah.format(actualProfit), "Uang masuk dikurangi pengeluaran DANA", actualProfit >= 0 ? "positive" : "negative"),
     analyticsMetric("Harga Normal / 2", rupiah.format(estimatedCost), "Estimasi modal"),
     analyticsMetric("Margin Keuntungan", rupiah.format(estimatedMargin), `${marginRate.toFixed(1)}% dari total bayar`, estimatedMargin >= 0 ? "positive" : "negative"),
@@ -189,8 +198,8 @@ function renderAnalytics() {
 
   expenseList.innerHTML = filteredExpenses.length ? filteredExpenses
     .sort((a, b) => new Date(b.spent_at) - new Date(a.spent_at))
-    .map((expense) => `<tr><td>${escapeHtml(formatDate(expense.spent_at))}</td><td><strong>${escapeHtml(expense.description)}</strong></td><td>${escapeHtml(expense.order_id || "-")}</td><td>${expense.proof_url ? `<a href="${escapeHtml(expense.proof_url)}" target="_blank" rel="noopener">Lihat</a>` : "-"}</td><td><strong>${rupiah.format(expense.amount || 0)}</strong></td><td><button class="expense-delete" type="button" data-delete-expense="${escapeHtml(expense.id)}">Hapus</button></td></tr>`)
-    .join("") : '<tr><td colspan="6" class="analytics-empty">Belum ada pengeluaran DANA pada periode ini.</td></tr>';
+    .map((expense) => `<tr><td>${escapeHtml(formatDate(expense.spent_at))}</td><td>${escapeHtml(expenseTypeLabel(expense.expense_type))}</td><td><strong>${escapeHtml(expense.description)}</strong></td><td>${escapeHtml(expense.order_id || "-")}</td><td>${expense.proof_url ? `<a href="${escapeHtml(expense.proof_url)}" target="_blank" rel="noopener">Lihat</a>` : "-"}</td><td><strong>${rupiah.format(expense.amount || 0)}</strong></td><td><button class="expense-delete" type="button" data-delete-expense="${escapeHtml(expense.id)}">Hapus</button></td></tr>`)
+    .join("") : '<tr><td colspan="7" class="analytics-empty">Belum ada pengeluaran DANA pada periode ini.</td></tr>';
 
   const customers = new Map();
   filteredOrders.forEach((order) => {
@@ -688,6 +697,7 @@ async function saveDanaExpense(event) {
       id: expenseId,
       spent_at: spentAt,
       amount,
+      expense_type: expenseType.value,
       description: expenseDescription.value.trim(),
       order_id: expenseOrderId.value.trim() || null,
       proof_path: proofPath || null,
@@ -696,6 +706,7 @@ async function saveDanaExpense(event) {
     if (error) throw error;
 
     expenseAmount.value = "";
+    expenseType.value = "outlet";
     expenseDescription.value = "";
     expenseOrderId.value = "";
     expenseProof.value = "";

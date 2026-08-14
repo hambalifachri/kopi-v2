@@ -99,6 +99,7 @@ input, select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px so
 .expense-form label { display: grid; gap: 6px; color: #514b47; font-size: .72rem; font-weight: 800; }
 .expense-proof-field { grid-column: span 2; }
 .expense-form input[type="file"] { padding: 8px; font-size: .72rem; }
+.expense-form select { min-height: 42px; padding: 8px 10px; border: 1px solid #cfc6c0; border-radius: 6px; background: #fff; color: #302a27; font: inherit; }
 .expense-form .primary-button { align-self: end; }
 .expense-history { margin-top: 12px; }
 .expense-history a { color: #216542; font-weight: 800; }

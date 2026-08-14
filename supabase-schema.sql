@@ -42,6 +42,7 @@ create table if not exists public.dana_expenses (
   id uuid primary key default gen_random_uuid(),
   spent_at timestamptz not null,
   amount integer not null check (amount > 0),
+  expense_type text not null default 'outlet' check (expense_type in ('outlet', 'refund', 'other')),
   description text not null,
   order_id text,
   proof_path text,
@@ -50,6 +51,10 @@ create table if not exists public.dana_expenses (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.dana_expenses add column if not exists expense_type text not null default 'outlet';
+alter table public.dana_expenses drop constraint if exists dana_expenses_expense_type_check;
+alter table public.dana_expenses add constraint dana_expenses_expense_type_check check (expense_type in ('outlet', 'refund', 'other'));
 
 create index if not exists dana_expenses_spent_at_idx on public.dana_expenses (spent_at desc);
 create index if not exists dana_expenses_order_id_idx on public.dana_expenses (order_id) where order_id is not null;
