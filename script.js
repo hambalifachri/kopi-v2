@@ -897,10 +897,12 @@ function cloneOptionGroups(groups) {
 function getItemOptionGroups(item) {
   // Pastikan menu makanan langsung masuk keranjang, tapi Bundle tetap memunculkan pop-up
   if (isFoodItem(item)) return [];
+  const omittedOptionKeys = new Set(Array.isArray(item.omitOptionKeys) ? item.omitOptionKeys : []);
+  const keepOptionGroup = (group) => group.options && group.options.length && !omittedOptionKeys.has(group.key);
 
   // Jika di menu-data.js kita memasukkan kustomisasi "options" pada bundle, gunakan itu!
   const itemOptions = Array.isArray(item.options) ? cloneOptionGroups(item.options) : null;
-  if (itemOptions) return itemOptions;
+  if (itemOptions) return itemOptions.filter(keepOptionGroup);
 
   // Jika tidak ada options khusus, gunakan settingan bawaan brand
   const baseOptions = item.brand === "kopi-kenangan"
@@ -908,7 +910,7 @@ function getItemOptionGroups(item) {
     : cloneOptionGroups(getBrandById(item.brand).defaultOptions);
     
   const addOns = Array.isArray(item.addOns) ? cloneOptionGroups(item.addOns) : [];
-  return [...baseOptions, ...addOns].filter((group) => group.options && group.options.length);
+  return [...baseOptions, ...addOns].filter(keepOptionGroup);
 }
 
 function shouldShowOptionGroup(group) {
@@ -1086,6 +1088,35 @@ function normalizeText(value) { return String(value).toLowerCase().trim(); }
 
 function getItemGroups(item) {
   return Array.isArray(item.group) ? item.group : [item.group].filter(Boolean);
+}
+
+function sortOrderItemsByCatalog(items, brandId = getCartBrandId()) {
+  const brand = getBrandById(brandId);
+  const categoryIds = (brand.categories || [])
+    .map((category) => category.id)
+    .filter((categoryId) => brandId !== "kopi-kenangan" || (!String(categoryId).startsWith("promo-") && categoryId !== "baru"));
+  return items
+    .map((item, originalIndex) => {
+      const catalogIndex = MENU_ITEMS.findIndex((catalogItem) => (
+        (item.id && catalogItem.id === item.id)
+        || (catalogItem.name === item.name && (catalogItem.brand || "kopi-kenangan") === brandId)
+      ));
+      const catalogItem = catalogIndex >= 0 ? MENU_ITEMS[catalogIndex] : item;
+      const groups = getItemGroups(catalogItem);
+      const matchedCategory = categoryIds.findIndex((categoryId) => groups.includes(categoryId));
+      return {
+        item,
+        originalIndex,
+        categoryIndex: matchedCategory >= 0 ? matchedCategory : Number.MAX_SAFE_INTEGER,
+        catalogIndex: catalogIndex >= 0 ? catalogIndex : Number.MAX_SAFE_INTEGER,
+      };
+    })
+    .sort((first, second) => (
+      first.categoryIndex - second.categoryIndex
+      || first.catalogIndex - second.catalogIndex
+      || first.originalIndex - second.originalIndex
+    ))
+    .map(({ item }) => item);
 }
 
 function isPromoItem(item) {
@@ -1511,6 +1542,8 @@ async function uploadPaymentProof(file, orderId) {
 
 function serializeStoredOrderItem(item, qty = item.qty) {
   return {
+    id: item.id,
+    group: item.group,
     brand: getBrandById(item.brand).label,
     name: item.name,
     price: item.price,
@@ -1551,7 +1584,7 @@ function buildStoredOrderBatches(entries) {
       number: index + 1,
       officialTotal: bucket.reduce((sum, item) => sum + item.batchPrice, 0),
       sellingTotal: bucket.reduce((sum, item) => sum + item.price, 0),
-      items: groupedItems,
+      items: sortOrderItemsByCatalog(groupedItems, "kopi-kenangan"),
     };
   });
 }
@@ -1842,7 +1875,7 @@ function formatProofForWA(savedOrder) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 62000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 61000;
 const KOPKEN_BATCH_MAX_TOTAL = 72000;
 
 function findValidKopkenBatchPartition(items, batchCount, maximumTotal) {
@@ -1993,7 +2026,7 @@ function buildWhatsappMessage(formData, savedOrder) {
       }
     });
 
-    // Utamakan Rp50-62 ribu; gunakan toleransi sampai Rp72 ribu hanya jika diperlukan.
+    // Utamakan Rp50-61 ribu; gunakan toleransi sampai Rp72 ribu hanya jika diperlukan.
     const buckets = buildKopkenOrderBatches(flattenedItems);
 
     orderLinesText = buckets.map((bucket, index) => {
@@ -2004,7 +2037,7 @@ function buildWhatsappMessage(formData, savedOrder) {
         else { groupedBucket.push({ ...bItem, qty: 1 }); }
       });
 
-      let lines = groupedBucket.map((item, i) => {
+      let lines = sortOrderItemsByCatalog(groupedBucket, "kopi-kenangan").map((item, i) => {
         return formatOrderItemForWA(item, i);
       }).join("\n\n");
 
@@ -2015,7 +2048,7 @@ function buildWhatsappMessage(formData, savedOrder) {
     
   } else {
     // Logika non-kopken tetap sama
-    orderLinesText = entries.map((item, index) => {
+    orderLinesText = sortOrderItemsByCatalog(entries, getCartBrandId()).map((item, index) => {
       return formatOrderItemForWA(item, index);
     }).join("\n\n");
   }

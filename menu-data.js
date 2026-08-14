@@ -1619,7 +1619,7 @@ const MENU_ITEMS_DATA = [
 
 // --- GROUP: Classic coffee ---
 { id: "tomoro-caffe-americano", brand: "tomoro", group: "classic-coffee", name: "Caffe Americano", oldPrice: 18000, price: 13000 },
-{ id: "tomoro-breve-latte", brand: "tomoro", group: "classic-coffee", name: "Breve Latte", oldPrice: 30000, price: 22000 },
+{ id: "tomoro-breve-latte", brand: "tomoro", group: "classic-coffee", name: "Breve Latte", oldPrice: 30000, price: 22000, omitOptionKeys: ["sweetness"] },
 { id: "tomoro-caffe-latte", brand: "tomoro", group: "classic-coffee", name: "Caffe Latte", oldPrice: 24000, price: 18000 },
 { id: "tomoro-kopi-susu-aren", brand: "tomoro", group: "classic-coffee", name: "Kopi Susu Aren", oldPrice: 18000, price: 14500 },
 { id: "tomoro-caffe-mocha", brand: "tomoro", group: "classic-coffee", name: "Caffe Mocha", oldPrice: 25000, price: 18000 },

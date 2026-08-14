@@ -439,7 +439,7 @@ function formatItemForCopy(item, index) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 62000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 61000;
 const KOPKEN_BATCH_MAX_TOTAL = 72000;
 
 function getCatalogKopkenItem(item) {
@@ -448,6 +448,33 @@ function getCatalogKopkenItem(item) {
     const isKopken = !menuItem.brand || menuItem.brand === "kopi-kenangan";
     return isKopken && ((item.id && menuItem.id === item.id) || menuItem.name === item.name);
   }) || null;
+}
+
+function sortKopkenBatchItems(items) {
+  if (typeof MENU_ITEMS_DATA === "undefined") return [...items];
+  const brand = typeof BRANDS_DATA === "undefined" ? null : BRANDS_DATA.find((candidate) => candidate.id === "kopi-kenangan");
+  const categoryIds = (brand?.categories || [])
+    .map((category) => category.id)
+    .filter((categoryId) => !String(categoryId).startsWith("promo-") && categoryId !== "baru");
+  return items
+    .map((item, originalIndex) => {
+      const catalogItem = getCatalogKopkenItem(item);
+      const catalogIndex = catalogItem ? MENU_ITEMS_DATA.indexOf(catalogItem) : Number.MAX_SAFE_INTEGER;
+      const groups = Array.isArray(catalogItem?.group) ? catalogItem.group : [catalogItem?.group].filter(Boolean);
+      const matchedCategory = categoryIds.findIndex((categoryId) => groups.includes(categoryId));
+      return {
+        item,
+        originalIndex,
+        categoryIndex: matchedCategory >= 0 ? matchedCategory : Number.MAX_SAFE_INTEGER,
+        catalogIndex,
+      };
+    })
+    .sort((first, second) => (
+      first.categoryIndex - second.categoryIndex
+      || first.catalogIndex - second.catalogIndex
+      || first.originalIndex - second.originalIndex
+    ))
+    .map(({ item }) => item);
 }
 
 function getStoredOfficialPrice(item) {
@@ -632,7 +659,7 @@ function renderOrderCard(order) {
   const batchHtml = batches.map((batch) => `
     <section class="batch">
       <div class="batch-title"><strong>Batch ${batch.number}</strong><span>Outlet ${rupiah.format(batch.officialTotal || 0)} · Bayar ${rupiah.format(batch.sellingTotal || 0)}</span></div>
-      ${(batch.items || []).map((item) => `
+      ${sortKopkenBatchItems(batch.items || []).map((item) => `
         <div class="batch-item">
           <div><strong>${item.qty}x ${escapeHtml(item.name)}</strong>
             ${formatOptions(item.options) ? `<p>${escapeHtml(formatOptions(item.options))}</p>` : ""}
@@ -710,7 +737,7 @@ function buildAdminOrderText(order) {
 
   batches.forEach((batch, batchIndex) => {
     lines.push(`📦 *Order Batch ${batch.number || batchIndex + 1}*`);
-    (batch.items || []).forEach((item, index) => {
+    sortKopkenBatchItems(batch.items || []).forEach((item, index) => {
       lines.push(formatItemForCopy(item, index), "");
     });
     lines.push(`*Total Batch ${batch.number || batchIndex + 1}: (~${rupiah.format(batch.officialTotal || 0)}~* *${rupiah.format(batch.sellingTotal || 0)})*`);
