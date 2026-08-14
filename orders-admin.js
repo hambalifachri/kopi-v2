@@ -165,7 +165,13 @@ function parseDanaHistoryText(text) {
   lines.forEach((line, index) => {
     const dateMatch = line.match(datePattern);
     if (!dateMatch) return;
-    const transactionLine = String(lines[index - 1] || "");
+    let transactionLine = amountPattern.test(line) ? line : "";
+    for (let previousIndex = index - 1; previousIndex >= 0 && index - previousIndex <= 5 && !transactionLine; previousIndex -= 1) {
+      const candidate = String(lines[previousIndex] || "");
+      if (datePattern.test(candidate)) break;
+      if (amountPattern.test(candidate)) transactionLine = candidate;
+    }
+    if (!transactionLine) return;
     if (/\+\s*Rp/i.test(transactionLine) || /\+\s*Rp/i.test(line)) return;
     const amountMatch = transactionLine.match(amountPattern) || line.match(amountPattern);
     if (!amountMatch) return;
@@ -183,6 +189,7 @@ function parseDanaHistoryText(text) {
       .replace(/^kopi\s*kenangan/i, "Kopi Kenangan")
       .replace(/^kukusan[.\s]+fachrindah/i, "Kukusan.Fachrindah")
       .replace(/^ultramen/i, "ULTRAMEN");
+    if (/isi saldo dana|bulan ini/i.test(description)) return;
     const amount = Number(amountMatch[1].replace(/\D/g, ""));
     const [, day, month, year, hour, minute] = dateMatch;
     const spentAt = new Date(`${year}-${monthNumbers[month.toLowerCase()]}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:00+07:00`).toISOString();
@@ -200,7 +207,7 @@ function renderScannedExpenses() {
   expenseScanList.innerHTML = scannedExpenses.map((expense, index) => `<tr>
     <td><input type="checkbox" data-scan-selected="${index}" ${expense.selected ? "checked" : ""} aria-label="Simpan ${escapeHtml(expense.description)}"></td>
     <td>${escapeHtml(formatDate(expense.spentAt))}</td>
-    <td><strong>${escapeHtml(expense.description)}</strong></td>
+    <td><strong>${escapeHtml(expense.description)}</strong>${expense.sourceName ? `<small>${escapeHtml(expense.sourceName)}</small>` : ""}</td>
     <td><select data-scan-type="${index}" aria-label="Jenis ${escapeHtml(expense.description)}">
       <option value="outlet" ${expense.expenseType === "outlet" ? "selected" : ""}>Belanja Outlet</option>
       <option value="refund" ${expense.expenseType === "refund" ? "selected" : ""}>Refund Customer</option>
@@ -210,38 +217,62 @@ function renderScannedExpenses() {
   </tr>`).join("");
 }
 
-async function prepareDanaOcrImage(file) {
-  const bitmap = await createImageBitmap(file);
-  const scale = bitmap.width < 900 ? 2 : 1;
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width * scale;
-  canvas.height = bitmap.height * scale;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => canvas.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal diproses.")),
+    "image/png",
+  ));
+}
 
-  const image = context.getImageData(0, 0, canvas.width, canvas.height);
-  for (let index = 0; index < image.data.length; index += 4) {
-    const gray = image.data[index] * 0.299 + image.data[index + 1] * 0.587 + image.data[index + 2] * 0.114;
-    const contrast = Math.max(0, Math.min(255, (gray - 128) * 1.35 + 128));
-    image.data[index] = contrast;
-    image.data[index + 1] = contrast;
-    image.data[index + 2] = contrast;
+async function prepareDanaOcrSegments(file) {
+  const bitmap = await createImageBitmap(file);
+  const isLongScreenshot = bitmap.height > Math.max(2600, bitmap.width * 2.5);
+  const sourceChunkHeight = isLongScreenshot ? Math.round(bitmap.width * 1.8) : bitmap.height;
+  const sourceOverlap = isLongScreenshot ? Math.round(sourceChunkHeight * 0.1) : 0;
+  const scale = Math.max(1, Math.min(2, 1400 / bitmap.width));
+  const segments = [];
+
+  for (let sourceY = 0, segmentNumber = 1; sourceY < bitmap.height; segmentNumber += 1) {
+    const sourceHeight = Math.min(sourceChunkHeight, bitmap.height - sourceY);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(sourceHeight * scale);
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(bitmap, 0, sourceY, bitmap.width, sourceHeight, 0, 0, canvas.width, canvas.height);
+    segments.push({ image: await canvasToBlob(canvas), segmentNumber, mode: "normal" });
+
+    const image = context.getImageData(0, 0, canvas.width, canvas.height);
+    for (let index = 0; index < image.data.length; index += 4) {
+      const gray = image.data[index] * 0.299 + image.data[index + 1] * 0.587 + image.data[index + 2] * 0.114;
+      const contrast = Math.max(0, Math.min(255, (gray - 128) * 1.35 + 128));
+      image.data[index] = contrast;
+      image.data[index + 1] = contrast;
+      image.data[index + 2] = contrast;
+    }
+    context.putImageData(image, 0, 0);
+    segments.push({ image: await canvasToBlob(canvas), segmentNumber, mode: "tajam" });
+
+    if (!isLongScreenshot || sourceY + sourceHeight >= bitmap.height) break;
+    sourceY += sourceChunkHeight - sourceOverlap;
   }
-  context.putImageData(image, 0, 0);
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal diproses.")), "image/png"));
+  bitmap.close();
+  return segments;
 }
 
 async function scanExpenseProof() {
-  const proofFile = expenseProof.files?.[0];
-  if (!proofFile) {
+  const proofFiles = [...(expenseProof.files || [])];
+  if (!proofFiles.length) {
     expenseFormStatus.textContent = "Pilih screenshot histori DANA terlebih dahulu.";
     return;
   }
-  if (!proofFile.type.startsWith("image/") || proofFile.size > 5 * 1024 * 1024) {
-    expenseFormStatus.textContent = "Screenshot harus berupa gambar dengan ukuran maksimal 5 MB.";
+  if (proofFiles.length > 10) {
+    expenseFormStatus.textContent = "Maksimal 10 screenshot untuk sekali proses.";
+    return;
+  }
+  if (proofFiles.some((file) => !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
+    expenseFormStatus.textContent = "Setiap screenshot harus berupa gambar dengan ukuran maksimal 5 MB.";
     return;
   }
   if (!window.Tesseract) {
@@ -253,19 +284,42 @@ async function scanExpenseProof() {
   scanExpenseProofButton.textContent = "Membaca...";
   scannedExpenses = [];
   renderScannedExpenses();
+  let worker = null;
   try {
-    const recognize = (image, pass) => window.Tesseract.recognize(image, "eng", {
+    const preparedFiles = [];
+    for (let fileIndex = 0; fileIndex < proofFiles.length; fileIndex += 1) {
+      expenseFormStatus.textContent = `Menyiapkan screenshot ${fileIndex + 1}/${proofFiles.length}...`;
+      preparedFiles.push({
+        fileIndex,
+        file: proofFiles[fileIndex],
+        segments: await prepareDanaOcrSegments(proofFiles[fileIndex]),
+      });
+    }
+    const totalSteps = preparedFiles.reduce((sum, prepared) => sum + prepared.segments.length, 0);
+    let currentStep = 0;
+    worker = await window.Tesseract.createWorker("eng", 1, {
       logger: ({ status, progress }) => {
-        if (status === "recognizing text") expenseFormStatus.textContent = `Membaca screenshot tahap ${pass}/2 (${Math.round(progress * 100)}%)...`;
+        if (status === "recognizing text") {
+          expenseFormStatus.textContent = `Membaca bagian ${currentStep + 1}/${totalSteps} (${Math.round(progress * 100)}%)...`;
+        }
       },
     });
-    const originalResult = await recognize(proofFile, 1);
-    const ocrImage = await prepareDanaOcrImage(proofFile);
-    const enhancedResult = await recognize(ocrImage, 2);
-    const combined = [...parseDanaHistoryText(originalResult.data.text), ...parseDanaHistoryText(enhancedResult.data.text)];
+    const combined = [];
+    for (const prepared of preparedFiles) {
+      for (const segment of prepared.segments) {
+        const result = await worker.recognize(segment.image);
+        combined.push(...parseDanaHistoryText(result.data.text).map((expense) => ({
+          ...expense,
+          sourceFileIndex: prepared.fileIndex,
+          sourceName: prepared.file.name,
+        })));
+        currentStep += 1;
+      }
+    }
     const uniqueTransactions = new Map();
     combined.forEach((expense) => {
-      const key = `${expense.spentAt}|${expense.amount}`;
+      const merchantKey = expense.description.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      const key = `${expense.spentAt}|${expense.amount}|${merchantKey}`;
       const existing = uniqueTransactions.get(key);
       if (!existing || (existing.expenseType === "other" && expense.expenseType !== "other")) uniqueTransactions.set(key, expense);
     });
@@ -277,6 +331,7 @@ async function scanExpenseProof() {
   } catch (error) {
     expenseFormStatus.textContent = `Screenshot gagal dibaca: ${error.message}`;
   } finally {
+    if (worker) await worker.terminate();
     scanExpenseProofButton.disabled = false;
     scanExpenseProofButton.textContent = "Baca Screenshot";
   }
@@ -831,7 +886,8 @@ function normalizeExpenseFileName(name) {
 async function saveDanaExpense(event) {
   event.preventDefault();
   const amount = Math.round(Number(expenseAmount.value));
-  const proofFile = expenseProof.files?.[0];
+  const proofFiles = [...(expenseProof.files || [])];
+  const proofFile = proofFiles[0];
   const selectedScans = scannedExpenses.filter((expense) => expense.selected);
   if (!selectedScans.length && (!amount || amount < 1)) {
     expenseFormStatus.textContent = "Nominal pengeluaran belum benar.";
@@ -841,25 +897,33 @@ async function saveDanaExpense(event) {
     expenseFormStatus.textContent = "Keterangan pengeluaran belum diisi.";
     return;
   }
-  if (proofFile && (!proofFile.type.startsWith("image/") || proofFile.size > 5 * 1024 * 1024)) {
-    expenseFormStatus.textContent = "Screenshot harus berupa gambar dengan ukuran maksimal 5 MB.";
+  if (proofFiles.some((file) => !file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
+    expenseFormStatus.textContent = "Setiap screenshot harus berupa gambar dengan ukuran maksimal 5 MB.";
     return;
   }
 
   const button = document.querySelector("#saveExpense");
   const expenseId = crypto.randomUUID();
-  let proofPath = "";
+  const proofPaths = new Map();
+  const uploadedProofPaths = [];
   button.disabled = true;
   button.textContent = "Menyimpan...";
   expenseFormStatus.textContent = "";
 
   try {
-    if (proofFile) {
-      proofPath = `dana-expenses/${expenseId}/${Date.now()}-${normalizeExpenseFileName(proofFile.name)}`;
-      const { error: uploadError } = await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).upload(proofPath, proofFile, {
-        cacheControl: "3600", contentType: proofFile.type, upsert: false,
+    const usedFileIndexes = selectedScans.length
+      ? [...new Set(selectedScans.map((expense) => expense.sourceFileIndex).filter(Number.isInteger))]
+      : (proofFile ? [0] : []);
+    for (const fileIndex of usedFileIndexes) {
+      const file = proofFiles[fileIndex];
+      if (!file) continue;
+      const proofPath = `dana-expenses/${expenseId}/${fileIndex + 1}-${Date.now()}-${normalizeExpenseFileName(file.name)}`;
+      const { error: uploadError } = await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).upload(proofPath, file, {
+        cacheControl: "3600", contentType: file.type, upsert: false,
       });
       if (uploadError) throw uploadError;
+      proofPaths.set(fileIndex, proofPath);
+      uploadedProofPaths.push(proofPath);
     }
 
     const manualExpense = {
@@ -869,7 +933,7 @@ async function saveDanaExpense(event) {
       expense_type: expenseType.value,
       description: expenseDescription.value.trim(),
       order_id: expenseOrderId.value.trim() || null,
-      proof_path: proofPath || null,
+      proof_path: proofPaths.get(0) || null,
       proof_url: null,
     };
     const rows = selectedScans.length ? selectedScans.map((expense) => ({
@@ -879,7 +943,7 @@ async function saveDanaExpense(event) {
       expense_type: expense.expenseType,
       description: expense.description,
       order_id: expenseOrderId.value.trim() || null,
-      proof_path: proofPath || null,
+      proof_path: proofPaths.get(expense.sourceFileIndex) || null,
       proof_url: null,
     })) : [manualExpense];
     const { error } = await client.from(DANA_EXPENSES_TABLE).insert(rows);
@@ -895,7 +959,7 @@ async function saveDanaExpense(event) {
     await loadExpenses();
     expenseFormStatus.textContent = `${rows.length} pengeluaran DANA berhasil dicatat.`;
   } catch (error) {
-    if (proofPath) await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).remove([proofPath]);
+    if (uploadedProofPaths.length) await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).remove(uploadedProofPaths);
     expenseFormStatus.textContent = `Pengeluaran gagal disimpan: ${error.message}`;
   } finally {
     button.disabled = false;
@@ -1028,7 +1092,10 @@ scanExpenseProofButton.addEventListener("click", scanExpenseProof);
 expenseProof.addEventListener("change", () => {
   scannedExpenses = [];
   renderScannedExpenses();
-  expenseFormStatus.textContent = "Klik Baca Screenshot untuk mendeteksi transaksi keluar.";
+  const fileCount = expenseProof.files?.length || 0;
+  expenseFormStatus.textContent = fileCount
+    ? `${fileCount} screenshot dipilih. Klik Baca Screenshot untuk mendeteksi transaksi keluar.`
+    : "";
 });
 expenseScanList.addEventListener("change", (event) => {
   const selectedIndex = event.target.dataset.scanSelected;

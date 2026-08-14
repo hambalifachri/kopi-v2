@@ -95,7 +95,7 @@
               <label>Jenis transaksi<select id="expenseType" required><option value="outlet">Belanja Outlet</option><option value="refund">Refund Customer</option><option value="other">Pengeluaran Lain</option></select></label>
               <label>Keterangan<input id="expenseDescription" type="text" maxlength="120" placeholder="Contoh: Bayar Kopi Kenangan" /></label>
               <label>Order ID (opsional)<input id="expenseOrderId" type="text" maxlength="40" placeholder="ORD-..." /></label>
-              <label class="expense-proof-field">Screenshot histori DANA<input id="expenseProof" type="file" accept="image/*" /></label>
+              <label class="expense-proof-field">Screenshot histori DANA<input id="expenseProof" type="file" accept="image/*" multiple /></label>
               <button class="secondary-button expense-scan-button" id="scanExpenseProof" type="button">Baca Screenshot</button>
               <button class="primary-button" id="saveExpense" type="submit">Simpan Pengeluaran</button>
             </form>
