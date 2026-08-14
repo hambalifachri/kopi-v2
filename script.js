@@ -1097,11 +1097,11 @@ function sortOrderItemsByCatalog(items, brandId = getCartBrandId()) {
     .filter((categoryId) => brandId !== "kopi-kenangan" || (!String(categoryId).startsWith("promo-") && categoryId !== "baru"));
   return items
     .map((item, originalIndex) => {
-      const catalogIndex = MENU_ITEMS.findIndex((catalogItem) => (
+      const catalogIndex = menuItems.findIndex((catalogItem) => (
         (item.id && catalogItem.id === item.id)
         || (catalogItem.name === item.name && (catalogItem.brand || "kopi-kenangan") === brandId)
       ));
-      const catalogItem = catalogIndex >= 0 ? MENU_ITEMS[catalogIndex] : item;
+      const catalogItem = catalogIndex >= 0 ? menuItems[catalogIndex] : item;
       const groups = getItemGroups(catalogItem);
       const matchedCategory = categoryIds.findIndex((categoryId) => groups.includes(categoryId));
       return {
