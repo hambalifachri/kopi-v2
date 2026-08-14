@@ -316,10 +316,13 @@ async function scanExpenseProof() {
         currentStep += 1;
       }
     }
+    const transactionMinute = (value) => Math.floor(new Date(value).getTime() / 60000);
+    const savedTransactionTimes = new Set(expenses.map((expense) => transactionMinute(expense.spent_at)));
     const uniqueTransactions = new Map();
     combined.forEach((expense) => {
-      const merchantKey = expense.description.toLowerCase().replace(/[^a-z0-9]+/g, "");
-      const key = `${expense.spentAt}|${expense.amount}|${merchantKey}`;
+      const transactionTime = transactionMinute(expense.spentAt);
+      if (savedTransactionTimes.has(transactionTime)) return;
+      const key = String(transactionTime);
       const existing = uniqueTransactions.get(key);
       if (!existing || (existing.expenseType === "other" && expense.expenseType !== "other")) uniqueTransactions.set(key, expense);
     });
