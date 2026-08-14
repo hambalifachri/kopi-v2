@@ -101,6 +101,11 @@ input, select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px so
 .expense-form input[type="file"] { padding: 8px; font-size: .72rem; }
 .expense-form select { min-height: 42px; padding: 8px 10px; border: 1px solid #cfc6c0; border-radius: 6px; background: #fff; color: #302a27; font: inherit; }
 .expense-form .primary-button { align-self: end; }
+.expense-scan-button { min-height: 42px; align-self: end; }
+.expense-scan-preview { margin-top: 12px; padding: 12px; border: 1px solid #d8d0ca; border-radius: 6px; background: #faf9f7; }
+.expense-scan-preview h4 { margin: 0; font-size: .85rem; }
+.expense-scan-preview select { min-width: 130px; min-height: 34px; padding: 5px 7px; font-size: .7rem; }
+.expense-scan-preview input[type="checkbox"] { width: 18px; min-height: 18px; accent-color: #2f6b4f; }
 .expense-history { margin-top: 12px; }
 .expense-history a { color: #216542; font-weight: 800; }
 .expense-delete { min-height: 32px; padding: 5px 9px; border: 1px solid #d6aaa6; border-radius: 6px; background: #fff; color: #a92b23; font-size: .7rem; font-weight: 800; cursor: pointer; }

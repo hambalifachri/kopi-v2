@@ -35,8 +35,11 @@ const expenseType = document.querySelector("#expenseType");
 const expenseDescription = document.querySelector("#expenseDescription");
 const expenseOrderId = document.querySelector("#expenseOrderId");
 const expenseProof = document.querySelector("#expenseProof");
+const scanExpenseProofButton = document.querySelector("#scanExpenseProof");
 const expenseFormStatus = document.querySelector("#expenseFormStatus");
 const expenseList = document.querySelector("#expenseList");
+const expenseScanPreview = document.querySelector("#expenseScanPreview");
+const expenseScanList = document.querySelector("#expenseScanList");
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const ORDERS_FETCH_PAGE_SIZE = 1000;
 const ORDERS_DISPLAY_PAGE_SIZE = 50;
@@ -50,6 +53,7 @@ let ordersChannel = null;
 let ordersRefreshTimer = null;
 let currentOrdersPage = 1;
 let analyticsPeriod = "all";
+let scannedExpenses = [];
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -142,6 +146,140 @@ function analyticsMetric(label, value, detail = "", tone = "") {
 
 function expenseTypeLabel(type) {
   return { outlet: "Belanja Outlet", refund: "Refund Customer", other: "Lainnya" }[type] || "Belanja Outlet";
+}
+
+function classifyDanaExpense(description) {
+  const normalized = String(description || "").toLowerCase();
+  if (normalized.includes("kukusan") || normalized.includes("fachrindah")) return "refund";
+  if (/kop.?kenangan|opi kenangan|kenangan 1320|tomoro|fore coffee|fore\b/.test(normalized)) return "outlet";
+  return "other";
+}
+
+function parseDanaHistoryText(text) {
+  const monthNumbers = { jan: "01", feb: "02", mar: "03", apr: "04", mei: "05", jun: "06", jul: "07", agu: "08", aug: "08", ago: "08", ags: "08", sep: "09", okt: "10", nov: "11", des: "12" };
+  const lines = String(text || "").split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const datePattern = /(\d{1,2})\s+(Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Aug|Ago|Ags|Sep|Okt|Nov|Des)\s+(\d{4})\D{0,8}(\d{1,2})[:.](\d{2})/i;
+  const amountPattern = /(?:-|–|—|−|“|”|"|')?\s*Rp\s*([\d.,]+)/i;
+  const parsed = [];
+
+  lines.forEach((line, index) => {
+    const dateMatch = line.match(datePattern);
+    if (!dateMatch) return;
+    const transactionLine = String(lines[index - 1] || "");
+    if (/\+\s*Rp/i.test(transactionLine) || /\+\s*Rp/i.test(line)) return;
+    const amountMatch = transactionLine.match(amountPattern) || line.match(amountPattern);
+    if (!amountMatch) return;
+
+    let description = transactionLine.replace(amountPattern, "").trim();
+    if (!description || datePattern.test(description)) description = String(lines[index - 2] || "").replace(amountPattern, "").trim();
+    description = description
+      .replace(/^[^\p{L}\p{N}]+/u, "")
+      .replace(/^(?:ome|oma|ou|we|oe|eu)\s+/i, "")
+      .slice(0, 120) || "Transaksi DANA";
+    const knownMerchantIndex = description.search(/k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b/i);
+    if (knownMerchantIndex >= 0) description = description.slice(knownMerchantIndex);
+    description = description
+      .replace(/^opi\s*kenangan/i, "Kopi Kenangan")
+      .replace(/^kopi\s*kenangan/i, "Kopi Kenangan")
+      .replace(/^kukusan[.\s]+fachrindah/i, "Kukusan.Fachrindah")
+      .replace(/^ultramen/i, "ULTRAMEN");
+    const amount = Number(amountMatch[1].replace(/\D/g, ""));
+    const [, day, month, year, hour, minute] = dateMatch;
+    const spentAt = new Date(`${year}-${monthNumbers[month.toLowerCase()]}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:00+07:00`).toISOString();
+    if (!amount || Number.isNaN(new Date(spentAt).getTime())) return;
+
+    const key = `${spentAt}|${description.toLowerCase()}|${amount}`;
+    if (parsed.some((item) => item.key === key)) return;
+    parsed.push({ key, spentAt, amount, description, expenseType: classifyDanaExpense(description), selected: true });
+  });
+  return parsed;
+}
+
+function renderScannedExpenses() {
+  expenseScanPreview.hidden = !scannedExpenses.length;
+  expenseScanList.innerHTML = scannedExpenses.map((expense, index) => `<tr>
+    <td><input type="checkbox" data-scan-selected="${index}" ${expense.selected ? "checked" : ""} aria-label="Simpan ${escapeHtml(expense.description)}"></td>
+    <td>${escapeHtml(formatDate(expense.spentAt))}</td>
+    <td><strong>${escapeHtml(expense.description)}</strong></td>
+    <td><select data-scan-type="${index}" aria-label="Jenis ${escapeHtml(expense.description)}">
+      <option value="outlet" ${expense.expenseType === "outlet" ? "selected" : ""}>Belanja Outlet</option>
+      <option value="refund" ${expense.expenseType === "refund" ? "selected" : ""}>Refund Customer</option>
+      <option value="other" ${expense.expenseType === "other" ? "selected" : ""}>Pengeluaran Lain</option>
+    </select></td>
+    <td><strong>${rupiah.format(expense.amount)}</strong></td>
+  </tr>`).join("");
+}
+
+async function prepareDanaOcrImage(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = bitmap.width < 900 ? 2 : 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width * scale;
+  canvas.height = bitmap.height * scale;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+
+  const image = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < image.data.length; index += 4) {
+    const gray = image.data[index] * 0.299 + image.data[index + 1] * 0.587 + image.data[index + 2] * 0.114;
+    const contrast = Math.max(0, Math.min(255, (gray - 128) * 1.35 + 128));
+    image.data[index] = contrast;
+    image.data[index + 1] = contrast;
+    image.data[index + 2] = contrast;
+  }
+  context.putImageData(image, 0, 0);
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal diproses.")), "image/png"));
+}
+
+async function scanExpenseProof() {
+  const proofFile = expenseProof.files?.[0];
+  if (!proofFile) {
+    expenseFormStatus.textContent = "Pilih screenshot histori DANA terlebih dahulu.";
+    return;
+  }
+  if (!proofFile.type.startsWith("image/") || proofFile.size > 5 * 1024 * 1024) {
+    expenseFormStatus.textContent = "Screenshot harus berupa gambar dengan ukuran maksimal 5 MB.";
+    return;
+  }
+  if (!window.Tesseract) {
+    expenseFormStatus.textContent = "Pembaca screenshot gagal dimuat. Periksa koneksi internet lalu muat ulang halaman.";
+    return;
+  }
+
+  scanExpenseProofButton.disabled = true;
+  scanExpenseProofButton.textContent = "Membaca...";
+  scannedExpenses = [];
+  renderScannedExpenses();
+  try {
+    const recognize = (image, pass) => window.Tesseract.recognize(image, "eng", {
+      logger: ({ status, progress }) => {
+        if (status === "recognizing text") expenseFormStatus.textContent = `Membaca screenshot tahap ${pass}/2 (${Math.round(progress * 100)}%)...`;
+      },
+    });
+    const originalResult = await recognize(proofFile, 1);
+    const ocrImage = await prepareDanaOcrImage(proofFile);
+    const enhancedResult = await recognize(ocrImage, 2);
+    const combined = [...parseDanaHistoryText(originalResult.data.text), ...parseDanaHistoryText(enhancedResult.data.text)];
+    const uniqueTransactions = new Map();
+    combined.forEach((expense) => {
+      const key = `${expense.spentAt}|${expense.amount}`;
+      const existing = uniqueTransactions.get(key);
+      if (!existing || (existing.expenseType === "other" && expense.expenseType !== "other")) uniqueTransactions.set(key, expense);
+    });
+    scannedExpenses = [...uniqueTransactions.values()].sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
+    renderScannedExpenses();
+    expenseFormStatus.textContent = scannedExpenses.length
+      ? `${scannedExpenses.length} transaksi keluar terdeteksi. Periksa kategori lalu simpan.`
+      : "Transaksi keluar tidak terbaca. Gunakan gambar yang jelas atau isi transaksi secara manual.";
+  } catch (error) {
+    expenseFormStatus.textContent = `Screenshot gagal dibaca: ${error.message}`;
+  } finally {
+    scanExpenseProofButton.disabled = false;
+    scanExpenseProofButton.textContent = "Baca Screenshot";
+  }
 }
 
 function getOrderBrand(order) {
@@ -667,8 +805,13 @@ async function saveDanaExpense(event) {
   event.preventDefault();
   const amount = Math.round(Number(expenseAmount.value));
   const proofFile = expenseProof.files?.[0];
-  if (!amount || amount < 1) {
+  const selectedScans = scannedExpenses.filter((expense) => expense.selected);
+  if (!selectedScans.length && (!amount || amount < 1)) {
     expenseFormStatus.textContent = "Nominal pengeluaran belum benar.";
+    return;
+  }
+  if (!selectedScans.length && !expenseDescription.value.trim()) {
+    expenseFormStatus.textContent = "Keterangan pengeluaran belum diisi.";
     return;
   }
   if (proofFile && (!proofFile.type.startsWith("image/") || proofFile.size > 5 * 1024 * 1024)) {
@@ -692,17 +835,27 @@ async function saveDanaExpense(event) {
       if (uploadError) throw uploadError;
     }
 
-    const spentAt = new Date(`${expenseSpentAt.value}:00+07:00`).toISOString();
-    const { error } = await client.from(DANA_EXPENSES_TABLE).insert({
+    const manualExpense = {
       id: expenseId,
-      spent_at: spentAt,
+      spent_at: new Date(`${expenseSpentAt.value}:00+07:00`).toISOString(),
       amount,
       expense_type: expenseType.value,
       description: expenseDescription.value.trim(),
       order_id: expenseOrderId.value.trim() || null,
       proof_path: proofPath || null,
       proof_url: null,
-    });
+    };
+    const rows = selectedScans.length ? selectedScans.map((expense) => ({
+      id: crypto.randomUUID(),
+      spent_at: expense.spentAt,
+      amount: expense.amount,
+      expense_type: expense.expenseType,
+      description: expense.description,
+      order_id: expenseOrderId.value.trim() || null,
+      proof_path: proofPath || null,
+      proof_url: null,
+    })) : [manualExpense];
+    const { error } = await client.from(DANA_EXPENSES_TABLE).insert(rows);
     if (error) throw error;
 
     expenseAmount.value = "";
@@ -710,8 +863,10 @@ async function saveDanaExpense(event) {
     expenseDescription.value = "";
     expenseOrderId.value = "";
     expenseProof.value = "";
+    scannedExpenses = [];
+    renderScannedExpenses();
     await loadExpenses();
-    expenseFormStatus.textContent = "Pengeluaran DANA berhasil dicatat.";
+    expenseFormStatus.textContent = `${rows.length} pengeluaran DANA berhasil dicatat.`;
   } catch (error) {
     if (proofPath) await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).remove([proofPath]);
     expenseFormStatus.textContent = `Pengeluaran gagal disimpan: ${error.message}`;
@@ -842,6 +997,18 @@ expenseSpentAt.value = `${currentAnalyticsDate}T${currentAnalyticsParts.hour}:${
 document.querySelectorAll("[data-analytics-period]").forEach((button) => button.addEventListener("click", () => setAnalyticsPeriod(button.dataset.analyticsPeriod)));
 [analyticsDay, analyticsMonth, analyticsYear].forEach((input) => input.addEventListener("change", renderAnalytics));
 expenseForm.addEventListener("submit", saveDanaExpense);
+scanExpenseProofButton.addEventListener("click", scanExpenseProof);
+expenseProof.addEventListener("change", () => {
+  scannedExpenses = [];
+  renderScannedExpenses();
+  expenseFormStatus.textContent = "Klik Baca Screenshot untuk mendeteksi transaksi keluar.";
+});
+expenseScanList.addEventListener("change", (event) => {
+  const selectedIndex = event.target.dataset.scanSelected;
+  const typeIndex = event.target.dataset.scanType;
+  if (selectedIndex !== undefined) scannedExpenses[Number(selectedIndex)].selected = event.target.checked;
+  if (typeIndex !== undefined) scannedExpenses[Number(typeIndex)].expenseType = event.target.value;
+});
 expenseList.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-delete-expense]");
   if (!button) return;
@@ -854,7 +1021,8 @@ expenseList.addEventListener("click", async (event) => {
     button.disabled = false;
     return;
   }
-  if (expense.proof_path) await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).remove([expense.proof_path]);
+  const proofIsShared = expense.proof_path && expenses.some((item) => item.id !== expense.id && item.proof_path === expense.proof_path);
+  if (expense.proof_path && !proofIsShared) await client.storage.from(DANA_EXPENSE_PROOF_BUCKET).remove([expense.proof_path]);
   await loadExpenses();
   expenseFormStatus.textContent = "Pengeluaran berhasil dihapus.";
 });
