@@ -306,9 +306,7 @@ const resellerLoginForm = document.querySelector("#resellerLoginForm");
 const resellerLoginStatus = document.querySelector("#resellerLoginStatus");
 const resellerStatusBar = document.querySelector("#resellerStatusBar");
 const resellerStatusText = document.querySelector("#resellerStatusText");
-const customerPhoneField = document.querySelector("#customerPhoneField");
 const customerEmailField = document.querySelector("#customerEmailField");
-const customerPhoneInput = document.querySelector("#modalCustomerPhone");
 const customerEmailInput = document.querySelector("#modalCustomerEmail");
 const submitOrderButton = document.querySelector("#submitOrderButton");
 const orderReceiptModal = document.querySelector("#orderReceiptModal");
@@ -1618,7 +1616,7 @@ async function createOrderRecord(formData) {
     createdAt: new Date().toISOString(),
     customer: {
       name: String(formData.get("customerName")).trim(),
-      phone: String(formData.get("customerPhone") || "").trim(),
+      phone: "",
       email: customerEmail,
       address: String(formData.get("customerAddress")).trim(),
       pickupTime: String(formData.get("pickupTime") || "").trim(),
@@ -1626,7 +1624,7 @@ async function createOrderRecord(formData) {
     contactMethod,
     note: [
       takeawayPlastic ? `Plastik Take Away: Ya (${rupiah.format(takeawayPlasticFee)})` : "",
-      `Kontak: ${contactMethod === "email" ? `Email ${customerEmail}` : `WhatsApp ${String(formData.get("customerPhone") || "").trim()}`}`,
+      `Kontak: ${contactMethod === "email" ? `Email ${customerEmail}` : "Via chat WhatsApp"}`,
     ].filter(Boolean).join(" | "),
     takeawayPlastic,
     takeawayPlasticFee,
@@ -2063,7 +2061,7 @@ function buildWhatsappMessage(formData, savedOrder) {
   ];
   const customerContact = savedOrder.contactMethod === "email"
     ? `Email: ${savedOrder.customer.email}`
-    : `WhatsApp: ${savedOrder.customer.phone}`;
+    : "Via chat WhatsApp";
   messageLines.splice(5, 0, `*Kontak Customer:* ${customerContact}`);
   messageLines.splice(6, 0, `*Jam Pickup:* ${formData.get("pickupTime") || "-"}`);
   if (isKopken) {
@@ -2086,7 +2084,7 @@ function buildWhatsappLinks(adminPhone, encodedMessage) {
 
 function renderOrderReceipt(order, whatsappUrl = "") {
   if (!orderReceiptModal || !orderReceiptContent) return;
-  const contactValue = order.contactMethod === "email" ? order.customer.email : order.customer.phone;
+  const contactValue = order.contactMethod === "email" ? order.customer.email : "Via chat WhatsApp";
   const issuedAt = new Date(order.createdAt || Date.now()).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
   orderReceiptContent.innerHTML = `
     <article class="receipt-sheet">
@@ -2135,9 +2133,7 @@ function closeOrderReceiptModal() {
 function syncContactMethodFields() {
   const method = orderForm?.querySelector('input[name="contactMethod"]:checked')?.value || "whatsapp";
   const useEmail = method === "email";
-  if (customerPhoneField) customerPhoneField.hidden = useEmail;
   if (customerEmailField) customerEmailField.hidden = !useEmail;
-  if (customerPhoneInput) customerPhoneInput.required = !useEmail;
   if (customerEmailInput) customerEmailInput.required = useEmail;
   if (submitOrderButton) submitOrderButton.textContent = useEmail
     ? "Simpan Order & Tampilkan Bukti"
@@ -2215,7 +2211,7 @@ async function downloadOrderReceiptPdf(order) {
 
   const infoRows = [
     ["Pelanggan", order.customer.name],
-    ["Kontak", order.contactMethod === "email" ? order.customer.email : order.customer.phone],
+    ["Kontak", order.contactMethod === "email" ? order.customer.email : "Via chat WhatsApp"],
     ["Brand", order.brand || "-"],
     ["Outlet tujuan", order.customer.address],
     ["Waktu pickup", order.customer.pickupTime || "-"],
@@ -2762,10 +2758,11 @@ orderForm.addEventListener("submit", async (event) => {
     saveCartToStorage(); 
     
     // Simpan identitas untuk repeat order, tetapi buang lokasi dan jam pickup lama.
-    saveCustomerIdentity(formData.get("customerName"), formData.get("customerPhone"), formData.get("customerEmail"));
+    saveCustomerIdentity(formData.get("customerName"));
     localStorage.removeItem('kopiFachrindahBiodata');
     
     orderForm.reset();
+    loadCustomerIdentity();
     syncContactMethodFields();
     renderCart(); 
     closeOrderModal();
@@ -2996,23 +2993,32 @@ if (iosInstallModal) {
 // ==========================================
 const biodataFieldIds = [
   "modalCustomerName", 
-  "modalCustomerPhone", 
   "modalCustomerEmail",
   "modalPickupTime",
   "searchCityInput", 
   "modalCustomerAddress", 
   // Backup untuk form halaman utama (jika ada)
   "customerName", 
-  "customerPhone", 
   "pickupTime",
   "customerAddress"
 ];
-function saveCustomerIdentity(name, phone, email = "") {
+function saveCustomerIdentity(name) {
   localStorage.setItem(CUSTOMER_IDENTITY_KEY, JSON.stringify({
     name: String(name || "").trim(),
-    phone: String(phone || "").trim(),
-    email: String(email || "").trim(),
   }));
+}
+
+function loadCustomerIdentity() {
+  try {
+    const identity = JSON.parse(localStorage.getItem(CUSTOMER_IDENTITY_KEY) || "null");
+    if (!identity) return;
+    ["modalCustomerName", "customerName"].forEach((id) => {
+      const field = document.getElementById(id);
+      if (field) field.value = identity.name || "";
+    });
+  } catch (error) {
+    localStorage.removeItem(CUSTOMER_IDENTITY_KEY);
+  }
 }
 
 function saveBiodataToStorage() {
@@ -3025,23 +3031,7 @@ function saveBiodataToStorage() {
 }
 
 function loadBiodataFromStorage() {
-  try {
-    const identity = JSON.parse(localStorage.getItem(CUSTOMER_IDENTITY_KEY) || "null");
-    if (identity) {
-      ["modalCustomerName", "customerName"].forEach((id) => {
-        const field = document.getElementById(id);
-        if (field) field.value = identity.name || "";
-      });
-      ["modalCustomerPhone", "customerPhone"].forEach((id) => {
-        const field = document.getElementById(id);
-        if (field) field.value = identity.phone || "";
-      });
-      const emailField = document.getElementById("modalCustomerEmail");
-      if (emailField) emailField.value = identity.email || "";
-    }
-  } catch (error) {
-    localStorage.removeItem(CUSTOMER_IDENTITY_KEY);
-  }
+  loadCustomerIdentity();
   const saved = localStorage.getItem('kopiFachrindahBiodata');
   if (saved) {
     try {

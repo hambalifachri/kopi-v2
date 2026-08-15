@@ -1720,6 +1720,10 @@ button {
   gap: 10px;
 }
 
+.field-row.single-field-row {
+  grid-template-columns: 1fr;
+}
+
 label {
   display: grid;
   gap: 7px;
