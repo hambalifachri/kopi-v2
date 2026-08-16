@@ -96,6 +96,11 @@ input, select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px so
 .trend-row > span:last-child small { margin-top: 3px; color: #716963; font-size: .66rem; font-weight: 700; }
 .analytics-empty { padding: 20px; color: #716963; font-size: .78rem; text-align: center; }
 .expense-form { display: grid; grid-template-columns: 190px 150px minmax(180px, 1fr) minmax(170px, .8fr); gap: 10px; align-items: end; }
+.daily-expense-form { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 190px auto; gap: 10px; align-items: end; margin: 0 0 14px; padding: 0 0 14px; border-bottom: 1px solid #ddd4ce; }
+.daily-expense-form > div { display: grid; gap: 3px; color: #514b47; font-size: .72rem; }
+.daily-expense-form > div strong { color: #302a27; font-size: .86rem; }
+.daily-expense-form label { display: grid; gap: 6px; color: #514b47; font-size: .72rem; font-weight: 800; }
+.daily-expense-form .form-status { grid-column: 1 / -1; margin: 0; }
 .expense-form label { display: grid; gap: 6px; color: #514b47; font-size: .72rem; font-weight: 800; }
 .expense-proof-field { grid-column: span 2; }
 .expense-form input[type="file"] { padding: 8px; font-size: .72rem; }
@@ -135,6 +140,7 @@ input, select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px so
   .trend-row { grid-template-columns: 88px minmax(70px, 1fr) auto; gap: 7px; }
   .trend-row > span:last-child { min-width: 88px; font-size: .68rem; }
   .expense-form { grid-template-columns: 1fr; }
+  .daily-expense-form { grid-template-columns: 1fr; }
   .expense-proof-field { grid-column: auto; }
   .cutoff-form { grid-template-columns: 1fr; }
 }

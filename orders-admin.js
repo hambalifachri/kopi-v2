@@ -40,6 +40,10 @@ const expenseFormStatus = document.querySelector("#expenseFormStatus");
 const expenseList = document.querySelector("#expenseList");
 const expenseScanPreview = document.querySelector("#expenseScanPreview");
 const expenseScanList = document.querySelector("#expenseScanList");
+const dailyExpenseForm = document.querySelector("#dailyExpenseForm");
+const dailyExpenseDate = document.querySelector("#dailyExpenseDate");
+const dailyExpenseAmount = document.querySelector("#dailyExpenseAmount");
+const dailyExpenseStatus = document.querySelector("#dailyExpenseStatus");
 const cutoffForm = document.querySelector("#cutoffForm");
 const cutoffAt = document.querySelector("#cutoffAt");
 const cutoffBalance = document.querySelector("#cutoffBalance");
@@ -1035,6 +1039,44 @@ async function saveDanaExpense(event) {
   }
 }
 
+async function saveDailyExpense(event) {
+  event.preventDefault();
+  const amount = Math.round(parseExpenseAmount(dailyExpenseAmount.value));
+  if (!dailyExpenseDate.value || !amount || amount < 1) {
+    dailyExpenseStatus.textContent = "Tanggal dan total pengeluaran belum benar.";
+    return;
+  }
+
+  const button = dailyExpenseForm.querySelector("button[type='submit']");
+  const description = "Total pengeluaran harian (input ringkas)";
+  const existing = expenses.find((expense) => expense.description === description && jakartaDateKey(expense.spent_at) === dailyExpenseDate.value);
+  button.disabled = true;
+  button.textContent = "Menyimpan...";
+  try {
+    const row = {
+      spent_at: new Date(`${dailyExpenseDate.value}T12:00:00+07:00`).toISOString(),
+      amount,
+      expense_type: "other",
+      description,
+      order_id: null,
+      proof_path: null,
+      proof_url: null,
+    };
+    const query = existing
+      ? client.from(DANA_EXPENSES_TABLE).update(row).eq("id", existing.id)
+      : client.from(DANA_EXPENSES_TABLE).insert({ id: crypto.randomUUID(), ...row });
+    const { error } = await query;
+    if (error) throw error;
+    await loadExpenses();
+    dailyExpenseStatus.textContent = `${existing ? "Total harian diperbarui" : "Total harian disimpan"}: ${rupiah.format(amount)}.`;
+  } catch (error) {
+    dailyExpenseStatus.textContent = `Total harian gagal disimpan: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Simpan Total Harian";
+  }
+}
+
 async function saveFinanceCutoff(event) {
   event.preventDefault();
   const balance = Math.round(parseExpenseAmount(cutoffBalance.value));
@@ -1182,10 +1224,12 @@ analyticsDay.value = currentAnalyticsDate;
 analyticsMonth.value = currentAnalyticsDate.slice(0, 7);
 analyticsYear.value = currentAnalyticsDate.slice(0, 4);
 expenseSpentAt.value = `${currentAnalyticsDate}T${currentAnalyticsParts.hour}:${currentAnalyticsParts.minute}`;
+dailyExpenseDate.value = currentAnalyticsDate;
 cutoffAt.value = `${currentAnalyticsDate}T${currentAnalyticsParts.hour}:${currentAnalyticsParts.minute}`;
 document.querySelectorAll("[data-analytics-period]").forEach((button) => button.addEventListener("click", () => setAnalyticsPeriod(button.dataset.analyticsPeriod)));
 [analyticsDay, analyticsMonth, analyticsYear].forEach((input) => input.addEventListener("change", renderAnalytics));
 expenseForm.addEventListener("submit", saveDanaExpense);
+dailyExpenseForm.addEventListener("submit", saveDailyExpense);
 cutoffForm.addEventListener("submit", saveFinanceCutoff);
 scanExpenseProofButton.addEventListener("click", scanExpenseProof);
 expenseProof.addEventListener("change", () => {

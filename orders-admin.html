@@ -89,6 +89,13 @@
         <div class="analytics-grid">
           <section class="analytics-section analytics-wide expense-section">
             <div class="section-heading"><h3>Pengeluaran dari Histori DANA / BLU</h3><span>Catat pembayaran outlet dan refund customer</span></div>
+            <form class="daily-expense-form" id="dailyExpenseForm">
+              <div><strong>Total Pengeluaran Harian</strong><span>Isi total satu hari. Saldo berjalan otomatis berkurang.</span></div>
+              <label>Tanggal<input id="dailyExpenseDate" type="date" required /></label>
+              <label>Total pengeluaran<input id="dailyExpenseAmount" type="text" inputmode="numeric" placeholder="Contoh: 300000" required /></label>
+              <button class="primary-button" type="submit">Simpan Total Harian</button>
+              <p class="form-status" id="dailyExpenseStatus" role="status"></p>
+            </form>
             <form class="expense-form" id="expenseForm">
               <label>Tanggal & waktu<input id="expenseSpentAt" type="datetime-local" required /></label>
               <label>Nominal<input id="expenseAmount" type="text" inputmode="decimal" placeholder="Contoh: 50000 atau 1,00 = 1 juta" /></label>
