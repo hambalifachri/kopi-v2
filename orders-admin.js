@@ -213,6 +213,57 @@ function parseDanaHistoryText(text) {
   return parsed;
 }
 
+function parseExpenseHistoryWords(words) {
+  const monthNumbers = { jan: "01", feb: "02", mar: "03", apr: "04", mei: "05", jun: "06", jul: "07", agu: "08", aug: "08", ago: "08", ags: "08", sep: "09", okt: "10", nov: "11", des: "12" };
+  const datePattern = /(\d{1,2})\s+(Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Aug|Ago|Ags|Sep|Okt|Nov|Des)\s+(\d{4})\D{0,8}(\d{1,2})[:.](\d{2})/i;
+  const amountPattern = /(?:-|â€“|â€”|âˆ’)?\s*Rp\s*([\d.,]+)/i;
+  const merchantPattern = /k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b/i;
+  const lines = [];
+
+  [...(words || [])].filter((word) => word.text && word.bbox).sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0).forEach((word) => {
+    const centerY = (word.bbox.y0 + word.bbox.y1) / 2;
+    const height = Math.max(1, word.bbox.y1 - word.bbox.y0);
+    const line = lines.findLast((candidate) => Math.abs(candidate.y - centerY) <= Math.max(10, height * 0.9));
+    if (line) {
+      line.words.push(word);
+      line.y = (line.y * (line.words.length - 1) + centerY) / line.words.length;
+    } else lines.push({ y: centerY, words: [word] });
+  });
+
+  lines.forEach((line) => {
+    line.words.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+    line.text = line.words.map((word) => word.text).join(" ").replace(/\s+/g, " ").trim();
+    line.x = Math.min(...line.words.map((word) => word.bbox.x0));
+  });
+
+  const dateLines = lines.filter((line) => datePattern.test(line.text));
+  const parsed = [];
+  dateLines.forEach((dateLine, index) => {
+    const previousY = dateLines[index - 1]?.y ?? -Infinity;
+    const nextY = dateLines[index + 1]?.y ?? Infinity;
+    const top = previousY === -Infinity ? -Infinity : (previousY + dateLine.y) / 2;
+    const bottom = nextY === Infinity ? Infinity : (dateLine.y + nextY) / 2;
+    const rowLines = lines.filter((line) => line.y >= top && line.y < bottom);
+    const amountLine = rowLines.find((line) => amountPattern.test(line.text));
+    const dateMatch = dateLine.text.match(datePattern);
+    if (!amountLine || !dateMatch || /\+\s*Rp/i.test(amountLine.text)) return;
+
+    const amountMatch = amountLine.text.match(amountPattern);
+    const amount = parseExpenseAmount(amountMatch?.[1]);
+    const merchantLine = rowLines.find((line) => merchantPattern.test(line.text));
+    const description = (merchantLine?.text || rowLines.find((line) => line.x < amountLine.x && !datePattern.test(line.text) && !amountPattern.test(line.text))?.text || "Transaksi DANA")
+      .replace(/^.*?(k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b)/i, "$1")
+      .replace(/^opi\s*kenangan/i, "Kopi Kenangan")
+      .replace(/^kukusan[.\s]+fachrindah/i, "Kukusan.Fachrindah")
+      .slice(0, 120);
+    const [, day, month, year, hour, minute] = dateMatch;
+    const spentAt = new Date(`${year}-${monthNumbers[month.toLowerCase()]}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:00+07:00`).toISOString();
+    const key = `${spentAt}|${amount}`;
+    if (amount && !parsed.some((item) => item.key === key)) parsed.push({ key, spentAt, amount, description, expenseType: classifyDanaExpense(description), selected: true });
+  });
+  return parsed;
+}
+
 function renderScannedExpenses() {
   expenseScanPreview.hidden = !scannedExpenses.length;
   expenseScanList.innerHTML = scannedExpenses.map((expense, index) => `<tr>
@@ -308,18 +359,20 @@ async function scanExpenseProof() {
     }
     const totalSteps = preparedFiles.reduce((sum, prepared) => sum + prepared.segments.length, 0);
     let currentStep = 0;
-    worker = await window.Tesseract.createWorker("eng", 1, {
+    worker = await window.Tesseract.createWorker("eng+ind", 1, {
       logger: ({ status, progress }) => {
         if (status === "recognizing text") {
           expenseFormStatus.textContent = `Membaca bagian ${currentStep + 1}/${totalSteps} (${Math.round(progress * 100)}%)...`;
         }
       },
     });
+    await worker.setParameters({ tessedit_pageseg_mode: "6" });
     const combined = [];
     for (const prepared of preparedFiles) {
       for (const segment of prepared.segments) {
         const result = await worker.recognize(segment.image);
-        combined.push(...parseDanaHistoryText(result.data.text).map((expense) => ({
+        const detectedExpenses = parseExpenseHistoryWords(result.data.words);
+        combined.push(...(detectedExpenses.length ? detectedExpenses : parseDanaHistoryText(result.data.text)).map((expense) => ({
           ...expense,
           sourceFileIndex: prepared.fileIndex,
           sourceName: prepared.file.name,
