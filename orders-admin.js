@@ -169,33 +169,26 @@ function parseDanaHistoryText(text) {
   const lines = String(text || "").split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
   const datePattern = /(\d{1,2})\s+(Jan|Feb|Mar|Apr|Mei|Jun|Jul|Agu|Aug|Ago|Ags|Sep|Okt|Nov|Des)\s+(\d{4})\D{0,8}(\d{1,2})[:.](\d{2})/i;
   const amountPattern = /(?:-|–|—|−|“|”|"|')?\s*Rp\s*([\d.,]+)/i;
+  const merchantPattern = /k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b/i;
+  const dateIndexes = lines.map((line, index) => datePattern.test(line) ? index : -1).filter((index) => index >= 0);
   const parsed = [];
 
-  lines.forEach((line, index) => {
+  dateIndexes.forEach((index, datePosition) => {
+    const line = lines[index];
     const dateMatch = line.match(datePattern);
-    if (!dateMatch) return;
-    let transactionLine = amountPattern.test(line) ? line : "";
-    for (let nearbyIndex = index + 1; nearbyIndex <= Math.min(lines.length - 1, index + 3) && !transactionLine; nearbyIndex += 1) {
-      const candidate = String(lines[nearbyIndex] || "");
-      if (datePattern.test(candidate)) break;
-      if (amountPattern.test(candidate)) transactionLine = candidate;
-    }
-    for (let nearbyIndex = index - 1; nearbyIndex >= Math.max(0, index - 5) && !transactionLine; nearbyIndex -= 1) {
-      const candidate = String(lines[nearbyIndex] || "");
-      if (datePattern.test(candidate)) break;
-      if (amountPattern.test(candidate)) transactionLine = candidate;
-    }
+    const previousDateIndex = dateIndexes[datePosition - 1] ?? -1;
+    const nextDateIndex = dateIndexes[datePosition + 1] ?? lines.length;
+    const contextLines = lines.slice(previousDateIndex + 1, index);
+    const transactionLines = lines.slice(index, nextDateIndex);
+    const transactionLine = transactionLines.find((candidate) => amountPattern.test(candidate));
     if (!transactionLine) return;
     if (/\+\s*Rp/i.test(transactionLine) || /\+\s*Rp/i.test(line)) return;
     const amountMatch = transactionLine.match(amountPattern) || line.match(amountPattern);
     if (!amountMatch) return;
 
-    let description = transactionLine.replace(amountPattern, "").trim();
-    if (!description || datePattern.test(description)) description = String(lines[index - 2] || "").replace(amountPattern, "").trim();
-    const merchantPattern = /k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b/i;
-    const merchantLine = lines.slice(Math.max(0, index - 5), index).reverse().find((candidate) => merchantPattern.test(candidate))
-      || lines.slice(index + 1, index + 4).find((candidate) => merchantPattern.test(candidate));
-    if (merchantLine) description = merchantLine.replace(amountPattern, "").trim();
+    const merchantLine = contextLines.reverse().find((candidate) => merchantPattern.test(candidate));
+    let description = merchantLine || transactionLine.replace(amountPattern, "").trim();
+    if (!description || datePattern.test(description)) description = [...contextLines, ...transactionLines].find((candidate) => !datePattern.test(candidate) && !amountPattern.test(candidate)) || "Transaksi DANA";
     description = description
       .replace(/^[^\p{L}\p{N}]+/u, "")
       .replace(/^(?:ome|oma|ou|we|oe|eu)\s+/i, "")
@@ -213,7 +206,7 @@ function parseDanaHistoryText(text) {
     const spentAt = new Date(`${year}-${monthNumbers[month.toLowerCase()]}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:00+07:00`).toISOString();
     if (!amount || Number.isNaN(new Date(spentAt).getTime())) return;
 
-    const key = `${spentAt}|${description.toLowerCase()}|${amount}`;
+    const key = `${spentAt}|${amount}`;
     if (parsed.some((item) => item.key === key)) return;
     parsed.push({ key, spentAt, amount, description, expenseType: classifyDanaExpense(description), selected: true });
   });
@@ -334,7 +327,7 @@ async function scanExpenseProof() {
         currentStep += 1;
       }
     }
-    const transactionKey = (expense) => `${Math.floor(new Date(expense.spentAt || expense.spent_at).getTime() / 60000)}|${Number(expense.amount) || 0}|${String(expense.description || "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+    const transactionKey = (expense) => `${Math.floor(new Date(expense.spentAt || expense.spent_at).getTime() / 60000)}|${Number(expense.amount) || 0}`;
     const savedTransactionKeys = new Set(expenses.map(transactionKey));
     const uniqueTransactions = new Map();
     combined.forEach((expense) => {
