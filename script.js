@@ -2039,26 +2039,50 @@ function findPreferredKopkenBatchPartition(items, batchCount) {
   return bestPartition;
 }
 
+function findBestKopkenBatch(items, maximumTotal) {
+  const sums = new Map([[0, []]]);
+
+  items.forEach((item, index) => {
+    [...sums.entries()].forEach(([total, indexes]) => {
+      const nextTotal = total + item.batchPrice;
+      if (nextTotal <= maximumTotal && !sums.has(nextTotal)) sums.set(nextTotal, [...indexes, index]);
+    });
+  });
+
+  const total = [...sums.keys()]
+    .filter((value) => value >= KOPKEN_BATCH_MIN_TOTAL)
+    .sort((a, b) => b - a)[0];
+  return total === undefined ? null : { total, indexes: sums.get(total) };
+}
+
 function buildKopkenOrderBatches(items) {
-  const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
-  const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
+  let remaining = [...items];
+  const batches = [];
 
-  for (const maximumTotal of [KOPKEN_BATCH_PREFERRED_MAX_TOTAL, KOPKEN_BATCH_MAX_TOTAL]) {
-    const minimumBatchCount = Math.max(1, Math.ceil(total / maximumTotal));
-    for (let batchCount = minimumBatchCount; batchCount <= maximumBatchCount; batchCount += 1) {
-      const partition = findValidKopkenBatchPartition(items, batchCount, maximumTotal);
-      if (partition) return partition;
+  while (remaining.length) {
+    // Selalu ambil kombinasi terbaik Rp50-61 ribu lebih dulu, baru gunakan toleransi Rp72 ribu.
+    const preferred = findBestKopkenBatch(remaining, KOPKEN_BATCH_PREFERRED_MAX_TOTAL)
+      || findBestKopkenBatch(remaining, KOPKEN_BATCH_MAX_TOTAL);
+
+    if (preferred) {
+      const selected = new Set(preferred.indexes);
+      batches.push(remaining.filter((_, index) => selected.has(index)));
+      remaining = remaining.filter((_, index) => !selected.has(index));
+      continue;
     }
+
+    const remainingTotal = remaining.reduce((sum, item) => sum + item.batchPrice, 0);
+    if (remainingTotal <= KOPKEN_BATCH_MAX_TOTAL) {
+      batches.push(remaining);
+      break;
+    }
+
+    const [largestItem] = [...remaining].sort((a, b) => b.batchPrice - a.batchPrice);
+    batches.push([largestItem]);
+    remaining.splice(remaining.indexOf(largestItem), 1);
   }
 
-  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
-  const preferredBatchCount = Math.min(items.length, Math.max(minimumBatchCount, Math.ceil(total / KOPKEN_BATCH_MIN_TOTAL)));
-  for (let batchCount = minimumBatchCount; batchCount <= preferredBatchCount; batchCount += 1) {
-    const partition = findPreferredKopkenBatchPartition(items, batchCount);
-    if (partition) return partition;
-  }
-
-  return buildKopkenBatchFallback(items);
+  return batches;
 }
 
 function buildWhatsappMessage(formData, savedOrder) {
