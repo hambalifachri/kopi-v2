@@ -40,6 +40,10 @@ const expenseFormStatus = document.querySelector("#expenseFormStatus");
 const expenseList = document.querySelector("#expenseList");
 const expenseScanPreview = document.querySelector("#expenseScanPreview");
 const expenseScanList = document.querySelector("#expenseScanList");
+const cutoffForm = document.querySelector("#cutoffForm");
+const cutoffAt = document.querySelector("#cutoffAt");
+const cutoffBalance = document.querySelector("#cutoffBalance");
+const cutoffStatus = document.querySelector("#cutoffStatus");
 const rupiah = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
 const ORDERS_FETCH_PAGE_SIZE = 1000;
 const ORDERS_DISPLAY_PAGE_SIZE = 50;
@@ -155,6 +159,11 @@ function classifyDanaExpense(description) {
   return "other";
 }
 
+function parseExpenseAmount(value) {
+  const text = String(value || "").replace(/\s+/g, "").replace(/^[-+]?Rp/i, "").replace(/,00$/, "");
+  return Number(text.replace(/\D/g, ""));
+}
+
 function parseDanaHistoryText(text) {
   const monthNumbers = { jan: "01", feb: "02", mar: "03", apr: "04", mei: "05", jun: "06", jul: "07", agu: "08", aug: "08", ago: "08", ags: "08", sep: "09", okt: "10", nov: "11", des: "12" };
   const lines = String(text || "").split(/\r?\n/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean);
@@ -166,8 +175,13 @@ function parseDanaHistoryText(text) {
     const dateMatch = line.match(datePattern);
     if (!dateMatch) return;
     let transactionLine = amountPattern.test(line) ? line : "";
-    for (let previousIndex = index - 1; previousIndex >= 0 && index - previousIndex <= 5 && !transactionLine; previousIndex -= 1) {
-      const candidate = String(lines[previousIndex] || "");
+    for (let nearbyIndex = index + 1; nearbyIndex <= Math.min(lines.length - 1, index + 3) && !transactionLine; nearbyIndex += 1) {
+      const candidate = String(lines[nearbyIndex] || "");
+      if (datePattern.test(candidate)) break;
+      if (amountPattern.test(candidate)) transactionLine = candidate;
+    }
+    for (let nearbyIndex = index - 1; nearbyIndex >= Math.max(0, index - 5) && !transactionLine; nearbyIndex -= 1) {
+      const candidate = String(lines[nearbyIndex] || "");
       if (datePattern.test(candidate)) break;
       if (amountPattern.test(candidate)) transactionLine = candidate;
     }
@@ -178,6 +192,10 @@ function parseDanaHistoryText(text) {
 
     let description = transactionLine.replace(amountPattern, "").trim();
     if (!description || datePattern.test(description)) description = String(lines[index - 2] || "").replace(amountPattern, "").trim();
+    const merchantPattern = /k?opi\s*kenangan|kukusan|ultramen|tomoro|fore\b/i;
+    const merchantLine = lines.slice(Math.max(0, index - 5), index).reverse().find((candidate) => merchantPattern.test(candidate))
+      || lines.slice(index + 1, index + 4).find((candidate) => merchantPattern.test(candidate));
+    if (merchantLine) description = merchantLine.replace(amountPattern, "").trim();
     description = description
       .replace(/^[^\p{L}\p{N}]+/u, "")
       .replace(/^(?:ome|oma|ou|we|oe|eu)\s+/i, "")
@@ -190,7 +208,7 @@ function parseDanaHistoryText(text) {
       .replace(/^kukusan[.\s]+fachrindah/i, "Kukusan.Fachrindah")
       .replace(/^ultramen/i, "ULTRAMEN");
     if (/isi saldo dana|bulan ini/i.test(description)) return;
-    const amount = Number(amountMatch[1].replace(/\D/g, ""));
+    const amount = parseExpenseAmount(amountMatch[1]);
     const [, day, month, year, hour, minute] = dateMatch;
     const spentAt = new Date(`${year}-${monthNumbers[month.toLowerCase()]}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:00+07:00`).toISOString();
     if (!amount || Number.isNaN(new Date(spentAt).getTime())) return;
@@ -316,13 +334,12 @@ async function scanExpenseProof() {
         currentStep += 1;
       }
     }
-    const transactionMinute = (value) => Math.floor(new Date(value).getTime() / 60000);
-    const savedTransactionTimes = new Set(expenses.map((expense) => transactionMinute(expense.spent_at)));
+    const transactionKey = (expense) => `${Math.floor(new Date(expense.spentAt || expense.spent_at).getTime() / 60000)}|${Number(expense.amount) || 0}|${String(expense.description || "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+    const savedTransactionKeys = new Set(expenses.map(transactionKey));
     const uniqueTransactions = new Map();
     combined.forEach((expense) => {
-      const transactionTime = transactionMinute(expense.spentAt);
-      if (savedTransactionTimes.has(transactionTime)) return;
-      const key = String(transactionTime);
+      const key = transactionKey(expense);
+      if (savedTransactionKeys.has(key)) return;
       const existing = uniqueTransactions.get(key);
       if (!existing || (existing.expenseType === "other" && expense.expenseType !== "other")) uniqueTransactions.set(key, expense);
     });
@@ -874,6 +891,8 @@ async function loadFinanceSettings() {
     expenseFormStatus.textContent = `Saldo cut-off gagal dimuat: ${error.message}`;
   } else {
     financeSettings = data;
+    if (data?.dana_cutoff_at) cutoffAt.value = new Date(new Date(data.dana_cutoff_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    if (data?.dana_opening_balance) cutoffBalance.value = String(data.dana_opening_balance);
   }
   renderAnalytics();
 }
@@ -888,7 +907,7 @@ function normalizeExpenseFileName(name) {
 
 async function saveDanaExpense(event) {
   event.preventDefault();
-  const amount = Math.round(Number(expenseAmount.value));
+  const amount = Math.round(parseExpenseAmount(expenseAmount.value));
   const proofFiles = [...(expenseProof.files || [])];
   const proofFile = proofFiles[0];
   const selectedScans = scannedExpenses.filter((expense) => expense.selected);
@@ -967,6 +986,35 @@ async function saveDanaExpense(event) {
   } finally {
     button.disabled = false;
     button.textContent = "Simpan Pengeluaran";
+  }
+}
+
+async function saveFinanceCutoff(event) {
+  event.preventDefault();
+  const balance = Math.round(parseExpenseAmount(cutoffBalance.value));
+  if (!cutoffAt.value || !Number.isFinite(balance) || balance < 0) {
+    cutoffStatus.textContent = "Tanggal dan saldo cut-off belum benar.";
+    return;
+  }
+  const button = cutoffForm.querySelector("button[type='submit']");
+  button.disabled = true;
+  button.textContent = "Menyimpan...";
+  try {
+    const { data, error } = await client.from(FINANCE_SETTINGS_TABLE).upsert({
+      id: 1,
+      dana_opening_balance: balance,
+      dana_cutoff_at: new Date(`${cutoffAt.value}:00+07:00`).toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" }).select().single();
+    if (error) throw error;
+    financeSettings = data;
+    renderAnalytics();
+    cutoffStatus.textContent = `Cut-off saldo ${rupiah.format(balance)} berhasil disimpan.`;
+  } catch (error) {
+    cutoffStatus.textContent = `Cut-off saldo gagal disimpan: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Simpan Cut-off";
   }
 }
 
@@ -1088,9 +1136,11 @@ analyticsDay.value = currentAnalyticsDate;
 analyticsMonth.value = currentAnalyticsDate.slice(0, 7);
 analyticsYear.value = currentAnalyticsDate.slice(0, 4);
 expenseSpentAt.value = `${currentAnalyticsDate}T${currentAnalyticsParts.hour}:${currentAnalyticsParts.minute}`;
+cutoffAt.value = `${currentAnalyticsDate}T${currentAnalyticsParts.hour}:${currentAnalyticsParts.minute}`;
 document.querySelectorAll("[data-analytics-period]").forEach((button) => button.addEventListener("click", () => setAnalyticsPeriod(button.dataset.analyticsPeriod)));
 [analyticsDay, analyticsMonth, analyticsYear].forEach((input) => input.addEventListener("change", renderAnalytics));
 expenseForm.addEventListener("submit", saveDanaExpense);
+cutoffForm.addEventListener("submit", saveFinanceCutoff);
 scanExpenseProofButton.addEventListener("click", scanExpenseProof);
 expenseProof.addEventListener("change", () => {
   scannedExpenses = [];

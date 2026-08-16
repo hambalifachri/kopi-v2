@@ -88,14 +88,14 @@
 
         <div class="analytics-grid">
           <section class="analytics-section analytics-wide expense-section">
-            <div class="section-heading"><h3>Pengeluaran dari Histori DANA</h3><span>Catat pembayaran outlet dan refund customer</span></div>
+            <div class="section-heading"><h3>Pengeluaran dari Histori DANA / BLU</h3><span>Catat pembayaran outlet dan refund customer</span></div>
             <form class="expense-form" id="expenseForm">
               <label>Tanggal & waktu<input id="expenseSpentAt" type="datetime-local" required /></label>
-              <label>Nominal<input id="expenseAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="Contoh: 50000" /></label>
+              <label>Nominal<input id="expenseAmount" type="text" inputmode="decimal" placeholder="Contoh: 50000 atau 1,00 = 1 juta" /></label>
               <label>Jenis transaksi<select id="expenseType" required><option value="outlet">Belanja Outlet</option><option value="refund">Refund Customer</option><option value="other">Pengeluaran Lain</option></select></label>
               <label>Keterangan<input id="expenseDescription" type="text" maxlength="120" placeholder="Contoh: Bayar Kopi Kenangan" /></label>
               <label>Order ID (opsional)<input id="expenseOrderId" type="text" maxlength="40" placeholder="ORD-..." /></label>
-              <label class="expense-proof-field">Screenshot histori DANA<input id="expenseProof" type="file" accept="image/*" multiple /></label>
+              <label class="expense-proof-field">Screenshot histori DANA / BLU<input id="expenseProof" type="file" accept="image/*" multiple /></label>
               <button class="secondary-button expense-scan-button" id="scanExpenseProof" type="button">Baca Screenshot</button>
               <button class="primary-button" id="saveExpense" type="submit">Simpan Pengeluaran</button>
             </form>
@@ -105,6 +105,13 @@
               <div class="analytics-table-wrap"><table><thead><tr><th>Simpan</th><th>Waktu</th><th>Keterangan</th><th>Jenis</th><th>Nominal</th></tr></thead><tbody id="expenseScanList"></tbody></table></div>
             </section>
             <div class="analytics-table-wrap expense-history"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th>Order ID</th><th>Bukti</th><th>Nominal</th><th></th></tr></thead><tbody id="expenseList"></tbody></table></div>
+            <form class="cutoff-form" id="cutoffForm">
+              <div><strong>Cut-off Saldo</strong><span>Tetapkan saldo nyata pada waktu tertentu. Perhitungan berikutnya dimulai dari saldo ini.</span></div>
+              <label>Tanggal & waktu<input id="cutoffAt" type="datetime-local" required /></label>
+              <label>Saldo saat cut-off<input id="cutoffBalance" type="text" inputmode="decimal" placeholder="Contoh: 1024641 atau 1,00" required /></label>
+              <button class="secondary-button" type="submit">Simpan Cut-off</button>
+              <p class="form-status" id="cutoffStatus" role="status"></p>
+            </form>
           </section>
           <section class="analytics-section analytics-wide">
             <div class="section-heading"><h3>Tren Penjualan</h3><span id="trendSummary"></span></div>
