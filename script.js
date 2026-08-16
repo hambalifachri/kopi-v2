@@ -1986,6 +1986,59 @@ function buildKopkenBatchFallback(items) {
   return buckets.filter((bucket) => bucket.length > 0);
 }
 
+function findPreferredKopkenBatchPartition(items, batchCount) {
+  const sortedItems = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
+  const buckets = Array.from({ length: batchCount }, () => []);
+  const totals = Array(batchCount).fill(0);
+  let bestPartition = null;
+  let bestScore = null;
+
+  function scorePartition() {
+    const activeTotals = totals.filter((total) => total > 0);
+    const preferredCount = activeTotals.filter((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= KOPKEN_BATCH_PREFERRED_MAX_TOTAL).length;
+    const overflow = activeTotals.reduce((sum, total) => sum + Math.max(0, total - KOPKEN_BATCH_PREFERRED_MAX_TOTAL), 0);
+    const underfilled = activeTotals.filter((total) => total < KOPKEN_BATCH_MIN_TOTAL).length;
+    return { preferredCount, overflow, underfilled };
+  }
+
+  function isBetterScore(candidate, current) {
+    return !current
+      || candidate.preferredCount > current.preferredCount
+      || (candidate.preferredCount === current.preferredCount && candidate.overflow < current.overflow)
+      || (candidate.preferredCount === current.preferredCount && candidate.overflow === current.overflow && candidate.underfilled < current.underfilled);
+  }
+
+  function assignItem(itemIndex) {
+    if (itemIndex === sortedItems.length) {
+      const activeBuckets = buckets.filter((bucket) => bucket.length > 0);
+      const underfilled = totals.filter((total) => total > 0 && total < KOPKEN_BATCH_MIN_TOTAL).length;
+      if (activeBuckets.length !== batchCount || underfilled > 1) return;
+
+      const candidateScore = scorePartition();
+      if (isBetterScore(candidateScore, bestScore)) {
+        bestScore = candidateScore;
+        bestPartition = activeBuckets.map((bucket) => [...bucket]);
+      }
+      return;
+    }
+
+    const item = sortedItems[itemIndex];
+    const attemptedTotals = new Set();
+    for (let index = 0; index < buckets.length; index += 1) {
+      if (totals[index] + item.batchPrice > KOPKEN_BATCH_MAX_TOTAL || attemptedTotals.has(totals[index])) continue;
+      attemptedTotals.add(totals[index]);
+      buckets[index].push(item);
+      totals[index] += item.batchPrice;
+      assignItem(itemIndex + 1);
+      totals[index] -= item.batchPrice;
+      buckets[index].pop();
+    }
+  }
+
+  assignItem(0);
+  return bestPartition;
+}
+
 function buildKopkenOrderBatches(items) {
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
   const maximumBatchCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
@@ -1996,6 +2049,13 @@ function buildKopkenOrderBatches(items) {
       const partition = findValidKopkenBatchPartition(items, batchCount, maximumTotal);
       if (partition) return partition;
     }
+  }
+
+  const minimumBatchCount = Math.max(1, Math.ceil(total / KOPKEN_BATCH_MAX_TOTAL));
+  const preferredBatchCount = Math.min(items.length, Math.max(minimumBatchCount, Math.ceil(total / KOPKEN_BATCH_MIN_TOTAL)));
+  for (let batchCount = minimumBatchCount; batchCount <= preferredBatchCount; batchCount += 1) {
+    const partition = findPreferredKopkenBatchPartition(items, batchCount);
+    if (partition) return partition;
   }
 
   return buildKopkenBatchFallback(items);
