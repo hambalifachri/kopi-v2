@@ -787,7 +787,7 @@ function getKenanganOptionGroups(item) {
       options: [
         { value: "Kenangan Blend", label: "Kenangan Blend" },
         { value: "Juwara Beans", label: "Juwara Beans", priceDelta: 3000 },
-      ],
+      ].filter((option) => !(item.omitBeanValues || []).includes(option.value)),
     });
   }
 
