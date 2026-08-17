@@ -1640,7 +1640,7 @@ const MENU_ITEMS_DATA = [
 { id: "tomoro-strawberry-americano", brand: "tomoro", group: "refreshing-series", name: "Strawberry Americano", oldPrice: 19000, price: 15000 },
 { id: "tomoro-lemonade-americano", brand: "tomoro", group: "refreshing-series", name: "Lemonade Americano", oldPrice: 20000, price: 15000 },
 { id: "tomoro-strawberry-jasmine-tea", brand: "tomoro", group: "refreshing-series", name: "Strawberry Jasmine Tea", oldPrice: 19000, price: 15000 },
-{ id: "tomoro-peach-americano", brand: "tomoro", group: "refreshing-series", name: "Peach Americano", oldPrice: 19000, price: 14000 },
+{ id: "tomoro-peach-americano", brand: "tomoro", group: "refreshing-series", name: "Peach Americano", oldPrice: 19000, price: 14000, omitOptionKeys: ["milk"] },
 { id: "tomoro-peach-jasmine-tea", brand: "tomoro", group: "refreshing-series", name: "Peach Jasmine Tea", oldPrice: 19000, price: 14000 },
 { id: "tomoro-pink-pop-lemonade", brand: "tomoro", group: "refreshing-series", name: "Pink Pop Lemonade", oldPrice: 14000, price: 11000 },
 { id: "tomoro-pink-pop-lemon-tea", brand: "tomoro", group: "refreshing-series", name: "Pink Pop Lemon Tea", oldPrice: 17000, price: 13500 },
