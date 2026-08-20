@@ -45,10 +45,11 @@ const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
 ];
 
 const KOPI_KENANGAN_API_MENU_OVERRIDES = {
-  "kopi-kenangan-mantan": {
-    largePrice: 18500,
-    oldLargePrice: 25000,
-    allowOatside: true,
+  "oatside-kopi-kenangan-mantan": {
+    largePrice: 20000,
+    oldLargePrice: 28000,
+    allowBeans: true,
+    allowOatside: false,
   },
   "butterscotch-kenangan-frappe": { frappeWhippedCreamOnly: true },
   "matcha-kenangan-frappe": { frappeWhippedCreamOnly: true },
