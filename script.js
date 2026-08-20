@@ -229,6 +229,7 @@ let latestOrderReceipt = null;
 
 let selectedOptions = {};
 let bundleSelectionConstraints = {};
+let configuredQuantity = 1;
 
 const rupiah = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -299,6 +300,10 @@ const selectedDrink = document.querySelector("#selectedDrink");
 const itemNoteInput = document.querySelector("#itemNote");
 const itemNoteField = document.querySelector(".item-note-field");
 const addConfiguredItemButton = document.querySelector("#addConfiguredItem");
+const configuredQtyDecreaseButton = document.querySelector("#configuredQtyDecrease");
+const configuredQtyIncreaseButton = document.querySelector("#configuredQtyIncrease");
+const configuredQtyValue = document.querySelector("#configuredQtyValue");
+const configuredQtyTotal = document.querySelector("#configuredQtyTotal");
 const brandChooserModal = document.querySelector("#brandChooserModal");
 const resellerModal = document.querySelector("#resellerModal");
 const resellerAccessButton = document.querySelector("#resellerAccessButton");
@@ -497,7 +502,10 @@ function getSelectedOutletNameForBrand(brandId) {
     return getKopiKenanganOutletState().outletName || "";
   }
   const liveOutlet = window.brandOutletStates?.[brandId];
-  if (liveOutlet?.outletName) return liveOutlet.outletName;
+  if (liveOutlet?.outletName) {
+    const address = String(liveOutlet.outletAddress || "").trim();
+    return address ? `${liveOutlet.outletName} - ${address}` : liveOutlet.outletName;
+  }
   return "";
 }
 
@@ -1216,43 +1224,10 @@ updateQuantity = function(cartKey, direction) { originalUpdateQuantity(cartKey, 
 
 clearCartButton.addEventListener("click", () => { cart.clear(); saveCartToStorage(); renderCart(); });
 
-// FITUR POP-UP INFORMASI DI AWAL (LANGSUNG JALAN)
-// ==========================================
-(function showWelcomePopup() {
-  // Panggil fungsi auto-save keranjang & biodata (jika ada)
+// Restore saved data without blocking the customer from starting an order.
+(function restoreSavedOrderData() {
   if (typeof loadCartFromStorage === "function") loadCartFromStorage();
   if (typeof loadBiodataFromStorage === "function") loadBiodataFromStorage();
-
-  // Cek apakah pop-up sudah pernah muncul di sesi ini
-  if (!sessionStorage.getItem('welcomePopUpShown')) {
-    const welcomeHtml = `
-      <div id="welcomeModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 99999;">
-        <div class="info-content" style="background: #fff; padding: 24px; border-radius: 12px; max-width: 90%; width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: popUpAnim 0.3s ease-out;">
-          <h2 style="color: #d94b3d; margin-bottom: 15px; margin-top: 0;">📢 Info Pemesanan</h2>
-          <div style="text-align: left; margin-bottom: 20px; font-size: 0.95rem; color: #444; line-height: 1.5;">
-<p style="margin-bottom: 12px;"><strong>☕ Kopi Kenangan:</strong><br>Pesan 1 item tetap bisa, namun dikenakan biaya layanan Rp2.000. Hemat biaya dengan pesan 2 item atau lebih.</p>
-  <p style="margin: 0;"><strong>🍃 Fore Coffee:</strong><br>Tidak ada biaya layanan tambahan (Bebas pesan 1 item saja).</p>
-</div>
-          <button id="closeWelcomeBtn" class="send-button" style="width: 100%; border-radius: 999px;">Saya Mengerti</button>
-        </div>
-      </div>
-    `;
-    
-    // Paksa masukkan pop-up ke dalam HTML saat ini juga
-    document.body.insertAdjacentHTML('beforeend', welcomeHtml);
-    
-    // Beri fungsi klik untuk menutup pop-up
-    const closeBtn = document.getElementById('closeWelcomeBtn');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        const modal = document.getElementById('welcomeModal');
-        if (modal) modal.remove();
-      });
-    }
-    
-    // Tandai bahwa pop-up sudah pernah dilihat
-    sessionStorage.setItem('welcomePopUpShown', 'true');
-  }
 })();
 
 function renderMenuLegacy(query = "") {
@@ -1724,6 +1699,18 @@ function updateModalLivePrice(item) {
   if (item.dynamicOutletBundle) {
     addConfiguredItemButton.disabled = bundleOfficialTotal !== item.bundleMinimum;
   }
+  updateConfiguredQuantityDisplay(calculatedPrice);
+}
+
+function updateConfiguredQuantityDisplay(unitPrice) {
+  if (configuredQtyValue) configuredQtyValue.textContent = String(configuredQuantity);
+  if (configuredQtyTotal) configuredQtyTotal.textContent = rupiah.format(unitPrice * configuredQuantity);
+  if (configuredQtyDecreaseButton) configuredQtyDecreaseButton.disabled = configuredQuantity <= 1;
+  if (addConfiguredItemButton) {
+    addConfiguredItemButton.textContent = configuredQuantity === 1
+      ? "Tambahkan ke Keranjang"
+      : `Tambahkan ${configuredQuantity} ke Keranjang`;
+  }
 }
 
 function syncIceOptions() {
@@ -1754,6 +1741,7 @@ function selectItemForOptions(id) {
   if (!canAddBrandToCart(item)) return;
 
   pendingItemId = id;
+  configuredQuantity = 1;
   resetSelectedOptions(item);
   if (itemNoteInput) itemNoteInput.value = "";
   const itemSupportsNotes = supportsItemNotes(item);
@@ -1778,7 +1766,7 @@ function selectItemForOptions(id) {
   setModalStage("customize");
 }
 
-function addItem(id, note = "") {
+function addItem(id, note = "", quantity = 1) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
   if (!canAddBrandToCart(item)) return;
@@ -1797,7 +1785,7 @@ function addItem(id, note = "") {
     bundleOptionGroups: item.dynamicOutletBundle ? cloneOptionGroups(item.options) : undefined,
     resellerDiscount: isResellerEligible(item) ? RESELLER_DISCOUNT : 0,
     note: itemNote,
-    qty: current ? current.qty + 1 : 1
+    qty: current ? current.qty + quantity : quantity
   });
   renderCart();
 }
@@ -2633,6 +2621,20 @@ modalOptions.addEventListener("click", (event) => {
   updateModalLivePrice(item);
 });
 
+configuredQtyDecreaseButton?.addEventListener("click", () => {
+  if (configuredQuantity <= 1 || !pendingItemId) return;
+  configuredQuantity -= 1;
+  const item = menuItems.find((menuItem) => menuItem.id === pendingItemId);
+  if (item) updateConfiguredQuantityDisplay(calculateItemPrice(item, selectedOptions));
+});
+
+configuredQtyIncreaseButton?.addEventListener("click", () => {
+  if (!pendingItemId) return;
+  configuredQuantity += 1;
+  const item = menuItems.find((menuItem) => menuItem.id === pendingItemId);
+  if (item) updateConfiguredQuantityDisplay(calculateItemPrice(item, selectedOptions));
+});
+
 if (brandTabs) {
   brandTabs.addEventListener("click", (event) => {
     const button = event.target.closest("[data-brand]");
@@ -2767,7 +2769,7 @@ addConfiguredItemButton.addEventListener("click", () => {
     alert(`Pilih kombinasi minuman dan makanan dengan total harga outlet tepat ${rupiah.format(item.bundleMinimum)}.`);
     return;
   }
-  addItem(pendingItemId, itemNoteInput ? itemNoteInput.value : "");
+  addItem(pendingItemId, itemNoteInput ? itemNoteInput.value : "", configuredQuantity);
   setModalStage("cart");
 });
 

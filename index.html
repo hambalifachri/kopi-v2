@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260812" />
+    <link rel="stylesheet" href="styles.css?v=20260820" />
               <!-- Default Statcounter code for My Business Website
           https://hambalifachri.github.io/kopi.fachrindah/ -->
           <script type="text/javascript">
@@ -128,31 +128,6 @@
               <strong>Naya - Bekasi</strong>
             </article>
           </div>
-          <form class="review-form" id="reviewForm">
-            <div class="review-form-title">
-              <strong>Tulis Review</strong>
-              <span>Opsional, boleh isi setelah order selesai.</span>
-            </div>
-            <div class="field-row">
-              <label>
-                Nama
-                <input id="reviewName" name="reviewName" type="text" placeholder="Nama kamu" required />
-              </label>
-              <label>
-                Rating
-                <select id="reviewRating" name="reviewRating" required>
-                  <option value="5">★★★★★ - Puas banget</option>
-                  <option value="4">★★★★☆ - Puas</option>
-                  <option value="3">★★★☆☆ - Cukup</option>
-                </select>
-              </label>
-            </div>
-            <label>
-              Review
-              <textarea id="reviewText" name="reviewText" rows="3" placeholder="Tulis pengalaman order kamu" required></textarea>
-            </label>
-            <button class="review-button" type="submit">Tampilkan Review di Website</button>
-</form>
       </section>
 
       <!-- ========================================== -->
@@ -191,8 +166,9 @@
         <section class="outlet-panel" id="outletPanel" aria-label="Pilih outlet">
           <div class="outlet-panel-head">
             <div>
-              <span>Pilih Outlet</span>
+              <span>Langkah 1 - Pilih Outlet</span>
               <strong id="selectedOutletName">Belum dipilih</strong>
+              <small class="outlet-panel-copy">Pilih gerai dulu agar menu dan harga sesuai.</small>
             </div>
             <button id="outletClear" class="outlet-clear-btn" type="button" aria-label="Hapus outlet">X</button>
           </div>
@@ -226,6 +202,7 @@
           </div>
           <div id="wifiDetailPanel" class="wifi-detail-panel" hidden></div>
         </section>
+        <p class="menu-step-label"><span>2</span> Pilih menu</p>
         <div class="menu-mode-tabs" id="menuModeTabs" aria-label="Jenis menu">
           <button class="mode-tab active" type="button" data-menu-mode="single">Menu Satuan</button>
           <button class="mode-tab" type="button" data-menu-mode="bundle">Bundling Promo</button>
@@ -330,7 +307,18 @@
           </div>
 
           <div class="modal-stage" id="modalCustomize">
-            <div class="selected-drink modal-product" id="selectedDrink"></div>
+            <div class="modal-product-sticky">
+              <div class="selected-drink modal-product" id="selectedDrink"></div>
+              <div class="modal-quantity-control" aria-label="Jumlah pesanan">
+                <span>Jumlah</span>
+                <div class="modal-quantity-stepper">
+                  <button id="configuredQtyDecrease" type="button" aria-label="Kurangi jumlah">-</button>
+                  <strong id="configuredQtyValue">1</strong>
+                  <button id="configuredQtyIncrease" type="button" aria-label="Tambah jumlah">+</button>
+                </div>
+                <strong id="configuredQtyTotal">Rp0</strong>
+              </div>
+            </div>
             <div class="modal-options" id="modalOptions"></div>
             <label class="item-note-field" for="itemNote">
               Catatan item
@@ -367,11 +355,13 @@
           </div>
 
           <div class="modal-stage modal-checkout" id="modalCheckoutStage" hidden>
-            <div class="panel-title">
-              <p>Checkout</p>
-              <button class="secondary-button compact-button" id="backToCart" type="button">Lihat Keranjang</button>
+            <div class="checkout-sticky-summary">
+              <div class="panel-title">
+                <p>Checkout</p>
+                <button class="secondary-button compact-button" id="backToCart" type="button">Lihat Keranjang</button>
+              </div>
+              <div class="checkout-summary" id="checkoutSummary"></div>
             </div>
-            <div class="checkout-summary" id="checkoutSummary"></div>
             <div class="payment-panel modal-payment">
               <div class="panel-title">
                 <p>Pembayaran QRIS</p>
@@ -452,33 +442,6 @@
               </div>
               <button class="send-button" id="submitOrderButton" type="submit">Simpan Order & Lanjut WhatsApp</button>
             </form>
-            <form class="review-form modal-review" id="modalReviewForm">
-              <div class="review-form-title">
-                <strong>Review Opsional</strong>
-                <span>Boleh isi sekarang, boleh dilewati.</span>
-              </div>
-              <div class="field-row">
-                <label>
-                  Nama
-                  <input id="modalReviewName" name="reviewName" type="text" placeholder="Nama kamu" required />
-                </label>
-                <label>
-                  Rating
-                  <select id="modalReviewRating" name="reviewRating" required>
-                    <option value="5">★★★★★ - Puas banget</option>
-                    <option value="4">★★★★☆ - Puas</option>
-                    <option value="3">★★★☆☆ - Cukup</option>
-                  </select>
-                </label>
-              </div>
-              <label>
-                Review
-                <textarea id="modalReviewText" name="reviewText" rows="3" placeholder="Tulis pengalaman order kamu" required></textarea>
-              </label>
-              <div class="review-button-block">
-                <button class="review-button" type="submit">Tampilkan Review di Website</button>
-              </div>
-            </form>
           </div>
         </section>
       </div>
@@ -519,17 +482,16 @@
         </div>
 
         <ol class="tutorial-steps" aria-label="Langkah cara memesan">
-          <li><span>1</span><div><strong>Buka website</strong><p>Tekan tombol merah <b>Saya Mengerti</b>.</p></div></li>
-          <li><span>2</span><div><strong>Pilih merek kopi</strong><p>Pilih Kopi Kenangan, Tomoro, atau Fore di bagian atas.</p></div></li>
-          <li><span>3</span><div><strong>Pilih outlet</strong><p>Ketik minimal 3 huruf nama kota atau gerai, lalu tekan hasil outlet yang sesuai.</p></div></li>
-          <li><span>4</span><div><strong>Pilih menu</strong><p>Cari minuman atau makanan, kemudian tekan <b>Tambah</b>.</p></div></li>
-          <li><span>5</span><div><strong>Atur pesanan</strong><p>Pilih suhu, ukuran, gula, es, topping, dan tambahan sesuai keinginan.</p></div></li>
-          <li><span>6</span><div><strong>Buka keranjang</strong><p>Tekan tombol Cart atau tombol keranjang yang muncul di bawah layar.</p></div></li>
-          <li><span>7</span><div><strong>Periksa total</strong><p>Pastikan menu, jumlah, biaya layanan, dan total bayar sudah benar.</p></div></li>
-          <li><span>8</span><div><strong>Bayar dengan QRIS</strong><p>Tekan <b>Selesai, Bayar QRIS</b>, lalu scan QRIS sesuai total.</p></div></li>
-          <li><span>9</span><div><strong>Isi data pelanggan</strong><p>Masukkan nama, jam pickup, dan lokasi outlet.</p></div></li>
-          <li><span>10</span><div><strong>Upload bukti pembayaran</strong><p>Pilih foto bukti QRIS dari galeri handphone.</p></div></li>
-          <li><span>11</span><div><strong>Kirim pesanan</strong><p>Tekan <b>Simpan Order &amp; Notifikasi WhatsApp</b>, lalu tunggu konfirmasi admin.</p></div></li>
+          <li><span>1</span><div><strong>Pilih merek kopi</strong><p>Pilih Kopi Kenangan, Tomoro, atau Fore di bagian atas.</p></div></li>
+          <li><span>2</span><div><strong>Pilih outlet</strong><p>Ketik minimal 3 huruf nama kota atau gerai, lalu tekan hasil outlet yang sesuai.</p></div></li>
+          <li><span>3</span><div><strong>Pilih menu</strong><p>Cari minuman atau makanan, kemudian tekan <b>Tambah</b>.</p></div></li>
+          <li><span>4</span><div><strong>Atur pesanan</strong><p>Pilih suhu, ukuran, gula, es, topping, dan tambahan sesuai keinginan.</p></div></li>
+          <li><span>5</span><div><strong>Buka keranjang</strong><p>Tekan tombol Cart atau tombol keranjang yang muncul di bawah layar.</p></div></li>
+          <li><span>6</span><div><strong>Periksa total</strong><p>Pastikan menu, jumlah, biaya layanan, dan total bayar sudah benar.</p></div></li>
+          <li><span>7</span><div><strong>Bayar dengan QRIS</strong><p>Tekan <b>Selesai, Bayar QRIS</b>, lalu scan QRIS sesuai total.</p></div></li>
+          <li><span>8</span><div><strong>Isi data pelanggan</strong><p>Masukkan nama, jam pickup, dan lokasi outlet.</p></div></li>
+          <li><span>9</span><div><strong>Upload bukti pembayaran</strong><p>Pilih foto bukti QRIS dari galeri handphone.</p></div></li>
+          <li><span>10</span><div><strong>Kirim pesanan</strong><p>Tekan <b>Simpan Order &amp; Notifikasi WhatsApp</b>, lalu tunggu konfirmasi admin.</p></div></li>
         </ol>
 
         <button class="guide-start-order" id="guideStartOrderButton" type="button">Saya Paham, Mulai Pilih Menu</button>

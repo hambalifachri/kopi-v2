@@ -22,8 +22,8 @@ let originalKopiKenanganMenu = null;
 let originalLiveBrandMenus = null;
 
 window.brandOutletStates = window.brandOutletStates || {
-  tomoro: { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" },
-  fore: { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" },
+  tomoro: { outletCode: "", outletName: "", outletAddress: "", menuLoading: false, menuLoaded: false, source: "" },
+  fore: { outletCode: "", outletName: "", outletAddress: "", menuLoading: false, menuLoaded: false, source: "" },
 };
 
 const KOPI_KENANGAN_ALLOWED_API_BRANDS = new Set([
@@ -535,29 +535,39 @@ function renderOutletResults(outlets) {
     return;
   }
 
-  outlets.forEach((outlet) => {
-    const name = getOutletDisplayName(outlet);
-    const code = getOutletCode(outlet);
-    const address = outlet.address || outlet.city || outlet.area || "";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "outlet-result";
-    const nameElement = document.createElement("strong");
-    nameElement.textContent = name;
-    button.appendChild(nameElement);
-    if (address) {
-      const addressElement = document.createElement("span");
-      addressElement.textContent = address;
-      button.appendChild(addressElement);
-    }
-    button.addEventListener("click", () => {
-      const selectedOutlet = { ...outlet, name, code };
-      saveSelectedOutlet(selectedOutlet);
-      clearOutletResults();
-      if (code) window.loadDynamicMenu(code);
+  [...outlets]
+    .sort((first, second) => Number(first?.isOpen === false) - Number(second?.isOpen === false))
+    .forEach((outlet) => {
+      const name = getOutletDisplayName(outlet);
+      const code = getOutletCode(outlet);
+      const address = outlet.address || outlet.city || outlet.area || "";
+      const isClosed = outlet.isOpen === false;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
+      button.disabled = isClosed;
+      const nameElement = document.createElement("strong");
+      nameElement.textContent = name;
+      button.appendChild(nameElement);
+      if (address) {
+        const addressElement = document.createElement("span");
+        addressElement.textContent = address;
+        button.appendChild(addressElement);
+      }
+      if (isClosed) {
+        const statusElement = document.createElement("span");
+        statusElement.className = "outlet-closed-status";
+        statusElement.textContent = outlet.openStatus || "Outlet sedang tutup";
+        button.appendChild(statusElement);
+      }
+      button.addEventListener("click", () => {
+        const selectedOutlet = { ...outlet, name, code };
+        saveSelectedOutlet(selectedOutlet);
+        clearOutletResults();
+        if (code) window.loadDynamicMenu(code);
+      });
+      outletResults.appendChild(button);
     });
-    outletResults.appendChild(button);
-  });
 }
 
 const PRICE_ADJUSTMENTS = {
@@ -760,7 +770,7 @@ function saveLiveBrandOutlets() {
   ["tomoro", "fore"].forEach((brandId) => {
     const state = window.brandOutletStates[brandId];
     if (state?.outletCode && state?.outletName) {
-      saved[brandId] = { outletCode: state.outletCode, outletName: state.outletName };
+      saved[brandId] = { outletCode: state.outletCode, outletName: state.outletName, outletAddress: state.outletAddress || "" };
     }
   });
   localStorage.setItem(LIVE_BRAND_OUTLETS_KEY, JSON.stringify(saved));
@@ -827,7 +837,7 @@ function renderLiveBrandOutletResults(brandId, outlets) {
       detail.textContent = address;
       button.appendChild(detail);
     }
-    button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name }));
+    button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name, outletAddress: address }));
     results.appendChild(button);
   });
 }
@@ -1012,7 +1022,7 @@ async function selectLiveBrandOutlet(brandId, outlet) {
 
 window.clearLiveBrandOutlet = function(brandId) {
   if (!["tomoro", "fore"].includes(brandId)) return;
-  setLiveBrandOutletState(brandId, { outletCode: "", outletName: "", menuLoading: false, menuLoaded: false, source: "" });
+  setLiveBrandOutletState(brandId, { outletCode: "", outletName: "", outletAddress: "", menuLoading: false, menuLoaded: false, source: "" });
   restoreLiveBrandMenu(brandId);
   saveLiveBrandOutlets();
   clearLiveBrandResults();
