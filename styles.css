@@ -1301,6 +1301,10 @@ button {
   display: none;
 }
 
+#pickupTimeField[hidden] {
+  display: none !important;
+}
+
 .takeaway-option legend {
   padding: 0 4px;
   color: var(--brown);
