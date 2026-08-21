@@ -513,6 +513,8 @@ function syncCheckoutOutletField() {
   const field = document.getElementById("modalCustomerAddress");
   const manualTools = document.getElementById("manualOutletTools");
   const takeawayOption = document.getElementById("kopkenTakeawayOption");
+  const pickupTimeField = document.getElementById("pickupTimeField");
+  const pickupTimeSelect = document.getElementById("modalPickupTime");
   if (!field) return;
   const orderBrandId = getCartBrandId() || activeBrandId;
   const outletName = getSelectedOutletNameForBrand(orderBrandId);
@@ -522,6 +524,11 @@ function syncCheckoutOutletField() {
   field.setAttribute("aria-readonly", String(field.readOnly));
   if (hasOutlet) field.value = outletName;
   if (manualTools) manualTools.hidden = Boolean(hasOutlet);
+  if (pickupTimeField) pickupTimeField.hidden = orderBrandId !== "kopi-kenangan";
+  if (pickupTimeSelect) {
+    pickupTimeSelect.required = orderBrandId === "kopi-kenangan";
+    if (orderBrandId !== "kopi-kenangan") pickupTimeSelect.value = "Sekarang";
+  }
   if (takeawayOption) {
     takeawayOption.hidden = orderBrandId !== "kopi-kenangan";
     if (takeawayOption.hidden) {
