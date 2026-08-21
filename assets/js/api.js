@@ -893,10 +893,13 @@ function buildForeLiveMenu(payload) {
     const optionTemplate = Array.isArray(localItem.options)
       ? localItem.options
       : (BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || []);
-    const defaultOptions = optionTemplate.map((group) => ({
-      ...group,
-      options: (group.options || []).map((option) => ({ ...option })),
-    }));
+    const liveOptionGroups = new Set((liveItem.addons || []).map((group) => normalizeApiText(group.group_name).replace(/-/g, "")));
+    const defaultOptions = optionTemplate
+      .filter((group) => group.key !== "sweetness" || liveOptionGroups.has("sweetness"))
+      .map((group) => ({
+        ...group,
+        options: (group.options || []).map((option) => ({ ...option })),
+      }));
     const sizeGroup = defaultOptions.find((group) => group.key === "cupSize");
     if (sizeGroup) {
       sizeGroup.options = [{ value: "Reguler", label: "Reguler", price: localItem.price }];
