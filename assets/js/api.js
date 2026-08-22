@@ -637,7 +637,9 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       rawResponse = await response.json();
-      if (!Array.isArray(rawResponse?.menu)) throw new Error("Format menu tidak valid");
+      if (!Array.isArray(rawResponse?.menu) || rawResponse.menu.length === 0) {
+        throw new Error("Menu outlet kosong");
+      }
     } catch (nufsError) {
       console.warn("API menu NufsFood gagal, mencoba Worker:", nufsError);
       const fallbackResponse = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
@@ -651,6 +653,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     );
 
     const dynamicItems = buildDynamicKopiKenanganItems(rawResponse, localMenuByName);
+    if (!dynamicItems.length) throw new Error("Menu outlet kosong");
     const dynamicBundles = buildDynamicKopiKenanganBundles(dynamicItems);
     const nonKopiKenanganItems = menuItems.filter((item) => item && item.brand !== "kopi-kenangan");
     const localItemsToKeep = (originalKopiKenanganMenu || [])
