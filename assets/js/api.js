@@ -529,17 +529,13 @@ function renderOutletResults(outlets) {
     return;
   }
 
-  [...outlets]
-    .sort((first, second) => Number(first?.isOpen === false) - Number(second?.isOpen === false))
-    .forEach((outlet) => {
+  outlets.forEach((outlet) => {
       const name = getOutletDisplayName(outlet);
       const code = getOutletCode(outlet);
       const address = outlet.address || outlet.city || outlet.area || "";
-      const isClosed = outlet.isOpen === false;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
-      button.disabled = isClosed;
+      button.className = "outlet-result";
       const nameElement = document.createElement("strong");
       nameElement.textContent = name;
       button.appendChild(nameElement);
@@ -548,12 +544,6 @@ function renderOutletResults(outlets) {
         addressElement.textContent = address;
         button.appendChild(addressElement);
       }
-      if (isClosed) {
-        const statusElement = document.createElement("span");
-        statusElement.className = "outlet-closed-status";
-        statusElement.textContent = outlet.openStatus || "Outlet sedang tutup";
-        button.appendChild(statusElement);
-      }
       button.addEventListener("click", () => {
         const selectedOutlet = { ...outlet, name, code };
         saveSelectedOutlet(selectedOutlet);
@@ -561,7 +551,7 @@ function renderOutletResults(outlets) {
         if (code) window.loadDynamicMenu(code);
       });
       outletResults.appendChild(button);
-    });
+  });
 }
 
 const PRICE_ADJUSTMENTS = {
