@@ -489,6 +489,12 @@ function loadSelectedOutlet() {
   try {
     const savedOutlet = JSON.parse(raw);
     updateOutletUi(savedOutlet);
+    if (savedOutlet?.manual) {
+      restoreLocalKopiKenanganMenu();
+      setKopiKenanganOutletState({ selected: true, menuLoaded: true, menuLoading: false, source: "manual" });
+      if (typeof renderMenu === "function") renderMenu();
+      return;
+    }
     const outletCode = getOutletCode(savedOutlet);
     if (outletCode) window.loadDynamicMenu(outletCode);
   } catch (error) {
@@ -525,7 +531,34 @@ function clearOutletResults() {
   outletResults.hidden = true;
 }
 
-function renderOutletResults(outlets) {
+function selectManualKopiKenanganOutlet(name) {
+  const manualOutlet = { name, code: "", address: "Diisi manual", manual: true };
+  saveSelectedOutlet(manualOutlet);
+  clearOutletResults();
+  restoreLocalKopiKenanganMenu();
+  setKopiKenanganOutletState({ selected: true, menuLoaded: true, menuLoading: false, source: "manual" });
+  if (typeof renderMenu === "function") renderMenu();
+}
+
+function renderManualOutletOption(keyword) {
+  const outletResults = document.getElementById("outletResults");
+  if (!outletResults || !keyword) return;
+  outletResults.innerHTML = "";
+  outletResults.hidden = false;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "outlet-result";
+  const title = document.createElement("strong");
+  title.textContent = `Gunakan outlet: ${keyword}`;
+  const detail = document.createElement("span");
+  detail.textContent = "Pilih manual dan lanjut menggunakan menu lokal.";
+  button.append(title, detail);
+  button.addEventListener("click", () => selectManualKopiKenanganOutlet(keyword));
+  outletResults.appendChild(button);
+}
+
+function renderOutletResults(outlets, keyword = "") {
   const outletResults = document.getElementById("outletResults");
   if (!outletResults) return;
 
@@ -533,7 +566,7 @@ function renderOutletResults(outlets) {
   outletResults.hidden = false;
 
   if (!outlets.length) {
-    outletResults.innerHTML = '<p class="outlet-empty">Outlet tidak ditemukan.</p>';
+    renderManualOutletOption(keyword);
     return;
   }
 
@@ -714,11 +747,13 @@ window.searchOutlets = async function(keyword) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     const outlets = Array.isArray(data.outlets) ? data.outlets : [];
-    renderOutletResults(outlets);
-    if (outletHint) outletHint.textContent = `${outlets.length} outlet ditemukan.`;
+    renderOutletResults(outlets, keyword);
+    if (outletHint) outletHint.textContent = outlets.length
+      ? `${outlets.length} outlet ditemukan.`
+      : "Outlet tidak ditemukan. Kamu tetap bisa memasukkan outlet secara manual.";
   } catch (error) {
-    clearOutletResults();
-    if (outletHint) outletHint.textContent = "Gagal mencari outlet.";
+    renderManualOutletOption(keyword);
+    if (outletHint) outletHint.textContent = "Pencarian gagal. Gunakan nama outlet yang sudah kamu ketik.";
   }
 };
 
