@@ -11,7 +11,7 @@ window.addEventListener('load', function() {
 });
 
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
-const OUTLET_SEARCH_API = "/outlet-search";
+const OUTLET_SEARCH_API = "/outlet-search/outlets";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://bpkpydfvevlktyeapunf.supabase.co/functions/v1/brand-catalog";
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
@@ -458,7 +458,7 @@ function updateOutletUi(outlet = null) {
   if (outletHint) {
     outletHint.textContent = name
       ? `Outlet aktif: ${name}`
-      : "Ketik minimal 3 huruf untuk mencari gerai Kopi Kenangan.";
+      : "Ketik minimal 4 huruf untuk mencari gerai Kopi Kenangan.";
   }
   if (typeof window.renderWifiPassword === "function") window.renderWifiPassword();
   if (modalAddress && name) modalAddress.value = name;
@@ -617,6 +617,11 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   try {
     const response = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
+    if (response.status === 502) {
+      clearOutletResults();
+      if (outletHint) outletHint.textContent = "Ketik nama outlet atau area yang lebih spesifik.";
+      return;
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const rawResponse = await response.json();
 
@@ -714,9 +719,11 @@ document.addEventListener("DOMContentLoaded", () => {
     outletSearch.addEventListener("input", (event) => {
       const keyword = event.target.value.trim();
       window.clearTimeout(outletSearchTimer);
-      if (keyword.length < 3) {
+      if (keyword.length < 4) {
         clearOutletResults();
         clearSelectedOutletState();
+        const outletHint = document.getElementById("outletSearchHint");
+        if (outletHint) outletHint.textContent = "Ketik minimal 4 huruf untuk mencari gerai Kopi Kenangan.";
         return;
       }
       if (localStorage.getItem(SELECTED_OUTLET_STORAGE_KEY)) {
