@@ -617,11 +617,6 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   try {
     const response = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
-    if (response.status === 502) {
-      clearOutletResults();
-      if (outletHint) outletHint.textContent = "Ketik nama outlet atau area yang lebih spesifik.";
-      return;
-    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const rawResponse = await response.json();
 
@@ -685,6 +680,11 @@ window.searchOutlets = async function(keyword) {
 
     const response = await fetch(`${OUTLET_SEARCH_API}?keyword=${encodeURIComponent(keyword)}&page=1&source=web-v2`);
 
+    if (response.status === 502) {
+      clearOutletResults();
+      if (outletHint) outletHint.textContent = "Ketik nama outlet atau area yang lebih spesifik.";
+      return;
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     
