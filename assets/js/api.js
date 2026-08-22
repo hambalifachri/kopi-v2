@@ -1,17 +1,18 @@
-// Skrip pembersih cache otomatis untuk mengatasi error sesi/storage yang korup di HP pelanggan[cite: 1]
+// Tambahkan ini di bagian awal script Anda
 window.addEventListener('load', function() {
     const lastVersion = localStorage.getItem('app_version');
-    const currentVersion = '20260715';
+    const currentVersion = '20260715'; // Samakan dengan versi file di atas
 
     if (lastVersion !== currentVersion) {
-        localStorage.clear();
+        localStorage.clear(); // Hapus sesi lama yang rusak
         localStorage.setItem('app_version', currentVersion);
-        window.location.reload();
+        window.location.reload(); // Refresh paksa untuk pelanggan
     }
 });
 
+// Ganti baris paling atas api.js Anda menjadi seperti ini:
+const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
-const OUTLET_SEARCH_API = "/outlet-search/outlets";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://bpkpydfvevlktyeapunf.supabase.co/functions/v1/brand-catalog";
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
@@ -130,11 +131,11 @@ function getOutletWifiPassword(outlet) {
 }
 
 function getOutletDisplayName(outlet) {
-  return outlet?.store_name || outlet?.name || outlet?.outletName || outlet?.title || "";
+  return outlet?.name || outlet?.outletName || outlet?.title || "";
 }
 
 function getOutletCode(outlet) {
-  return outlet?.store_code || outlet?.code || outlet?.outletCode || outlet?.id || "";
+  return outlet?.code || outlet?.outletCode || outlet?.id || "";
 }
 
 function normalizeMenuName(value) {
@@ -216,6 +217,11 @@ function getApiProductPrice(item, localItem) {
 
 function getApiProductOldPrice(item, localItem) {
   return firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price) || localItem.oldPrice;
+}
+
+function isLocalPromoMenuItem(item) {
+  const groups = Array.isArray(item?.group) ? item.group : [item?.group].filter(Boolean);
+  return groups.some((group) => normalizeApiText(group).includes("promo")) || Boolean(item?.bundleImages?.length);
 }
 
 function shouldKeepLocalKopiKenanganItem(item) {
@@ -458,7 +464,7 @@ function updateOutletUi(outlet = null) {
   if (outletHint) {
     outletHint.textContent = name
       ? `Outlet aktif: ${name}`
-      : "Ketik minimal 4 huruf untuk mencari gerai Kopi Kenangan.";
+      : "Ketik minimal 3 huruf untuk mencari gerai Kopi Kenangan.";
   }
   if (typeof window.renderWifiPassword === "function") window.renderWifiPassword();
   if (modalAddress && name) modalAddress.value = name;
@@ -529,13 +535,17 @@ function renderOutletResults(outlets) {
     return;
   }
 
-  outlets.forEach((outlet) => {
+  [...outlets]
+    .sort((first, second) => Number(first?.isOpen === false) - Number(second?.isOpen === false))
+    .forEach((outlet) => {
       const name = getOutletDisplayName(outlet);
       const code = getOutletCode(outlet);
       const address = outlet.address || outlet.city || outlet.area || "";
+      const isClosed = outlet.isOpen === false;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "outlet-result";
+      button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
+      button.disabled = isClosed;
       const nameElement = document.createElement("strong");
       nameElement.textContent = name;
       button.appendChild(nameElement);
@@ -544,6 +554,12 @@ function renderOutletResults(outlets) {
         addressElement.textContent = address;
         button.appendChild(addressElement);
       }
+      if (isClosed) {
+        const statusElement = document.createElement("span");
+        statusElement.className = "outlet-closed-status";
+        statusElement.textContent = outlet.openStatus || "Outlet sedang tutup";
+        button.appendChild(statusElement);
+      }
       button.addEventListener("click", () => {
         const selectedOutlet = { ...outlet, name, code };
         saveSelectedOutlet(selectedOutlet);
@@ -551,7 +567,7 @@ function renderOutletResults(outlets) {
         if (code) window.loadDynamicMenu(code);
       });
       outletResults.appendChild(button);
-  });
+    });
 }
 
 const PRICE_ADJUSTMENTS = {
@@ -599,9 +615,9 @@ const PRICE_ADJUSTMENTS = {
   "choco-chip-cookies": 2000,
   "join-the-dark-side-cookie": 2000,
   "friend-chip-cookie": 2000
+  // Tambahkan nama menu lainnya di sinii
 };
 
-// Menggunakan Cloudflare Worker untuk memuat menu Kopi Kenangan
 window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   const container = document.getElementById("catalogContainer");
   if (!container) return;
@@ -672,40 +688,22 @@ window.handleKopiKenanganData = function(data) {
   if (typeof renderMenu === "function") renderMenu();
 };
 
-// Worker meneruskan pencarian outlet ke NufsFood agar tidak diblokir browser pelanggan.
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    const response = await fetch(`${OUTLET_SEARCH_API}?keyword=${encodeURIComponent(keyword)}&page=1&source=web-v2`);
+    // Pastikan ini tetap menggunakan NUFS_API_BASE agar pencarian outlet lancar
+    const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
 
-    if (response.status === 502) {
-      clearOutletResults();
-      if (outletHint) outletHint.textContent = "Ketik nama outlet atau area yang lebih spesifik.";
-      return;
-    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    
-    // Tetap menerima beberapa struktur respons agar pencarian tidak rapuh.
-    let outlets = [];
-    if (Array.isArray(data)) {
-      outlets = data;
-    } else if (Array.isArray(data.outlets)) {
-      outlets = data.outlets;
-    } else if (Array.isArray(data.data)) {
-      outlets = data.data;
-    } else if (data.data && Array.isArray(data.data.outlets)) {
-      outlets = data.data.outlets;
-    }
-
+    const outlets = Array.isArray(data.outlets) ? data.outlets : [];
     renderOutletResults(outlets);
     if (outletHint) outletHint.textContent = `${outlets.length} outlet ditemukan.`;
   } catch (error) {
-    console.error("Gagal mencari outlet Kopi Kenangan:", error);
     clearOutletResults();
-    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Coba lagi beberapa saat.";
+    if (outletHint) outletHint.textContent = "Gagal mencari outlet.";
   }
 };
 
@@ -719,11 +717,9 @@ document.addEventListener("DOMContentLoaded", () => {
     outletSearch.addEventListener("input", (event) => {
       const keyword = event.target.value.trim();
       window.clearTimeout(outletSearchTimer);
-      if (keyword.length < 4) {
+      if (keyword.length < 3) {
         clearOutletResults();
         clearSelectedOutletState();
-        const outletHint = document.getElementById("outletSearchHint");
-        if (outletHint) outletHint.textContent = "Ketik minimal 4 huruf untuk mencari gerai Kopi Kenangan.";
         return;
       }
       if (localStorage.getItem(SELECTED_OUTLET_STORAGE_KEY)) {

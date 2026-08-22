@@ -3445,6 +3445,22 @@ body.tutorial-open {
   background: #f3f8f5;
 }
 
+.outlet-result-closed,
+.outlet-result-closed:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.outlet-result-closed:hover {
+  background: #fff;
+}
+
+.outlet-closed-status {
+  color: #b13c31;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
 .outlet-result strong {
   font-size: 0.82rem;
 }
