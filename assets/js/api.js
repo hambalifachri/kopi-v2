@@ -632,9 +632,18 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   container.innerHTML = '<p class="no-results">Sedang memuat menu outlet...</p>';
 
   try {
-    const response = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const rawResponse = await response.json();
+    let rawResponse;
+    try {
+      const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawResponse = await response.json();
+      if (!Array.isArray(rawResponse?.menu)) throw new Error("Format menu tidak valid");
+    } catch (nufsError) {
+      console.warn("API menu NufsFood gagal, mencoba Worker:", nufsError);
+      const fallbackResponse = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
+      if (!fallbackResponse.ok) throw new Error(`HTTP ${fallbackResponse.status}`);
+      rawResponse = await fallbackResponse.json();
+    }
 
     cacheOriginalKopiKenanganMenu();
     const localMenuByName = new Map(
