@@ -181,6 +181,8 @@ function isSupportedKopiKenanganApiProduct(item) {
   const itemBrand = normalizeApiText(item?.brand || "Kopi Kenangan");
   const itemName = getApiProductName(item);
 
+  if (item?.is_sold_out === true || item?.isSoldOut === true || item?.soldOut === true) return false;
+  if (!itemName || /^\d+$/.test(itemName) || itemName === "Menu Tanpa Nama") return false;
   if (!KOPI_KENANGAN_ALLOWED_API_BRANDS.has(itemBrand)) return false;
   if (KOPI_KENANGAN_EXCLUDED_API_GROUPS.has(itemGroup)) return false;
   if (KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS.some((pattern) => pattern.test(itemName))) return false;
