@@ -672,18 +672,18 @@ window.handleKopiKenanganData = function(data) {
   if (typeof renderMenu === "function") renderMenu();
 };
 
-// Menggunakan Cloudflare Worker untuk pencarian outlet Kopi Kenangan
+// Menggunakan daftar outlet publik NufsFood untuk pencarian Kopi Kenangan.
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    const response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}`);
+    const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     
-    // Membuat pencarian lebih fleksibel membaca berbagai struktur JSON dari Cloudflare Worker
+    // Tetap menerima beberapa struktur respons agar pencarian tidak rapuh.
     let outlets = [];
     if (Array.isArray(data)) {
       outlets = data;
@@ -700,7 +700,7 @@ window.searchOutlets = async function(keyword) {
   } catch (error) {
     console.error("Gagal mencari outlet Kopi Kenangan:", error);
     clearOutletResults();
-    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Periksa koneksi/endpoint Cloudflare.";
+    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Coba lagi beberapa saat.";
   }
 };
 
