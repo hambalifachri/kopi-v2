@@ -1,16 +1,15 @@
-// Tambahkan ini di bagian awal script Anda
+// Skrip pembersih cache otomatis untuk mengatasi error sesi/storage yang korup di HP pelanggan[cite: 1]
 window.addEventListener('load', function() {
     const lastVersion = localStorage.getItem('app_version');
-    const currentVersion = '20260715'; // Samakan dengan versi file di atas
+    const currentVersion = '20260715';
 
     if (lastVersion !== currentVersion) {
-        localStorage.clear(); // Hapus sesi lama yang rusak
+        localStorage.clear();
         localStorage.setItem('app_version', currentVersion);
-        window.location.reload(); // Refresh paksa untuk pelanggan
+        window.location.reload();
     }
 });
 
-// Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
@@ -131,11 +130,11 @@ function getOutletWifiPassword(outlet) {
 }
 
 function getOutletDisplayName(outlet) {
-  return outlet?.name || outlet?.outletName || outlet?.title || "";
+  return outlet?.store_name || outlet?.name || outlet?.outletName || outlet?.title || "";
 }
 
 function getOutletCode(outlet) {
-  return outlet?.code || outlet?.outletCode || outlet?.id || "";
+  return outlet?.store_code || outlet?.code || outlet?.outletCode || outlet?.id || "";
 }
 
 function normalizeMenuName(value) {
@@ -217,11 +216,6 @@ function getApiProductPrice(item, localItem) {
 
 function getApiProductOldPrice(item, localItem) {
   return firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price) || localItem.oldPrice;
-}
-
-function isLocalPromoMenuItem(item) {
-  const groups = Array.isArray(item?.group) ? item.group : [item?.group].filter(Boolean);
-  return groups.some((group) => normalizeApiText(group).includes("promo")) || Boolean(item?.bundleImages?.length);
 }
 
 function shouldKeepLocalKopiKenanganItem(item) {
@@ -615,9 +609,9 @@ const PRICE_ADJUSTMENTS = {
   "choco-chip-cookies": 2000,
   "join-the-dark-side-cookie": 2000,
   "friend-chip-cookie": 2000
-  // Tambahkan nama menu lainnya di sinii
 };
 
+// Menggunakan Cloudflare Worker untuk memuat menu Kopi Kenangan
 window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   const container = document.getElementById("catalogContainer");
   if (!container) return;
@@ -688,13 +682,13 @@ window.handleKopiKenanganData = function(data) {
   if (typeof renderMenu === "function") renderMenu();
 };
 
+// Menggunakan Cloudflare Worker untuk pencarian outlet Kopi Kenangan
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    // Pastikan ini tetap menggunakan NUFS_API_BASE agar pencarian outlet lancar
-    const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+    const response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}`);
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
