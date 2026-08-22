@@ -692,12 +692,25 @@ window.searchOutlets = async function(keyword) {
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    const outlets = Array.isArray(data.outlets) ? data.outlets : [];
+    
+    // Membuat pencarian lebih fleksibel membaca berbagai struktur JSON dari Cloudflare Worker
+    let outlets = [];
+    if (Array.isArray(data)) {
+      outlets = data;
+    } else if (Array.isArray(data.outlets)) {
+      outlets = data.outlets;
+    } else if (Array.isArray(data.data)) {
+      outlets = data.data;
+    } else if (data.data && Array.isArray(data.data.outlets)) {
+      outlets = data.data.outlets;
+    }
+
     renderOutletResults(outlets);
     if (outletHint) outletHint.textContent = `${outlets.length} outlet ditemukan.`;
   } catch (error) {
+    console.error("Gagal mencari outlet Kopi Kenangan:", error);
     clearOutletResults();
-    if (outletHint) outletHint.textContent = "Gagal mencari outlet.";
+    if (outletHint) outletHint.textContent = "Gagal mencari outlet. Periksa koneksi/endpoint Cloudflare.";
   }
 };
 
