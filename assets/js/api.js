@@ -10,7 +10,7 @@ window.addEventListener('load', function() {
     }
 });
 
-const NUFS_API_BASE = "https://www.nufsfood.shop/api";
+const NUFS_API_BASE = "/outlet-search";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://bpkpydfvevlktyeapunf.supabase.co/functions/v1/brand-catalog";

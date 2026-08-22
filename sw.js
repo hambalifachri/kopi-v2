@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fachrindah-pwa-v3';
+const CACHE_NAME = 'fachrindah-pwa-v4';
 const urlsToCache = [
   './',
   './index.html',
