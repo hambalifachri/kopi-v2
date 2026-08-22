@@ -11,7 +11,7 @@ window.addEventListener('load', function() {
 });
 
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
-const OUTLET_SEARCH_API = `${CF_API_BASE}/outlets`;
+const OUTLET_SEARCH_API = "/outlet-search";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://bpkpydfvevlktyeapunf.supabase.co/functions/v1/brand-catalog";
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
