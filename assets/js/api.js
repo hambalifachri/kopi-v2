@@ -678,7 +678,7 @@ window.searchOutlets = async function(keyword) {
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    const response = await fetch(`${OUTLET_SEARCH_API}?keyword=${encodeURIComponent(keyword)}&page=1`);
+    const response = await fetch(`${OUTLET_SEARCH_API}?keyword=${encodeURIComponent(keyword)}&page=1&source=web-v2`);
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
