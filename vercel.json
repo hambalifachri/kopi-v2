@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/outlet-search/:path*",
-      "destination": "https://www.nufsfood.shop/api/:path*"
-    }
-  ]
-}
