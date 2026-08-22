@@ -707,9 +707,10 @@ window.searchOutlets = async function(keyword) {
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    // Pastikan ini tetap menggunakan NUFS_API_BASE agar pencarian outlet lancar
-    const response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
-
+    let response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+    if (!response.ok) {
+      response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     const outlets = Array.isArray(data.outlets) ? data.outlets : [];
