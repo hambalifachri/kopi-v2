@@ -673,9 +673,9 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   } catch (error) {
     console.error("Gagal memuat API Asli:", error);
-    setKopiKenanganOutletState({ menuLoaded: false, menuLoading: false, outletCode });
-    container.innerHTML = '<p class="no-results">Gagal memuat menu API. Coba outlet lain.</p>';
     restoreLocalKopiKenanganMenu();
+    setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode, source: "fallback" });
+    if (typeof renderMenu === "function") renderMenu();
   }
 };
 
