@@ -21,6 +21,38 @@ let liveBrandOutletSearchTimer = null;
 let originalKopiKenanganMenu = null;
 let originalLiveBrandMenus = null;
 
+async function loadSupabaseKopkenMenu(outletCode) {
+  const config = window.KOPI_SUPABASE_CONFIG || {};
+  if (!config.url || !config.anonKey) throw new Error("Konfigurasi Supabase belum tersedia");
+
+  const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,category,menu,updated_at&outlet_code=eq.${encodeURIComponent(outletCode)}&limit=1`;
+  const response = await fetch(endpoint, {
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+    },
+  });
+  if (!response.ok) throw new Error(`Supabase HTTP ${response.status}`);
+
+  const rows = await response.json();
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row || !Array.isArray(row.menu) || row.menu.length === 0) {
+    throw new Error("Menu outlet belum tersimpan di Supabase");
+  }
+
+  return {
+    category: String(row.category || ""),
+    updatedAt: row.updated_at || "",
+    menu: row.menu.map((item, index) => ({
+      ...item,
+      id: item.id || item.product_code || `${outletCode}-${index}`,
+      name: item.name || item.product_name || "",
+      image: item.image || item.image_url || null,
+      category: item.category || item.group_name || "",
+    })),
+  };
+}
+
 window.brandOutletStates = window.brandOutletStates || {
   tomoro: { outletCode: "", outletName: "", outletAddress: "", menuLoading: false, menuLoaded: false, source: "" },
   fore: { outletCode: "", outletName: "", outletAddress: "", menuLoading: false, menuLoaded: false, source: "" },
@@ -672,18 +704,28 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   try {
     let rawResponse;
+    let menuSource = "supabase";
+    let outletCategory = getKopiKenanganOutletState?.().outletCategory || "";
     try {
-      const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      rawResponse = await response.json();
-      if (!Array.isArray(rawResponse?.menu) || rawResponse.menu.length === 0) {
-        throw new Error("Menu outlet kosong");
+      const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
+      rawResponse = { menu: cachedOutlet.menu };
+      outletCategory = cachedOutlet.category || outletCategory;
+    } catch (supabaseError) {
+      console.warn("Menu Supabase belum tersedia, mencoba API cadangan:", supabaseError);
+      menuSource = "api";
+      try {
+        const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        rawResponse = await response.json();
+        if (!Array.isArray(rawResponse?.menu) || rawResponse.menu.length === 0) {
+          throw new Error("Menu outlet kosong");
+        }
+      } catch (nufsError) {
+        console.warn("API menu NufsFood gagal, mencoba Worker:", nufsError);
+        const fallbackResponse = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
+        if (!fallbackResponse.ok) throw new Error(`HTTP ${fallbackResponse.status}`);
+        rawResponse = await fallbackResponse.json();
       }
-    } catch (nufsError) {
-      console.warn("API menu NufsFood gagal, mencoba Worker:", nufsError);
-      const fallbackResponse = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
-      if (!fallbackResponse.ok) throw new Error(`HTTP ${fallbackResponse.status}`);
-      rawResponse = await fallbackResponse.json();
     }
 
     cacheOriginalKopiKenanganMenu();
@@ -707,7 +749,13 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       ...dynamicBundles,
     ]));
 
-    setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode });
+    setKopiKenanganOutletState({
+      menuLoaded: true,
+      menuLoading: false,
+      outletCode,
+      outletCategory,
+      source: menuSource,
+    });
     if (typeof renderMenu === "function") renderMenu();
 
   } catch (error) {
