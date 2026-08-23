@@ -1,0 +1,11 @@
+name = "api-kopken"
+main = "cloudflare/kopken-api-worker.js"
+compatibility_date = "2026-07-13"
+preview_urls = false
+
+[observability]
+enabled = true
+
+[vars]
+KOPKEN_APPSFLYER_ID = "1785570115206-8824745740969449801"
+KOPKEN_DEVICE_ID = "68dd155596d68d42"

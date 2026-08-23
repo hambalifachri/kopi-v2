@@ -119,6 +119,7 @@ window.kopiKenanganOutletState = window.kopiKenanganOutletState || {
   menuLoading: false,
   outletCode: "",
   outletName: "",
+  outletCategory: "",
 };
 
 function setKopiKenanganOutletState(patch) {
@@ -461,6 +462,7 @@ function updateOutletUi(outlet = null) {
     menuLoading: false,
     outletCode: code,
     outletName: name,
+    outletCategory: String(outlet?.category || ""),
   });
 
   if (selectedOutletName) selectedOutletName.textContent = name || "Belum dipilih";
@@ -534,7 +536,7 @@ function clearOutletResults() {
 }
 
 function selectManualKopiKenanganOutlet(name) {
-  const manualOutlet = { name, code: "", address: "Diisi manual", manual: true };
+  const manualOutlet = { name, code: "", address: "Diisi manual", category: "", manual: true };
   saveSelectedOutlet(manualOutlet);
   clearOutletResults();
   restoreLocalKopiKenanganMenu();

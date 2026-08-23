@@ -563,6 +563,7 @@ function getKopiKenanganOutletState() {
     menuLoaded: false,
     menuLoading: false,
     outletName: "",
+    outletCategory: "",
   };
 }
 
@@ -663,13 +664,23 @@ function getMenuPriceValue(item, ...keys) {
   return undefined;
 }
 
+function getKopkenMallOfficialSurcharge(item) {
+  if (item?.brand !== "kopi-kenangan") return 0;
+  const category = String(getKopiKenanganOutletState().outletCategory || "").trim().toLowerCase();
+  return category === "mall" ? 3000 : 0;
+}
+
 function getOfficialItemPrice(item) {
   const sourceItem = menuItems.find((menuItem) => menuItem.id === item.id) || item;
   if (item.dynamicOutletBundle) {
     const bundleItem = item.bundleOptionGroups
       ? { ...item, options: item.bundleOptionGroups }
       : sourceItem;
-    return getDynamicBundleOfficialTotal(bundleItem, item.options || {});
+    const selectedCount = Array.isArray(bundleItem.options)
+      ? bundleItem.options.filter((group) => item.options?.[group.key]).length
+      : 1;
+    return getDynamicBundleOfficialTotal(bundleItem, item.options || {})
+      + (getKopkenMallOfficialSurcharge(sourceItem) * Math.max(1, selectedCount));
   }
 
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
@@ -708,7 +719,7 @@ function getOfficialItemPrice(item) {
     if (typeof selectedOption?.priceDelta === "number") officialPrice += selectedOption.priceDelta;
   });
 
-  return officialPrice;
+  return officialPrice + getKopkenMallOfficialSurcharge(sourceItem);
 }
 
 function getOfficialCartTotal() {
@@ -1074,6 +1085,7 @@ function menuCard(item) {
   const sizeBlockNotes = getActiveSizeBlockNotes(item);
   const sizeBlockHtml = sizeBlockNotes.length ? `<span class="sale-note">${sizeBlockNotes.join(" · ")}</span>` : "";
   const displayPrice = getDisplayPrice(item);
+  const displayOldPrice = Number(item.oldPrice || 0) + getKopkenMallOfficialSurcharge(item);
   const resellerBadge = isResellerEligible(item) ? `<span class="reseller-price-badge">Reseller hemat ${rupiah.format(RESELLER_DISCOUNT)}</span>` : "";
   
   const buttonText = store.closed ? "Tutup" : (currentlySoldOut ? "Habis" : "Tambah");
@@ -1093,7 +1105,7 @@ return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} 
     </div>
     <!-- 👆 SAMPAI SINI 👆 -->
     
-    ${item.oldPrice ? `<span class="old-price">${rupiah.format(item.oldPrice)}</span>` : ""}
+    ${item.oldPrice ? `<span class="old-price">${rupiah.format(displayOldPrice)}</span>` : ""}
     <span class="price">${rupiah.format(displayPrice)}</span>
     ${resellerBadge}
     ${sizeBlockHtml}
