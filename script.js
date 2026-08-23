@@ -1160,8 +1160,16 @@ function isResellerEligible(item) {
   return isResellerActive() && item.brand === "kopi-kenangan" && !isPromoItem(item);
 }
 
+function getKopkenMallPromoSurcharge(item, options = {}) {
+  if (getKopkenMallOfficialSurcharge(item) === 0) return 0;
+  if (!item.dynamicOutletBundle) return 1500;
+  const groups = Array.isArray(item.options) ? item.options : [];
+  const selectedCount = groups.filter((group) => options?.[group.key]).length;
+  return 1500 * Math.max(1, selectedCount);
+}
+
 function getDisplayPrice(item) {
-  return Math.max(0, item.price - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
+  return Math.max(0, item.price + getKopkenMallPromoSurcharge(item) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
 }
 
 function getModeItems(items) {
@@ -1707,16 +1715,19 @@ function calculateItemPrice(item, options) {
     if (typeof selectedOption.price === "number") price = selectedOption.price;
     if (typeof selectedOption.priceDelta === "number") price += selectedOption.priceDelta;
   });
-  return Math.max(0, price - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
+  return Math.max(0, price + getKopkenMallPromoSurcharge(item, options) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
 }
 
 function updateModalLivePrice(item) {
   const calculatedPrice = calculateItemPrice(item, selectedOptions);
   const priceEl = document.getElementById("modalItemPrice");
   const bundleOfficialTotal = getDynamicBundleOfficialTotal(item, selectedOptions);
+  const displayedBundleOfficialTotal = item.dynamicOutletBundle
+    ? getOfficialItemPrice({ ...item, options: selectedOptions })
+    : bundleOfficialTotal;
   if (priceEl) {
     priceEl.textContent = item.dynamicOutletBundle
-      ? `${rupiah.format(calculatedPrice)} | Harga outlet ${rupiah.format(bundleOfficialTotal)}`
+      ? `${rupiah.format(calculatedPrice)} | Harga outlet ${rupiah.format(displayedBundleOfficialTotal)}`
       : rupiah.format(calculatedPrice);
   }
   if (item.dynamicOutletBundle) {
