@@ -842,6 +842,41 @@ function clearLiveBrandResults() {
   results.hidden = true;
 }
 
+function renderManualLiveBrandOutlet(brandId, keyword) {
+  const results = getLiveBrandResultsElement();
+  const name = String(keyword || "").trim();
+  if (!results || !name) return;
+  results.innerHTML = "";
+  results.hidden = false;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "outlet-result";
+  const title = document.createElement("strong");
+  title.textContent = `Gunakan outlet: ${name}`;
+  const detail = document.createElement("span");
+  detail.textContent = "Menu lokal cadangan akan ditampilkan.";
+  button.append(title, detail);
+  button.addEventListener("click", () => {
+    const outletCode = `manual-${brandId}-${normalizeApiText(name)}`.slice(0, 80);
+    setLiveBrandOutletState(brandId, {
+      outletCode,
+      outletName: name,
+      outletAddress: "",
+      menuLoading: false,
+      menuLoaded: true,
+      source: "fallback",
+    });
+    restoreLiveBrandMenu(brandId);
+    saveLiveBrandOutlets();
+    clearLiveBrandResults();
+    setLiveBrandHint(`Outlet ${name} dipakai dengan menu lokal cadangan.`);
+    if (typeof syncCheckoutOutletField === "function") syncCheckoutOutletField();
+    if (typeof renderMenu === "function") renderMenu();
+  });
+  results.appendChild(button);
+}
+
 function liveBrandOutletName(brandId, outlet) {
   return brandId === "fore"
     ? String(outlet?.name || "")
@@ -905,8 +940,8 @@ window.searchLiveBrandOutlets = async function(brandId, keyword) {
     setLiveBrandHint(`${outlets.length} outlet ditemukan. Pilih salah satu.`);
   } catch (error) {
     console.error(`Gagal mencari outlet ${brandId}:`, error);
-    clearLiveBrandResults();
-    setLiveBrandHint("Pencarian live sedang bermasalah. Coba lagi sebentar.");
+    renderManualLiveBrandOutlet(brandId, keyword);
+    setLiveBrandHint("Pencarian live sedang bermasalah. Gunakan nama outlet yang sudah diketik.");
   }
 };
 
