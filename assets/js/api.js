@@ -36,20 +36,27 @@ async function loadSupabaseKopkenMenu(outletCode) {
 
   const rows = await response.json();
   const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row || !Array.isArray(row.menu) || row.menu.length === 0) {
+  const hasCompactMenu = Array.isArray(row?.menu) && row.menu.length > 0;
+  const hasFullMenu = Array.isArray(row?.menu?.data?.menu_groups)
+    && row.menu.data.menu_groups.length > 0;
+  if (!row || (!hasCompactMenu && !hasFullMenu)) {
     throw new Error("Menu outlet belum tersimpan di Supabase");
   }
 
   return {
     category: String(row.category || ""),
     updatedAt: row.updated_at || "",
-    menu: row.menu.map((item, index) => ({
-      ...item,
-      id: item.id || item.product_code || `${outletCode}-${index}`,
-      name: item.name || item.product_name || "",
-      image: item.image || item.image_url || null,
-      category: item.category || item.group_name || "",
-    })),
+    payload: hasFullMenu
+      ? row.menu
+      : {
+          menu: row.menu.map((item, index) => ({
+            ...item,
+            id: item.id || item.product_code || `${outletCode}-${index}`,
+            name: item.name || item.product_name || "",
+            image: item.image || item.image_url || null,
+            category: item.category || item.group_name || "",
+          })),
+        },
   };
 }
 
@@ -708,7 +715,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     let outletCategory = getKopiKenanganOutletState?.().outletCategory || "";
     try {
       const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
-      rawResponse = { menu: cachedOutlet.menu };
+      rawResponse = cachedOutlet.payload;
       outletCategory = cachedOutlet.category || outletCategory;
     } catch (supabaseError) {
       console.warn("Menu Supabase belum tersedia, mencoba API cadangan:", supabaseError);
