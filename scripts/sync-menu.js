@@ -8,14 +8,17 @@ if (!supabaseUrl || !supabaseKey) {
     process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Menonaktifkan fitur realtime agar tidak butuh WebSocket tambahan di Node.js
+const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false },
+    realtime: { enabled: false }
+});
 
 async function syncMenu() {
     const outletCode = "JKT.RKMRYSN"; // Ganti jika perlu
     
     try {
         console.log("Sedang mengambil data dari Cloudflare Worker...");
-        // Ganti URL di bawah dengan URL Cloudflare Worker Anda yang asli
         const workerUrl = `https://api-kopken.novelveno65.workers.dev/?outletCode=${outletCode}`;
         
         const response = await fetch(workerUrl);
