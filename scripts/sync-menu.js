@@ -16,7 +16,7 @@ async function syncMenu() {
     try {
         console.log("Sedang mengambil data dari Cloudflare Worker...");
         // Ganti URL di bawah dengan URL Cloudflare Worker Anda yang asli
-        const workerUrl = `https://<worker-anda>.workers.dev/?outletCode=${outletCode}`;
+        const workerUrl = `https://api-kopken.novelveno65.workers.dev/?outletCode=${outletCode}`;
         
         const response = await fetch(workerUrl);
         const result = await response.json();
