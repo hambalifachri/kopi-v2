@@ -1,32 +1,8 @@
 {
-  "scripts": {
-    "vsphone:doctor": "node scripts/vsphone-test.mjs doctor",
-    "vsphone:list": "node scripts/vsphone-test.mjs list",
-    "vsphone:preview": "node scripts/vsphone-test.mjs preview",
-    "vsphone:apps": "node scripts/vsphone-test.mjs apps",
-    "vsphone:web-targets": "node scripts/vsphone-test.mjs web-targets",
-    "vsphone:webtools": "node scripts/vsphone-test.mjs webtools",
-    "vsphone:diag-mock": "node scripts/vsphone-test.mjs diag-mock",
-    "vsphone:tap": "node scripts/vsphone-test.mjs tap",
-    "vsphone:text": "node scripts/vsphone-test.mjs text",
-    "vsphone:ui": "node scripts/vsphone-test.mjs ui",
-    "vsphone:outlet": "node scripts/vsphone-test.mjs outlet",
-    "vsphone:shell": "node scripts/vsphone-test.mjs shell",
-    "vsphone:mock": "node scripts/vsphone-test.mjs mock"
-  },
-  "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "multer": "^2.1.1",
-    "tesseract.js": "7.0.0"
-  }
-}
-
-{
   "name": "kopi-v2",
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "@supabase/supabase-js": "^2.x.x"
+    "@supabase/supabase-js": "^2.45.0"
   }
 }
