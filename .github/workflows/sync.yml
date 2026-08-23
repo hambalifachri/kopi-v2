@@ -2,9 +2,8 @@ name: Sync Kopi Kenangan Menu
 
 on:
   schedule:
-    # Otomatis jalan setiap 3 jam sekali
     - cron: '0 */3 * * *'
-  workflow_dispatch: # Tombol untuk menjalankan manual kapan saja
+  workflow_dispatch:
 
 jobs:
   run-sync:
@@ -19,7 +18,7 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
-        run: npm install @supabase/supabase-js
+        run: npm install
 
       - name: Run Script
         env:
