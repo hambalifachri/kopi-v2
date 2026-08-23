@@ -1,5 +1,5 @@
 async function syncMenu() {
-    const supabaseUrl = process.env.SUPABASE_URL;
+    let supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
@@ -7,25 +7,27 @@ async function syncMenu() {
         process.exit(1);
     }
 
+    // Membersihkan trailing slash atau tambahan /rest/v1 jika tidak sengaja terikut di URL Supabase
+    supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+
     const outletCode = "JKT.RKMRYSN"; // Ganti jika perlu
     
     try {
         console.log("1. Mengambil data dari Cloudflare Worker...");
-        const workerUrl = `https://api-kopken.novelveno65.workers.dev/?outletCode=${outletCode}`;
+        const workerUrl = `https://api-kopken.novelveno65.workers.dev/?outletCode=${outletCode}`; // Ganti dengan worker Anda
         
         const response = await fetch(workerUrl);
         const result = await response.json();
 
         console.log("2. Menyimpan data langsung ke Supabase via REST API...");
         
-        // Menggunakan REST API Supabase langsung (tanpa library tambahan yang error)
         const supabaseResponse = await fetch(`${supabaseUrl}/rest/v1/kopken_catalog_snapshots`, {
             method: 'POST',
             headers: {
                 'apikey': supabaseKey,
                 'Authorization': `Bearer ${supabaseKey}`,
                 'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates' // Berfungsi seperti upsert
+                'Prefer': 'resolution=merge-duplicates'
             },
             body: JSON.stringify({
                 outlet_code: outletCode,
