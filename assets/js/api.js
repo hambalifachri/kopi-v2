@@ -42,6 +42,8 @@ const KOPI_KENANGAN_EXCLUDED_API_GROUPS = new Set([
 const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
   /\bseliter\b/i,
   /\bliteran\b/i,
+  /\btiramisu\b/i,
+  /\btoffee\b/i,
 ];
 
 const KOPI_KENANGAN_API_MENU_OVERRIDES = {

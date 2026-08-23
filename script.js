@@ -550,7 +550,11 @@ function updateBrandHero() {
 }
 
 function getActiveMenuItems() {
-  return menuItems.filter((item) => item.brand === activeBrandId);
+  return menuItems.filter((item) => {
+    if (item.brand !== activeBrandId) return false;
+    if (activeBrandId === "kopi-kenangan" && /(tiramisu|toffee)/i.test(String(item.name || ""))) return false;
+    return true;
+  });
 }
 
 function getKopiKenanganOutletState() {
