@@ -1588,6 +1588,7 @@ const MENU_ITEMS_DATA = [
   { id: "roti-gulung-abon", group: "chef-martin", name: "Roti Gulung Abon", oldPrice: 17000, price: 12500, kind: "food", color: "#c0702e" },
   
   { id: "bambang-choco-cheese", group: "kenangan-toast", name: "Bambang Choco Cheese", oldPrice: 17000, price: 13500, kind: "toast", color: "#d58a35" },
+  { id: "wahyu-sapi-toast", group: "kenangan-toast", name: "Wahyu Sapi Toast", oldPrice: 19000, price: 12500, kind: "toast", color: "#d18a3c", outletCodes: ["KWG.RKJNDCKMPK"] },
  
   { id: "chocolate-croissant", group: "food", name: "Chocolate Croissant", oldPrice: 19000, price: 14500, kind: "food", color: "#c6782d" },
   { id: "sugar-donut", group: "food", name: "Sugar Donut", oldPrice: 10000, price: 8000, kind: "food", color: "#e4b56c" },
