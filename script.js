@@ -664,10 +664,10 @@ function getMenuPriceValue(item, ...keys) {
   return undefined;
 }
 
-function getKopkenMallOfficialSurcharge(item) {
+function getKopkenPremiumOutletOfficialSurcharge(item) {
   if (item?.brand !== "kopi-kenangan") return 0;
   const category = String(getKopiKenanganOutletState().outletCategory || "").trim().toLowerCase();
-  return category === "mall" ? 3000 : 0;
+  return ["mall", "rest area"].includes(category) ? 3000 : 0;
 }
 
 function getOfficialItemPrice(item) {
@@ -680,7 +680,7 @@ function getOfficialItemPrice(item) {
       ? bundleItem.options.filter((group) => item.options?.[group.key]).length
       : 1;
     return getDynamicBundleOfficialTotal(bundleItem, item.options || {})
-      + (getKopkenMallOfficialSurcharge(sourceItem) * Math.max(1, selectedCount));
+      + (getKopkenPremiumOutletOfficialSurcharge(sourceItem) * Math.max(1, selectedCount));
   }
 
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
@@ -719,7 +719,7 @@ function getOfficialItemPrice(item) {
     if (typeof selectedOption?.priceDelta === "number") officialPrice += selectedOption.priceDelta;
   });
 
-  return officialPrice + getKopkenMallOfficialSurcharge(sourceItem);
+  return officialPrice + getKopkenPremiumOutletOfficialSurcharge(sourceItem);
 }
 
 function getOfficialCartTotal() {
@@ -1085,7 +1085,7 @@ function menuCard(item) {
   const sizeBlockNotes = getActiveSizeBlockNotes(item);
   const sizeBlockHtml = sizeBlockNotes.length ? `<span class="sale-note">${sizeBlockNotes.join(" · ")}</span>` : "";
   const displayPrice = getDisplayPrice(item);
-  const displayOldPrice = Number(item.oldPrice || 0) + getKopkenMallOfficialSurcharge(item);
+  const displayOldPrice = Number(item.oldPrice || 0) + getKopkenPremiumOutletOfficialSurcharge(item);
   const resellerBadge = isResellerEligible(item) ? `<span class="reseller-price-badge">Reseller hemat ${rupiah.format(RESELLER_DISCOUNT)}</span>` : "";
   
   const buttonText = store.closed ? "Tutup" : (currentlySoldOut ? "Habis" : "Tambah");
@@ -1160,8 +1160,8 @@ function isResellerEligible(item) {
   return isResellerActive() && item.brand === "kopi-kenangan" && !isPromoItem(item);
 }
 
-function getKopkenMallPromoSurcharge(item, options = {}) {
-  if (getKopkenMallOfficialSurcharge(item) === 0) return 0;
+function getKopkenPremiumOutletPromoSurcharge(item, options = {}) {
+  if (getKopkenPremiumOutletOfficialSurcharge(item) === 0) return 0;
   if (!item.dynamicOutletBundle) return 1500;
   const groups = Array.isArray(item.options) ? item.options : [];
   const selectedCount = groups.filter((group) => options?.[group.key]).length;
@@ -1169,7 +1169,7 @@ function getKopkenMallPromoSurcharge(item, options = {}) {
 }
 
 function getDisplayPrice(item) {
-  return Math.max(0, item.price + getKopkenMallPromoSurcharge(item) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
+  return Math.max(0, item.price + getKopkenPremiumOutletPromoSurcharge(item) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
 }
 
 function getModeItems(items) {
@@ -1715,7 +1715,7 @@ function calculateItemPrice(item, options) {
     if (typeof selectedOption.price === "number") price = selectedOption.price;
     if (typeof selectedOption.priceDelta === "number") price += selectedOption.priceDelta;
   });
-  return Math.max(0, price + getKopkenMallPromoSurcharge(item, options) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
+  return Math.max(0, price + getKopkenPremiumOutletPromoSurcharge(item, options) - (isResellerEligible(item) ? RESELLER_DISCOUNT : 0));
 }
 
 function updateModalLivePrice(item) {
