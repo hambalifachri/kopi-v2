@@ -670,8 +670,14 @@ function getMenuPriceValue(item, ...keys) {
 
 function getKopkenPremiumOutletOfficialSurcharge(item) {
   if (item?.brand !== "kopi-kenangan") return 0;
-  const category = String(getKopiKenanganOutletState().outletCategory || "").trim().toLowerCase();
-  return ["mall", "rest area"].includes(category) ? 3000 : 0;
+  const outletState = getKopiKenanganOutletState();
+  const category = String(outletState.outletCategory || "").trim().toLowerCase();
+  const outletCode = String(outletState.outletCode || "").trim().toUpperCase();
+  const outletName = String(outletState.outletName || "").trim().toLowerCase();
+  const usesPremiumPricing = ["mall", "rest area"].includes(category)
+    || outletCode === "KK.JKT.STBDIJAKSEL"
+    || outletName.includes("setiabudi jakarta selatan");
+  return usesPremiumPricing ? 3000 : 0;
 }
 
 function getOfficialItemPrice(item) {
