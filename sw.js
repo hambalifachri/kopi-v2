@@ -1,9 +1,9 @@
-const CACHE_NAME = 'fachrindah-pwa-v3';
+const CACHE_NAME = 'fachrindah-pwa-v4';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
-  './script.js'
+  './script.js?v=20260825-1'
 ];
 
 // 1. Install & Simpan ke Memori
