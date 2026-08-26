@@ -799,13 +799,41 @@ window.searchOutlets = async function(keyword) {
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    let response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
-    if (!response.ok) {
-      response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+    const config = window.KOPI_SUPABASE_CONFIG || {};
+    const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
+    let outlets = [];
+
+    if (config.url && config.anonKey && safeKeyword) {
+      const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
+      const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
+      const catalogResponse = await fetch(endpoint, {
+        headers: {
+          apikey: config.anonKey,
+          Authorization: `Bearer ${config.anonKey}`,
+        },
+      });
+      if (catalogResponse.ok) {
+        const rows = await catalogResponse.json();
+        outlets = (Array.isArray(rows) ? rows : []).map((row) => ({
+          code: row.outlet_code,
+          name: row.outlet_name,
+          address: row.outlet_address,
+          category: row.category,
+          isOpen: true,
+        }));
+      }
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    const outlets = Array.isArray(data.outlets) ? data.outlets : [];
+
+    if (!outlets.length) {
+      let response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+      if (!response.ok) {
+        response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      outlets = Array.isArray(data.outlets) ? data.outlets : [];
+    }
+
     renderOutletResults(outlets, keyword);
     if (outletHint) outletHint.textContent = outlets.length
       ? `${outlets.length} outlet ditemukan.`
