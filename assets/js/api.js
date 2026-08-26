@@ -49,6 +49,7 @@ async function loadSupabaseKopkenMenu(outletCode) {
     payload: hasFullMenu
       ? row.menu
       : {
+          mergeLocalMenu: true,
           menu: row.menu.map((item, index) => ({
             ...item,
             id: item.id || item.product_code || `${outletCode}-${index}`,
@@ -744,9 +745,11 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     if (!dynamicItems.length) throw new Error("Menu outlet kosong");
     const dynamicBundles = buildDynamicKopiKenanganBundles(dynamicItems);
     const nonKopiKenanganItems = menuItems.filter((item) => item && item.brand !== "kopi-kenangan");
-    const localItemsToKeep = (originalKopiKenanganMenu || [])
-      .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
-      .map((item) => ({ ...item }));
+    const localItemsToKeep = rawResponse?.mergeLocalMenu
+      ? (originalKopiKenanganMenu || []).map((item) => ({ ...item }))
+      : (originalKopiKenanganMenu || [])
+          .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
+          .map((item) => ({ ...item }));
 
     menuItems.length = 0;
     menuItems.push(...mergeDuplicateMenuItems([
