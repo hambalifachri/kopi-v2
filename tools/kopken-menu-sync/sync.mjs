@@ -182,8 +182,7 @@ async function captureMenu(mcp, wantedCode, afterTimestamp) {
     });
     for (const event of listed.events.filter((item) => item.timestamp > afterTimestamp).reverse()) {
       try {
-        const response = await mcp.call("events_get-response-body", { id: event.id, maxLength: 100000 });
-        const menu = JSON.parse(response.body);
+        const menu = JSON.parse(await readFullResponseBody(mcp, event.id));
         if (menu?.data?.menu_groups?.length) return { menu, storeCode: wantedCode };
       } catch (error) {
         // Respons HTTP Toolkit dapat belum siap beberapa saat setelah request muncul.
@@ -194,6 +193,22 @@ async function captureMenu(mcp, wantedCode, afterTimestamp) {
     await sleep(350);
   }
   throw new Error(`Request menu untuk kode ${wantedCode || "outlet"} tidak ditemukan.${lastError ? ` Terakhir: ${lastError}` : ""}`);
+}
+
+async function readFullResponseBody(mcp, eventId) {
+  const chunkSize = 100000;
+  let offset = 0;
+  let body = "";
+  let totalSize = 0;
+  do {
+    const chunk = await mcp.call("events_get-response-body", { id: eventId, offset, maxLength: chunkSize });
+    const text = String(chunk.body || "");
+    body += text;
+    totalSize = Number(chunk.totalSize || body.length);
+    if (!text.length) break;
+    offset += text.length;
+  } while (offset < totalSize);
+  return body;
 }
 
 async function saveMenu(storeCode, menu) {
@@ -231,6 +246,31 @@ function dismissUnavailableOutletPopup() {
   } else {
     runAdb(["shell", "input", "keyevent", "4"]);
   }
+  return true;
+}
+
+function tapOutletResultByName(outletName) {
+  let hierarchy = "";
+  const dumpPath = "/sdcard/kopken-sync-results.xml";
+  try {
+    runAdb(["shell", "uiautomator", "dump", dumpPath]);
+    hierarchy = runAdb(["shell", "cat", dumpPath]);
+  } catch { return false; }
+
+  const needles = [outletName, outletName.replace(/\s*\([^)]*\)\s*/g, " ").trim()]
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+  const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
+  const resultNode = nodes.find((node) => {
+    if (!/clickable="true"/.test(node)) return false;
+    const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1]?.toLowerCase() || "";
+    return needles.some((needle) => label.includes(needle));
+  });
+  const bounds = resultNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  if (!bounds) return false;
+  const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
+  const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
+  runAdb(["shell", "input", "tap", String(x), String(y)]);
   return true;
 }
 
@@ -302,7 +342,17 @@ async function main() {
             await sleep(300);
             throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
           }
-          throw captureError;
+          if (!tapOutletResultByName(outletName)) throw captureError;
+          await sleep(300);
+          try {
+            captured = await captureMenu(mcp, wantedCode, previousTimestamp);
+          } catch (retryError) {
+            if (dismissUnavailableOutletPopup()) {
+              await sleep(300);
+              throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
+            }
+            throw retryError;
+          }
         }
         await saveMenu(captured.storeCode, captured.menu);
         const count = captured.menu.data.menu_groups.reduce((sum, group) => sum + (group.menu_products?.length || 0), 0);

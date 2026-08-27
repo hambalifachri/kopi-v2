@@ -11,3 +11,5 @@ Program mencari outlet lewat aplikasi Kopi Kenangan di HP, membaca respons menu 
 5. Pastikan HP sudah terbuka dan aplikasi Kopi Kenangan sudah login.
 
 Jalankan `Mulai Sinkron Menu.bat`. Jangan memakai HP selama proses berlangsung.
+
+Outlet yang sudah berhasil disimpan di progres lokal dan akan terus dilewati. Jalankan `Sinkron Ulang Semua Menu.bat` saat ingin memperbarui ulang seluruh outlet, misalnya setiap hari.
