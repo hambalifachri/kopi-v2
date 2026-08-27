@@ -141,15 +141,26 @@ class McpClient {
   close() { this.proc?.kill(); }
 }
 
-async function expectedCode(outletName) {
-  const query = `select=outlet_code,outlet_name&outlet_name=ilike.*${encodeURIComponent(outletName)}*&limit=5`;
-  const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?${query}`, {
+function normalizeOutletName(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+async function expectedOutlet(outletName) {
+  const exactQuery = `select=outlet_code,outlet_name&outlet_name=ilike.${encodeURIComponent(outletName)}&limit=2`;
+  const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?${exactQuery}`, {
     headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
   });
   if (!response.ok) throw new Error(`Gagal membaca Supabase: ${await response.text()}`);
   const rows = await response.json();
-  if (rows.length !== 1) throw new Error(`Outlet di Supabase ${rows.length ? "tidak unik" : "tidak ditemukan"}: ${outletName}`);
-  return rows[0].outlet_code;
+  const exactRows = rows.filter((row) => normalizeOutletName(row.outlet_name) === normalizeOutletName(outletName));
+  if (exactRows.length !== 1) throw new Error(`Outlet di Supabase ${exactRows.length ? "tidak unik" : "tidak ditemukan"}: ${outletName}`);
+
+  const broadQuery = `select=outlet_code&outlet_name=ilike.*${encodeURIComponent(outletName)}*&limit=2`;
+  const broadResponse = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?${broadQuery}`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+  });
+  const broadRows = broadResponse.ok ? await broadResponse.json() : [];
+  return { code: exactRows[0].outlet_code, preciseClick: broadRows.length > 1 };
 }
 
 function menuEventFilter(wantedCode) {
@@ -263,8 +274,9 @@ function tapOutletResultByName(outletName) {
   const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
   const resultNode = nodes.find((node) => {
     if (!/clickable="true"/.test(node)) return false;
-    const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1]?.toLowerCase() || "";
-    return needles.some((needle) => label.includes(needle));
+    const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1] || "";
+    const parts = label.split(/&#10;|\n/i).map(normalizeOutletName).filter(Boolean);
+    return needles.some((needle) => parts.includes(normalizeOutletName(needle)));
   });
   const bounds = resultNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
   if (!bounds) return false;
@@ -274,7 +286,7 @@ function tapOutletResultByName(outletName) {
   return true;
 }
 
-async function openOutlet(outletName, firstOutlet = false) {
+async function openOutlet(outletName, firstOutlet = false, preciseClick = false) {
   const searchName = outletName
     .replace(/\s+/g, " ")
     .trim();
@@ -296,7 +308,9 @@ async function openOutlet(outletName, firstOutlet = false) {
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
   await sleep(500);
-  runAdb(["shell", "input", "tap", "540", "1020"]);
+  if (!preciseClick || !tapOutletResultByName(searchName)) {
+    runAdb(["shell", "input", "tap", "540", "1020"]);
+  }
   await sleep(250);
 }
 
@@ -331,9 +345,10 @@ async function main() {
         continue;
       }
       try {
-        const wantedCode = await expectedCode(outletName);
+        const expected = await expectedOutlet(outletName);
+        const wantedCode = expected.code;
         const previousTimestamp = await latestMenuTimestamp(mcp, wantedCode);
-        await openOutlet(outletName, index === 0);
+        await openOutlet(outletName, index === 0, expected.preciseClick);
         let captured;
         try {
           captured = await captureMenu(mcp, wantedCode, previousTimestamp);
