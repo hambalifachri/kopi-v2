@@ -532,13 +532,12 @@ function loadSelectedOutlet() {
 
   try {
     const savedOutlet = JSON.parse(raw);
-    updateOutletUi(savedOutlet);
     if (savedOutlet?.manual) {
-      restoreLocalKopiKenanganMenu();
-      setKopiKenanganOutletState({ selected: true, menuLoaded: true, menuLoading: false, source: "manual" });
-      if (typeof renderMenu === "function") renderMenu();
+      localStorage.removeItem(SELECTED_OUTLET_STORAGE_KEY);
+      updateOutletUi(null);
       return;
     }
+    updateOutletUi(savedOutlet);
     const outletCode = getOutletCode(savedOutlet);
     if (outletCode) window.loadDynamicMenu(outletCode);
   } catch (error) {
@@ -575,31 +574,11 @@ function clearOutletResults() {
   outletResults.hidden = true;
 }
 
-function selectManualKopiKenanganOutlet(name) {
-  const manualOutlet = { name, code: "", address: "Diisi manual", category: "", manual: true };
-  saveSelectedOutlet(manualOutlet);
-  clearOutletResults();
-  restoreLocalKopiKenanganMenu();
-  setKopiKenanganOutletState({ selected: true, menuLoaded: true, menuLoading: false, source: "manual" });
-  if (typeof renderMenu === "function") renderMenu();
-}
-
-function renderManualOutletOption(keyword) {
+function renderOutletNotFound() {
   const outletResults = document.getElementById("outletResults");
-  if (!outletResults || !keyword) return;
-  outletResults.innerHTML = "";
+  if (!outletResults) return;
+  outletResults.innerHTML = '<p class="outlet-empty">Outlet Kopi Kenangan tidak ditemukan.</p>';
   outletResults.hidden = false;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "outlet-result";
-  const title = document.createElement("strong");
-  title.textContent = `Gunakan outlet: ${keyword}`;
-  const detail = document.createElement("span");
-  detail.textContent = "Pilih manual dan lanjut menggunakan menu lokal.";
-  button.append(title, detail);
-  button.addEventListener("click", () => selectManualKopiKenanganOutlet(keyword));
-  outletResults.appendChild(button);
 }
 
 function renderOutletResults(outlets, keyword = "") {
@@ -610,7 +589,7 @@ function renderOutletResults(outlets, keyword = "") {
   outletResults.hidden = false;
 
   if (!outlets.length) {
-    renderManualOutletOption(keyword);
+    renderOutletNotFound();
     return;
   }
 
@@ -840,10 +819,10 @@ window.searchOutlets = async function(keyword) {
     renderOutletResults(outlets, keyword);
     if (outletHint) outletHint.textContent = outlets.length
       ? `${outlets.length} outlet ditemukan.`
-      : "Outlet tidak ditemukan. Kamu tetap bisa memasukkan outlet secara manual.";
+      : "Outlet tidak ditemukan. Periksa kembali nama kota atau gerainya.";
   } catch (error) {
-    renderManualOutletOption(keyword);
-    if (outletHint) outletHint.textContent = "Pencarian gagal. Gunakan nama outlet yang sudah kamu ketik.";
+    clearOutletResults();
+    if (outletHint) outletHint.textContent = "Pencarian outlet sedang bermasalah. Coba lagi beberapa saat.";
   }
 };
 
