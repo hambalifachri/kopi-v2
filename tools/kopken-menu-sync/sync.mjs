@@ -29,8 +29,10 @@ const supabaseUrl = (env.SUPABASE_URL || "")
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const testMode = process.argv.includes("--test");
 const repeatMode = process.argv.includes("--ulang");
+const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice("--outlet=".length).trim();
 const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
+if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
 function loadCompletedOutlets() {
@@ -275,8 +277,8 @@ async function tapOutletResultByName(outletName) {
 
     const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
     const resultNode = nodes.find((node) => {
-      if (!/clickable="true"/.test(node)) return false;
-      const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1] || "";
+      if (!/clickable="true"/.test(node) || /class="android\.widget\.EditText"/.test(node)) return false;
+      const label = node.match(/content-desc="([^"]+)"/)?.[1] || "";
       const parts = label.split(/&#10;|\n/i).map(normalizeOutletName).filter(Boolean);
       return needles.some((needle) => parts.includes(normalizeOutletName(needle)));
     });
@@ -318,7 +320,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "wm", "dismiss-keyguard"]);
   runAdb(["shell", "monkey", "-p", "com.kopikenangan", "-c", "android.intent.category.LAUNCHER", "1"]);
   await sleep(firstOutlet ? 1400 : 300);
-  if (firstOutlet && dismissUnavailableOutletPopup()) await sleep(300);
+  if (dismissUnavailableOutletPopup()) await sleep(300);
   runAdb(["shell", "input", "tap", "965", "187"]);
   await sleep(250);
   runAdb(["shell", "input", "tap", "420", "270"]);
@@ -359,7 +361,7 @@ async function main() {
     for (let index = 0; index < outlets.length; index++) {
       const outletName = outlets[index];
       console.log(`[${index + 1}/${outlets.length}] ${outletName}`);
-      if (completedOutlets.has(outletName)) {
+      if (!outletArg && completedOutlets.has(outletName)) {
         console.log("  LEWATI: sudah berhasil pada proses sebelumnya.\n");
         results.push({ outletName, status: "dilewati" });
         continue;
@@ -369,6 +371,10 @@ async function main() {
         const wantedCode = expected.code;
         const previousTimestamp = await latestMenuTimestamp(mcp, wantedCode);
         await openOutlet(outletName, index === 0, expected.preciseClick);
+        await sleep(500);
+        if (dismissUnavailableOutletPopup()) {
+          throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
+        }
         let captured;
         try {
           captured = await captureMenu(mcp, wantedCode, previousTimestamp);
