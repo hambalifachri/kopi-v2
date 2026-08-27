@@ -315,7 +315,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
   await sleep(500);
-  if (!preciseClick || !(await tapOutletResultByName(searchName))) {
+  if (!(await tapOutletResultByName(searchName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
   }
   await sleep(250);
