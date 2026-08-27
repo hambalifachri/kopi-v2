@@ -218,10 +218,11 @@ function dismissUnavailableOutletPopup() {
     runAdb(["shell", "uiautomator", "dump", dumpPath]);
     hierarchy = runAdb(["shell", "cat", dumpPath]);
   } catch { return false; }
-  if (!/(pemeliharaan|maintenance|outlet.{0,30}tutup|sedang tutup|tidak tersedia)/i.test(hierarchy)) return false;
 
   const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
   const closeNode = nodes.find((node) => /(?:text|content-desc)="(?:Pilih Outlet Lainnya|Outlet Lainnya|OK|Oke|Mengerti|Tutup|Kembali|Close)"/i.test(node));
+  const hasUnavailableMessage = /(pemeliharaan|maintenance|jam operasional|aplikasi ditutup|outlet.{0,30}tutup|sedang tutup|tidak tersedia)/i.test(hierarchy);
+  if (!closeNode && !hasUnavailableMessage) return false;
   const bounds = closeNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
   if (bounds) {
     const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
