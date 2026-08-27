@@ -260,30 +260,37 @@ function dismissUnavailableOutletPopup() {
   return true;
 }
 
-function tapOutletResultByName(outletName) {
-  let hierarchy = "";
+async function tapOutletResultByName(outletName) {
   const dumpPath = "/sdcard/kopken-sync-results.xml";
-  try {
-    runAdb(["shell", "uiautomator", "dump", dumpPath]);
-    hierarchy = runAdb(["shell", "cat", dumpPath]);
-  } catch { return false; }
-
   const needles = [outletName, outletName.replace(/\s*\([^)]*\)\s*/g, " ").trim()]
     .map((value) => value.toLowerCase())
     .filter(Boolean);
-  const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
-  const resultNode = nodes.find((node) => {
-    if (!/clickable="true"/.test(node)) return false;
-    const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1] || "";
-    const parts = label.split(/&#10;|\n/i).map(normalizeOutletName).filter(Boolean);
-    return needles.some((needle) => parts.includes(normalizeOutletName(needle)));
-  });
-  const bounds = resultNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-  if (!bounds) return false;
-  const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
-  const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
-  runAdb(["shell", "input", "tap", String(x), String(y)]);
-  return true;
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    let hierarchy = "";
+    try {
+      runAdb(["shell", "uiautomator", "dump", dumpPath]);
+      hierarchy = runAdb(["shell", "cat", dumpPath]);
+    } catch { return false; }
+
+    const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
+    const resultNode = nodes.find((node) => {
+      if (!/clickable="true"/.test(node)) return false;
+      const label = node.match(/(?:text|content-desc)="([^"]*)"/)?.[1] || "";
+      const parts = label.split(/&#10;|\n/i).map(normalizeOutletName).filter(Boolean);
+      return needles.some((needle) => parts.includes(normalizeOutletName(needle)));
+    });
+    const bounds = resultNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (bounds) {
+      const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
+      const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
+      runAdb(["shell", "input", "tap", String(x), String(y)]);
+      return true;
+    }
+    runAdb(["shell", "input", "swipe", "540", "1400", "540", "760", "220"]);
+    await sleep(250);
+  }
+  return false;
 }
 
 async function openOutlet(outletName, firstOutlet = false, preciseClick = false) {
@@ -308,7 +315,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
   await sleep(500);
-  if (!preciseClick || !tapOutletResultByName(searchName)) {
+  if (!preciseClick || !(await tapOutletResultByName(searchName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
   }
   await sleep(250);
@@ -357,7 +364,7 @@ async function main() {
             await sleep(300);
             throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
           }
-          if (!tapOutletResultByName(outletName)) throw captureError;
+          if (!(await tapOutletResultByName(outletName))) throw captureError;
           await sleep(300);
           try {
             captured = await captureMenu(mcp, wantedCode, previousTimestamp);
