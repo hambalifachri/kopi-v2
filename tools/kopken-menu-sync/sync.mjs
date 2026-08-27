@@ -169,7 +169,7 @@ async function latestMenuTimestamp(mcp, wantedCode) {
 
 async function captureMenu(mcp, wantedCode, afterTimestamp) {
   let lastError = "";
-  for (let attempt = 0; attempt < 15; attempt++) {
+  for (let attempt = 0; attempt < 7; attempt++) {
     const filter = menuEventFilter(wantedCode);
     const summary = await mcp.call("events_list", {
       filter,
@@ -191,7 +191,7 @@ async function captureMenu(mcp, wantedCode, afterTimestamp) {
         continue;
       }
     }
-    await sleep(1000);
+    await sleep(350);
   }
   throw new Error(`Request menu untuk kode ${wantedCode || "outlet"} tidak ditemukan.${lastError ? ` Terakhir: ${lastError}` : ""}`);
 }
@@ -217,7 +217,7 @@ function dismissUnavailableOutletPopup() {
   if (!/(pemeliharaan|maintenance|outlet.{0,30}tutup|sedang tutup|tidak tersedia)/i.test(hierarchy)) return false;
 
   const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
-  const closeNode = nodes.find((node) => /(?:text|content-desc)="[^"]*(?:OK|Oke|Mengerti|Tutup|Kembali|Close)[^"]*"/i.test(node));
+  const closeNode = nodes.find((node) => /(?:text|content-desc)="[^"]*(?:Pilih Outlet Lainnya|Outlet Lainnya|OK|Oke|Mengerti|Tutup|Kembali|Close)[^"]*"/i.test(node));
   const bounds = closeNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
   if (bounds) {
     const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
@@ -241,22 +241,18 @@ async function openOutlet(outletName, firstOutlet = false) {
   runAdb(["shell", "input", "keyevent", "224"]);
   runAdb(["shell", "wm", "dismiss-keyguard"]);
   runAdb(["shell", "monkey", "-p", "com.kopikenangan", "-c", "android.intent.category.LAUNCHER", "1"]);
-  await sleep(firstOutlet ? 2200 : 700);
-  if (firstOutlet) dismissUnavailableOutletPopup();
+  await sleep(firstOutlet ? 1400 : 300);
+  if (firstOutlet && dismissUnavailableOutletPopup()) await sleep(300);
   runAdb(["shell", "input", "tap", "965", "187"]);
-  await sleep(550);
+  await sleep(250);
   runAdb(["shell", "input", "tap", "420", "270"]);
   runAdb(["shell", "input", "keyevent", "123"]);
-  runAdb(["shell", "input", "keyevent", "67"]);
+  runAdb(["shell", "input", "keyevent", ...Array(80).fill("67")]);
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
-  await sleep(1400);
-  runAdb(["shell", "input", "tap", "450", "850"]);
-  await sleep(900);
-  if (dismissUnavailableOutletPopup()) {
-    await sleep(350);
-    throw new Error("Outlet sedang tutup atau dalam pemeliharaan; dilewati.");
-  }
+  await sleep(500);
+  runAdb(["shell", "input", "tap", "540", "1020"]);
+  await sleep(250);
 }
 
 async function main() {
@@ -293,7 +289,16 @@ async function main() {
         const wantedCode = await expectedCode(outletName);
         const previousTimestamp = await latestMenuTimestamp(mcp, wantedCode);
         await openOutlet(outletName, index === 0);
-        const captured = await captureMenu(mcp, wantedCode, previousTimestamp);
+        let captured;
+        try {
+          captured = await captureMenu(mcp, wantedCode, previousTimestamp);
+        } catch (captureError) {
+          if (dismissUnavailableOutletPopup()) {
+            await sleep(300);
+            throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
+          }
+          throw captureError;
+        }
         await saveMenu(captured.storeCode, captured.menu);
         const count = captured.menu.data.menu_groups.reduce((sum, group) => sum + (group.menu_products?.length || 0), 0);
         console.log(`  OK ${captured.storeCode}: ${count} produk\n`);
