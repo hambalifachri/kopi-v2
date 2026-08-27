@@ -266,7 +266,7 @@ async function tapOutletResultByName(outletName) {
     .map((value) => value.toLowerCase())
     .filter(Boolean);
 
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 14; attempt++) {
     let hierarchy = "";
     try {
       runAdb(["shell", "uiautomator", "dump", dumpPath]);
@@ -286,6 +286,18 @@ async function tapOutletResultByName(outletName) {
       const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
       runAdb(["shell", "input", "tap", String(x), String(y)]);
       return true;
+    }
+
+    const moreNode = nodes.find((node) =>
+      /clickable="true"/.test(node) && /content-desc="Lihat outlet lainnya"/i.test(node)
+    );
+    const moreBounds = moreNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (moreBounds) {
+      const x = Math.round((Number(moreBounds[1]) + Number(moreBounds[3])) / 2);
+      const y = Math.round((Number(moreBounds[2]) + Number(moreBounds[4])) / 2);
+      runAdb(["shell", "input", "tap", String(x), String(y)]);
+      await sleep(400);
+      continue;
     }
     runAdb(["shell", "input", "swipe", "540", "1400", "540", "760", "220"]);
     await sleep(250);
@@ -314,6 +326,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "keyevent", ...Array(80).fill("67")]);
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
+  runAdb(["shell", "input", "keyevent", "4"]);
   await sleep(500);
   if (!(await tapOutletResultByName(searchName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
