@@ -152,10 +152,25 @@ async function expectedCode(outletName) {
   return rows[0].outlet_code;
 }
 
-async function captureMenu(mcp, wantedCode) {
+function menuEventFilter(wantedCode) {
+  return `hostname=apps.kopikenangan.com method=POST path$=query_product_menu status=200 body*=${wantedCode}`;
+}
+
+async function latestMenuTimestamp(mcp, wantedCode) {
+  const summary = await mcp.call("events_list", { filter: menuEventFilter(wantedCode), limit: 1 });
+  if (!summary.total) return 0;
+  const latest = await mcp.call("events_list", {
+    filter: menuEventFilter(wantedCode),
+    limit: 1,
+    offset: summary.total - 1,
+  });
+  return Number(latest.events[0]?.timestamp || 0);
+}
+
+async function captureMenu(mcp, wantedCode, afterTimestamp) {
   let lastError = "";
   for (let attempt = 0; attempt < 15; attempt++) {
-    const filter = `hostname=apps.kopikenangan.com method=POST path$=query_product_menu status=200 body*=${wantedCode}`;
+    const filter = menuEventFilter(wantedCode);
     const summary = await mcp.call("events_list", {
       filter,
       limit: 1
@@ -165,7 +180,7 @@ async function captureMenu(mcp, wantedCode) {
       limit: 5,
       offset: Math.max(0, summary.total - 5)
     });
-    for (const event of listed.events.reverse()) {
+    for (const event of listed.events.filter((item) => item.timestamp > afterTimestamp).reverse()) {
       try {
         const response = await mcp.call("events_get-response-body", { id: event.id, maxLength: 100000 });
         const menu = JSON.parse(response.body);
@@ -196,22 +211,52 @@ async function saveMenu(storeCode, menu) {
   if (!(await response.json()).length) throw new Error(`Kode ${storeCode} tidak ditemukan di Supabase.`);
 }
 
-async function openOutlet(outletName) {
-  const text = outletName.replace(/\s/g, "%s").replace(/[^\w%.-]/g, "");
+function dismissUnavailableOutletPopup() {
+  let hierarchy = "";
+  try { hierarchy = runAdb(["shell", "uiautomator", "dump", "/dev/tty"]); } catch { return false; }
+  if (!/(pemeliharaan|maintenance|outlet.{0,30}tutup|sedang tutup|tidak tersedia)/i.test(hierarchy)) return false;
+
+  const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
+  const closeNode = nodes.find((node) => /(?:text|content-desc)="[^"]*(?:OK|Oke|Mengerti|Tutup|Kembali|Close)[^"]*"/i.test(node));
+  const bounds = closeNode?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  if (bounds) {
+    const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
+    const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
+    runAdb(["shell", "input", "tap", String(x), String(y)]);
+  } else {
+    runAdb(["shell", "input", "keyevent", "4"]);
+  }
+  return true;
+}
+
+async function openOutlet(outletName, firstOutlet = false) {
+  const searchName = outletName
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = searchName
+    .replace(/\s/g, "%s")
+    .replace(/([()])/g, "\\$1")
+    .replace(/[^\w%.\\()\-]/g, "");
   runAdb(["shell", "svc", "power", "stayon", "true"]);
   runAdb(["shell", "input", "keyevent", "224"]);
   runAdb(["shell", "wm", "dismiss-keyguard"]);
   runAdb(["shell", "monkey", "-p", "com.kopikenangan", "-c", "android.intent.category.LAUNCHER", "1"]);
-  await sleep(2500);
+  await sleep(firstOutlet ? 2200 : 700);
+  if (firstOutlet) dismissUnavailableOutletPopup();
   runAdb(["shell", "input", "tap", "965", "187"]);
-  await sleep(1200);
+  await sleep(550);
   runAdb(["shell", "input", "tap", "420", "270"]);
   runAdb(["shell", "input", "keyevent", "123"]);
   runAdb(["shell", "input", "keyevent", "67"]);
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
-  await sleep(2500);
+  await sleep(1400);
   runAdb(["shell", "input", "tap", "450", "850"]);
+  await sleep(900);
+  if (dismissUnavailableOutletPopup()) {
+    await sleep(350);
+    throw new Error("Outlet sedang tutup atau dalam pemeliharaan; dilewati.");
+  }
 }
 
 async function main() {
@@ -246,8 +291,9 @@ async function main() {
       }
       try {
         const wantedCode = await expectedCode(outletName);
-        await openOutlet(outletName);
-        const captured = await captureMenu(mcp, wantedCode);
+        const previousTimestamp = await latestMenuTimestamp(mcp, wantedCode);
+        await openOutlet(outletName, index === 0);
+        const captured = await captureMenu(mcp, wantedCode, previousTimestamp);
         await saveMenu(captured.storeCode, captured.menu);
         const count = captured.menu.data.menu_groups.reduce((sum, group) => sum + (group.menu_products?.length || 0), 0);
         console.log(`  OK ${captured.storeCode}: ${count} produk\n`);
