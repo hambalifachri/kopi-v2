@@ -37,6 +37,7 @@ if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 const outletSearchAliases = new Map([
   ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
+  ["sentosa depok", "Sentosa"],
 ]);
 
 function loadSuccessfulOutlets() {
