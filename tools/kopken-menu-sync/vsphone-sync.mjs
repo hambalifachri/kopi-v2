@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,23 +37,39 @@ if (!accessKey || !secretKey || !padCode) {
 
 async function post(path, data) {
   const body = JSON.stringify(data);
-  const timestamp = Math.floor(Date.now() / 1000).toString();
-  const signature = createHash("sha256").update(secretKey + timestamp + path + body, "utf8").digest("hex");
-  const response = await fetch(baseUrl + path, {
-    method: "POST",
-    headers: {
-      "X-Access-Key": accessKey,
-      "X-Timestamp": timestamp,
-      "X-Sign": signature,
-      "Content-Type": "application/json",
-    },
-    body,
-  });
-  const text = await response.text();
-  let result;
-  try { result = JSON.parse(text); } catch { fail(`Respons API VSPhone tidak valid: ${text.slice(0, 200)}`); }
-  if (!response.ok || result.code !== 200) fail(result.msg || `API VSPhone mengembalikan ${response.status}`);
-  return result.data;
+  const host = new URL(baseUrl).host;
+  const contentType = "application/json;charset=UTF-8";
+  const signedHeaders = "content-type;host;x-content-sha256;x-date";
+  const xDate = new Date().toISOString().replace(/[-:]|\.\d{3}/g, "");
+  const shortDate = xDate.slice(0, 8);
+  const bodyHash = createHash("sha256").update(body, "utf8").digest("hex");
+  const canonical = `host:${host}\nx-date:${xDate}\ncontent-type:${contentType}\nsignedHeaders:${signedHeaders}\nx-content-sha256:${bodyHash}`;
+  const scope = `${shortDate}/armcloud-paas/request`;
+  const stringToSign = `HMAC-SHA256\n${xDate}\n${scope}\n${createHash("sha256").update(canonical, "utf8").digest("hex")}`;
+  const hmac = (key, value) => createHmac("sha256", key).update(value, "utf8").digest();
+  const signingKey = hmac(hmac(hmac(Buffer.from(secretKey, "utf8"), shortDate), "armcloud-paas"), "request");
+  const signature = createHmac("sha256", signingKey).update(stringToSign, "utf8").digest("hex");
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const response = await fetch(baseUrl + path, {
+      method: "POST",
+      headers: {
+        "Content-Type": contentType,
+        "X-Date": xDate,
+        "X-Host": host,
+        Authorization: `HMAC-SHA256 Credential=${accessKey}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+      },
+      body,
+    });
+    const text = await response.text();
+    let result;
+    try { result = JSON.parse(text); } catch { fail(`Respons API VSPhone tidak valid: ${text.slice(0, 200)}`); }
+    if (response.ok && result.code === 200) return result.data;
+    if (/system is busy|sistem sedang sibuk/i.test(result.msg || "") && attempt < 3) {
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+      continue;
+    }
+    fail(`${path}: ${result.msg || `API VSPhone mengembalikan ${response.status}`}`);
+  }
 }
 
 function run(command, args, label) {
@@ -62,6 +78,8 @@ function run(command, args, label) {
 }
 
 console.log(`Menghubungkan VSPhone ${padCode}...`);
+await post("/vsphone/api/padApi/openOnlineAdb", { padCodes: [padCode], openStatus: 1 });
+await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
 const connection = await post("/vsphone/api/padApi/adb", { padCode, enable: true });
 if (!connection?.command || !connection?.adb) fail("VSPhone belum memberikan informasi ADB lengkap. Pastikan perangkat sedang menyala.");
 
