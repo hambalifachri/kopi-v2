@@ -31,6 +31,7 @@ const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const testMode = process.argv.includes("--test");
 const repeatMode = process.argv.includes("--ulang");
 const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice("--outlet=".length).trim();
+const freeSessionCallLimit = Number(env.HTTP_TOOLKIT_SESSION_CALL_LIMIT || 80);
 const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
@@ -97,6 +98,7 @@ class McpClient {
     this.pending = new Map();
     this.buffer = "";
     this.stderr = "";
+    this.toolCalls = 0;
   }
 
   async start() {
@@ -155,16 +157,37 @@ class McpClient {
   notify(method, params) { this.send({ jsonrpc: "2.0", method, params }); }
 
   async call(name, args) {
-    const result = await this.request("tools/call", { name, arguments: args });
+    if (this.toolCalls >= freeSessionCallLimit) {
+      const error = new Error(`Batas aman sesi HTTP Toolkit tercapai (${this.toolCalls} panggilan).`);
+      error.code = "HTTP_TOOLKIT_SESSION_LIMIT";
+      throw error;
+    }
+    this.toolCalls++;
+    let result;
+    try {
+      result = await this.request("tools/call", { name, arguments: args });
+    } catch (error) {
+      if (/limited to 100 calls per session/i.test(error.message)) error.code = "HTTP_TOOLKIT_SESSION_LIMIT";
+      throw error;
+    }
     const text = (result.content || []).find((item) => item.type === "text")?.text;
     if (!text) throw new Error(`Respons kosong dari ${name}`);
     let parsed;
     try { parsed = JSON.parse(text); } catch { throw new Error(text.slice(0, 300)); }
-    if (!parsed.success) throw new Error(parsed.error || `${name} gagal`);
+    if (!parsed.success) {
+      const error = new Error(parsed.error || `${name} gagal`);
+      if (/limited to 100 calls per session/i.test(error.message)) error.code = "HTTP_TOOLKIT_SESSION_LIMIT";
+      throw error;
+    }
     return parsed.data;
   }
 
   close() { this.proc?.kill(); }
+}
+
+function isSessionLimitError(error) {
+  return error?.code === "HTTP_TOOLKIT_SESSION_LIMIT"
+    || /limited to 100 calls per session|batas aman sesi HTTP Toolkit/i.test(error?.message || "");
 }
 
 function normalizeOutletName(value) {
@@ -409,6 +432,7 @@ async function main() {
   }
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
+  let sessionPaused = false;
   const completedNames = repeatMode
     ? [...loadCompletedOutlets()]
     : await loadSyncedOutletsFromSupabase();
@@ -438,6 +462,7 @@ async function main() {
         try {
           captured = await captureMenu(mcp, wantedCode, previousTimestamp);
         } catch (captureError) {
+          if (isSessionLimitError(captureError)) throw captureError;
           if (dismissUnavailableOutletPopup()) {
             await sleep(100);
             throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
@@ -447,6 +472,7 @@ async function main() {
           try {
             captured = await captureMenu(mcp, wantedCode, previousTimestamp);
           } catch (retryError) {
+            if (isSessionLimitError(retryError)) throw retryError;
             if (dismissUnavailableOutletPopup()) {
               await sleep(100);
               throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
@@ -461,6 +487,12 @@ async function main() {
         completedOutlets.add(normalizeOutletName(outletName));
         writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
       } catch (error) {
+        if (isSessionLimitError(error)) {
+          sessionPaused = true;
+          console.log(`  JEDA SESI: ${error.message}`);
+          console.log("  Restart HTTP Toolkit, lalu jalankan BAT yang sama untuk melanjutkan.\n");
+          break;
+        }
         console.error(`  GAGAL: ${error.message}\n`);
         results.push({ outletName, status: "gagal", error: error.message });
       }
@@ -488,10 +520,10 @@ async function main() {
     ...failedLines,
     "",
   ].join("\n"));
-  console.log(`Selesai: ${success} berhasil, ${skipped} dilewati, ${failed} gagal.`);
+  console.log(`Selesai sesi: ${success} berhasil, ${skipped} dilewati, ${failed} gagal (${mcp.toolCalls} panggilan HTTP Toolkit).`);
   console.log(`Laporan: ${report}`);
   console.log(`Outlet gagal: ${failedReport}`);
-  if (repeatMode && !failed && existsSync(refreshProgressPath)) {
+  if (repeatMode && !sessionPaused && !failed && existsSync(refreshProgressPath)) {
     rmSync(refreshProgressPath);
     console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
   }
