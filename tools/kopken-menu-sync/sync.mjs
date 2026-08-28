@@ -23,6 +23,7 @@ function loadEnv(path) {
 
 const env = { ...process.env, ...loadEnv(configPath) };
 const adb = env.ADB_PATH || "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
+const adbSerial = env.ADB_SERIAL || "";
 const mcpCommand = env.HTTP_TOOLKIT_MCP || "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\resources\\httptoolkit-mcp.cmd";
 const supabaseUrl = (env.SUPABASE_URL || "")
   .replace(/\/rest\/v1\/?$/i, "")
@@ -86,7 +87,8 @@ if (!outlets.length) fail(repeatMode
   : "outlets.txt masih kosong.");
 
 function runAdb(args) {
-  const result = spawnSync(adb, args, { encoding: "utf8", windowsHide: true });
+  const scopedArgs = adbSerial && args[0] !== "devices" ? ["-s", adbSerial, ...args] : args;
+  const result = spawnSync(adb, scopedArgs, { encoding: "utf8", windowsHide: true });
   if (result.status !== 0) throw new Error(result.stderr?.trim() || `ADB gagal: ${args.join(" ")}`);
   return result.stdout || "";
 }
@@ -409,7 +411,11 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
 
 async function main() {
   const devices = runAdb(["devices"]).split(/\r?\n/).filter((line) => /\tdevice$/.test(line));
-  if (devices.length !== 1) fail(`Harus ada tepat 1 HP ADB. Terdeteksi ${devices.length}.`);
+  if (adbSerial) {
+    if (!devices.some((line) => line.startsWith(`${adbSerial}\t`))) fail(`VSPhone ADB tidak terhubung: ${adbSerial}`);
+  } else if (devices.length !== 1) {
+    fail(`Harus ada tepat 1 HP ADB. Terdeteksi ${devices.length}.`);
+  }
 
   const mcp = new McpClient(mcpCommand);
   await mcp.start();
