@@ -151,7 +151,7 @@ function normalizeOutletName(value) {
 }
 
 async function expectedOutlet(outletName) {
-  const exactQuery = `select=outlet_code,outlet_name&outlet_name=ilike.${encodeURIComponent(outletName)}&limit=2`;
+  const exactQuery = `select=outlet_code,outlet_name&outlet_name=ilike.${encodeURIComponent(outletName)}*&limit=10`;
   const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?${exactQuery}`, {
     headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
   });
