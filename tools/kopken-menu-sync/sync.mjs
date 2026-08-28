@@ -228,6 +228,26 @@ async function captureMenu(mcp, wantedCode, afterTimestamp) {
     }
     await sleep(200);
   }
+  const fallbackSummary = await mcp.call("events_list", {
+    filter: menuEventFilter(wantedCode),
+    limit: 1
+  });
+  if (fallbackSummary.total) {
+    const fallback = await mcp.call("events_list", {
+      filter: menuEventFilter(wantedCode),
+      limit: 1,
+      offset: fallbackSummary.total - 1
+    });
+    const event = fallback.events[0];
+    if (event) {
+      try {
+        const menu = JSON.parse(await readFullResponseBody(mcp, event.id));
+        if (menu?.data?.menu_groups?.length) return { menu, storeCode: wantedCode };
+      } catch (error) {
+        lastError = error.message;
+      }
+    }
+  }
   throw new Error(`Request menu untuk kode ${wantedCode || "outlet"} tidak ditemukan.${lastError ? ` Terakhir: ${lastError}` : ""}`);
 }
 
