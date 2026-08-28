@@ -37,6 +37,7 @@ if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 const outletSearchAliases = new Map([
   ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
+  ["burangrang bandung", "Burangrang"],
   ["sentosa depok", "Sentosa"],
 ]);
 
@@ -375,6 +376,8 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "keyevent", "66"]);
   runAdb(["shell", "input", "keyevent", "111"]);
   await sleep(220);
+  runAdb(["shell", "input", "swipe", "540", "760", "540", "1400", "180"]);
+  await sleep(80);
   if (!(await tapOutletResultByName(outletName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
   }
