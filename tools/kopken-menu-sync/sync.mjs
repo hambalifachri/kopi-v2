@@ -389,7 +389,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "svc", "power", "stayon", "true"]);
   runAdb(["shell", "input", "keyevent", "224"]);
   runAdb(["shell", "wm", "dismiss-keyguard"]);
-  runAdb(["shell", "monkey", "-p", "com.kopikenangan", "-c", "android.intent.category.LAUNCHER", "1"]);
+  runAdb(["shell", "am", "start", "-n", "com.kopikenangan/.heart"]);
   await sleep(firstOutlet ? 650 : 100);
   if (dismissUnavailableOutletPopup()) await sleep(100);
   runAdb(["shell", "input", "tap", "965", "187"]);
