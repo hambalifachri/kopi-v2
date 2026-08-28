@@ -8,6 +8,7 @@ const resellerForm = document.querySelector("#resellerForm");
 const loginStatus = document.querySelector("#loginStatus");
 const generatorStatus = document.querySelector("#generatorStatus");
 let latestReseller = null;
+let latestMessage = "";
 
 function normalizePhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
@@ -51,8 +52,9 @@ resellerForm.addEventListener("submit", async (event) => {
     generatorStatus.textContent = "";
     document.querySelector("#generatedCode").textContent = created.code;
     document.querySelector("#generatedDetails").textContent = `${name} · ${phone} · aktif sampai ${new Date(created.expires_at).toLocaleDateString("id-ID")}`;
-    const message = `Halo ${name}, membership reseller kopi.fachrindah kamu sudah aktif.\n\nKode: *${created.code}*\nWhatsApp: ${phone}\nAktif sampai: ${new Date(created.expires_at).toLocaleDateString("id-ID")}\n\nKode hanya berlaku untuk menu satuan Kopi Kenangan.`;
-    document.querySelector("#sendWhatsappButton").href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const expiresAt = new Date(created.expires_at).toLocaleDateString("id-ID");
+    latestMessage = `Halo ${name}, membership *Reseller kopi.fachrindah* kamu sudah aktif selama ${days} hari.\n\n*DATA AKSES*\nKode reseller: *${created.code}*\nNomor terdaftar: ${phone}\nAktif sampai: *${expiresAt}*\n\n*CARA MENGAKTIFKAN HARGA RESELLER*\n1. Buka https://kopi-v2.vercel.app/\n2. Klik menu *Reseller* di bagian atas.\n3. Masukkan kode reseller dan nomor terdaftar di atas.\n4. Klik *Aktifkan Harga Reseller*.\n5. Pilih menu satuan Kopi Kenangan dan lakukan pemesanan seperti biasa.\n\n*KETENTUAN*\n- Potongan Rp1.000 per menu.\n- Hanya untuk menu satuan Kopi Kenangan.\n- Tidak berlaku untuk bundle atau promo.\n- Tetap mengikuti minimal order jika sedang diberlakukan.\n- Pesanan tetap dikirim melalui chat thread seperti biasa.\n\nJangan berikan kode dan nomor terdaftar kepada orang lain.`;
+    document.querySelector("#sendWhatsappButton").href = `https://wa.me/${phone}?text=${encodeURIComponent(latestMessage)}`;
     document.querySelector("#resultPanel").hidden = false;
     resellerForm.reset();
   }
@@ -63,6 +65,12 @@ document.querySelector("#copyCodeButton").addEventListener("click", async () => 
   if (!latestReseller) return;
   await navigator.clipboard.writeText(latestReseller.code);
   document.querySelector("#copyCodeButton").textContent = "Tersalin";
+});
+
+document.querySelector("#copyMessageButton").addEventListener("click", async () => {
+  if (!latestMessage) return;
+  await navigator.clipboard.writeText(latestMessage);
+  document.querySelector("#copyMessageButton").textContent = "Pesan Tersalin";
 });
 
 logoutButton.addEventListener("click", async () => {
