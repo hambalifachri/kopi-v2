@@ -33,15 +33,15 @@ const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice
 const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
+else if (repeatMode) outlets.splice(0, outlets.length, ...loadSuccessfulOutlets());
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 const outletSearchAliases = new Map([
   ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
 ]);
 
-function loadCompletedOutlets() {
-  if (repeatMode) return new Set();
+function loadSuccessfulOutlets() {
   if (existsSync(progressPath)) {
-    try { return new Set(JSON.parse(readFileSync(progressPath, "utf8"))); } catch { /* lanjut ke laporan */ }
+    try { return [...new Set(JSON.parse(readFileSync(progressPath, "utf8")))]; } catch { /* lanjut ke laporan */ }
   }
   const completed = new Set();
   for (const file of readdirSync(logDir).filter((name) => name.endsWith(".json") && name !== "progress.json")) {
@@ -51,7 +51,11 @@ function loadCompletedOutlets() {
       }
     } catch { /* abaikan laporan rusak */ }
   }
-  return completed;
+  return [...completed];
+}
+
+function loadCompletedOutlets() {
+  return repeatMode ? new Set() : new Set(loadSuccessfulOutlets());
 }
 
 function fail(message) {
@@ -61,7 +65,9 @@ function fail(message) {
 
 if (!testMode && !existsSync(configPath)) fail("Buat .env.kopken-sync dari tools/kopken-menu-sync/.env.example.");
 if (!testMode && (!supabaseUrl || !supabaseKey || supabaseKey.includes("ISI_"))) fail("Lengkapi kunci Supabase di .env.kopken-sync.");
-if (!outlets.length) fail("outlets.txt masih kosong.");
+if (!outlets.length) fail(repeatMode
+  ? "Belum ada outlet berhasil untuk disinkron ulang. Jalankan Mulai Sinkron Menu terlebih dahulu."
+  : "outlets.txt masih kosong.");
 
 function runAdb(args) {
   const result = spawnSync(adb, args, { encoding: "utf8", windowsHide: true });
