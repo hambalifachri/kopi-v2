@@ -207,7 +207,7 @@ async function captureMenu(mcp, wantedCode, afterTimestamp) {
         continue;
       }
     }
-    await sleep(350);
+    await sleep(200);
   }
   throw new Error(`Request menu untuk kode ${wantedCode || "outlet"} tidak ditemukan.${lastError ? ` Terakhir: ${lastError}` : ""}`);
 }
@@ -302,11 +302,11 @@ async function tapOutletResultByName(outletName) {
       const x = Math.round((Number(moreBounds[1]) + Number(moreBounds[3])) / 2);
       const y = Math.round((Number(moreBounds[2]) + Number(moreBounds[4])) / 2);
       runAdb(["shell", "input", "tap", String(x), String(y)]);
-      await sleep(400);
+      await sleep(250);
       continue;
     }
     runAdb(["shell", "input", "swipe", "540", "1400", "540", "760", "220"]);
-    await sleep(250);
+    await sleep(120);
   }
   return false;
 }
@@ -323,21 +323,21 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "keyevent", "224"]);
   runAdb(["shell", "wm", "dismiss-keyguard"]);
   runAdb(["shell", "monkey", "-p", "com.kopikenangan", "-c", "android.intent.category.LAUNCHER", "1"]);
-  await sleep(firstOutlet ? 1400 : 300);
-  if (dismissUnavailableOutletPopup()) await sleep(300);
+  await sleep(firstOutlet ? 900 : 150);
+  if (dismissUnavailableOutletPopup()) await sleep(150);
   runAdb(["shell", "input", "tap", "965", "187"]);
-  await sleep(250);
+  await sleep(120);
   runAdb(["shell", "input", "tap", "420", "270"]);
   runAdb(["shell", "input", "keyevent", "123"]);
   runAdb(["shell", "input", "keyevent", ...Array(80).fill("67")]);
   runAdb(["shell", "input", "text", text]);
   runAdb(["shell", "input", "keyevent", "66"]);
   runAdb(["shell", "input", "keyevent", "111"]);
-  await sleep(500);
+  await sleep(300);
   if (!(await tapOutletResultByName(outletName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
   }
-  await sleep(250);
+  await sleep(150);
 }
 
 async function main() {
@@ -375,7 +375,7 @@ async function main() {
         const wantedCode = expected.code;
         const previousTimestamp = await latestMenuTimestamp(mcp, wantedCode);
         await openOutlet(outletName, index === 0, expected.preciseClick);
-        await sleep(500);
+        await sleep(250);
         if (dismissUnavailableOutletPopup()) {
           throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
         }
@@ -384,16 +384,16 @@ async function main() {
           captured = await captureMenu(mcp, wantedCode, previousTimestamp);
         } catch (captureError) {
           if (dismissUnavailableOutletPopup()) {
-            await sleep(300);
+            await sleep(150);
             throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
           }
           if (!(await tapOutletResultByName(outletName))) throw captureError;
-          await sleep(300);
+          await sleep(200);
           try {
             captured = await captureMenu(mcp, wantedCode, previousTimestamp);
           } catch (retryError) {
             if (dismissUnavailableOutletPopup()) {
-              await sleep(300);
+              await sleep(150);
               throw new Error("Outlet sedang tutup atau dalam pemeliharaan; popup ditutup dan outlet dilewati.");
             }
             throw retryError;
