@@ -33,7 +33,6 @@ const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice
 const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
-else if (repeatMode) outlets.splice(0, outlets.length, ...loadSuccessfulOutlets());
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 const outletSearchAliases = new Map([
   ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
@@ -56,6 +55,15 @@ function loadSuccessfulOutlets() {
 
 function loadCompletedOutlets() {
   return repeatMode ? new Set() : new Set(loadSuccessfulOutlets());
+}
+
+async function loadSyncedOutletsFromSupabase() {
+  const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?select=outlet_name&menu=not.is.null&order=outlet_name.asc&limit=2000`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }
+  });
+  if (!response.ok) throw new Error(`Gagal membaca daftar menu Supabase: ${await response.text()}`);
+  const rows = await response.json();
+  return [...new Set(rows.map((row) => String(row.outlet_name || "").trim()).filter(Boolean))];
 }
 
 function fail(message) {
@@ -363,6 +371,11 @@ async function main() {
     console.log(`TES BERHASIL: HP dan HTTP Toolkit siap (${listed.total || 0} request menu terbaca).`);
     console.log(`Operasi body tersedia: ${bodyTools.join(", ") || "tidak ada"}`);
     return;
+  }
+  if (repeatMode && !outletArg) {
+    const syncedOutlets = await loadSyncedOutletsFromSupabase();
+    if (!syncedOutlets.length) throw new Error("Belum ada menu outlet yang tersimpan di Supabase.");
+    outlets.splice(0, outlets.length, ...syncedOutlets);
   }
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
