@@ -419,9 +419,23 @@ async function main() {
   writeFileSync(report, JSON.stringify(results, null, 2));
   const success = results.filter((item) => item.status === "berhasil").length;
   const skipped = results.filter((item) => item.status === "dilewati").length;
-  const failed = results.filter((item) => item.status === "gagal").length;
+  const failedItems = results.filter((item) => item.status === "gagal");
+  const failed = failedItems.length;
+  const failedReport = join(logDir, "outlet-gagal-terakhir.txt");
+  const failedLines = failedItems.length
+    ? failedItems.map((item, index) => `${index + 1}. ${item.outletName}\n   Alasan: ${item.error}`)
+    : ["Tidak ada outlet yang gagal."];
+  writeFileSync(failedReport, [
+    "DAFTAR OUTLET GAGAL - SINKRON MENU KOPI KENANGAN",
+    `Waktu: ${new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}`,
+    `Total: ${failed}`,
+    "",
+    ...failedLines,
+    "",
+  ].join("\n"));
   console.log(`Selesai: ${success} berhasil, ${skipped} dilewati, ${failed} gagal.`);
   console.log(`Laporan: ${report}`);
+  console.log(`Outlet gagal: ${failedReport}`);
   if (failed) process.exitCode = 2;
 }
 
