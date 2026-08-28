@@ -34,6 +34,9 @@ const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+const outletSearchAliases = new Map([
+  ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
+]);
 
 function loadCompletedOutlets() {
   if (repeatMode) return new Set();
@@ -308,7 +311,7 @@ async function tapOutletResultByName(outletName) {
 }
 
 async function openOutlet(outletName, firstOutlet = false, preciseClick = false) {
-  const searchName = outletName
+  const searchName = (outletSearchAliases.get(normalizeOutletName(outletName)) || outletName)
     .replace(/\s+/g, " ")
     .trim();
   const text = searchName
@@ -330,7 +333,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   runAdb(["shell", "input", "keyevent", "66"]);
   runAdb(["shell", "input", "keyevent", "111"]);
   await sleep(500);
-  if (!(await tapOutletResultByName(searchName))) {
+  if (!(await tapOutletResultByName(outletName))) {
     runAdb(["shell", "input", "tap", "540", "1020"]);
   }
   await sleep(250);
