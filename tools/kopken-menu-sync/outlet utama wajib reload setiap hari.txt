@@ -1,0 +1,183 @@
+# OUTLET UTAMA - WAJIB RELOAD SETIAP HARI
+# Dibuat dari outlet yang sudah memiliki menu di Supabase: 179 outlet
+# Satu outlet Kopi Kenangan per baris.
+
+Apotik Roxy Depok
+AEON Mall Deltamas
+Ahmad Yani Banjarmasin
+Airmadidi Minahasa Utara
+Alam Sutera (DT)
+Alfamidi Radar Auri
+Anyer Cilegon
+Arifin Ahmad Pekanbaru (DT)
+Beltway Office Park
+Bojongsari Sawangan
+Bondowoso Malang
+BP Legok
+BP Margorejo Surabaya
+BP Meruya
+Bukit Serua Ciputat
+Cikarang Avenue
+Cinere Mall
+Cipete Raya
+Ciputra World Surabaya
+D'Mall Depok
+Dapur Kitchen Bekasi
+Diponegoro Surabaya
+Dr Radjiman Surakarta
+English 1 Hayam Wuruk Bali
+Food Court PIM 3
+Galuh Mas Karawang
+Gedung KAI Veteran
+Geluran (DT)
+Grage Mall Cirebon
+Graha Raya Pinang Tangerang (FCK)
+Green Pramuka Square
+Ibrahim Adjie Bandung
+JKT Living Star
+Kebayoran Lama
+Kota Kasablanka
+Letjend Suprapto Subang
+Lippo Mall Puri
+Lodaya Bogor
+Lokasari Square
+Mall @BASSURA CITY
+Mall Artha Gading
+Mall Ciputra Semarang
+Menara Standard Chartered
+Merdeka Palembang
+MERR Rungkut Surabaya (DT)
+Pakuwon Mall
+Paniki Manado
+Park Serpong Legok
+Pasar Lama Tangerang
+Pasaraya Blok M
+Pejanggik Mataram
+Pertamina 34-11609 Joglo
+Pertamina 34.116.12 Meruya Utara
+Pertamina Alam Sutra
+Pertamina BSD
+Pertamina DODO Pertamina Gas Alam
+Pertamina Kampung Sawah / Bojong Gede
+Pertamina Palmerah Utara
+Pertamina Pasar Kemis
+Pertamina Puspitek
+R Suprapto Purwodadi
+Raffles Square Juanda Jakarta
+Rawa Belong Jakarta
+Renon Bali
+RS Mitra Plumbon (Container)
+RS Pelni
+RSCM Gedung Kirana
+Ruko Ahmad Yani Cilegon
+Ruko Andi Djemma Palopo
+Ruko Aria Putra
+Ruko Avenue A-6 (MERR Surabaya)
+Ruko Bojonegara Cilegon
+Ruko Bukit Dago
+Ruko Bukit Duri Tebet
+Ruko Ceger
+Ruko Cideng
+Ruko Cikadut
+Ruko Cikarang Festival
+Ruko Cilandak KKO
+Ruko Cilebut
+Ruko Citra Garden Bintaro
+Ruko Citra Raya Cikupa
+Ruko Citraland Celebes Makassar
+Ruko Citraland Tegal
+Ruko Colombo Yogyakarta
+Ruko Condet Jakarta Timur
+Ruko Dersalam Square Jend. Sudirman Kudus
+Ruko Dewi Sri
+Ruko Dr Ratna Bekasi
+Ruko Gading Terrace Bekasi
+Ruko Gedong Panjang Jakarta Utara
+Ruko Gentan Sukoharjo
+Ruko Haji Lebar
+Ruko Harapan Indah
+Ruko Ir. H. Juanda 3 Jakarta
+Ruko Jatiuwung Tangerang
+Ruko Jenderal Ahmad Yani Pandeglang
+Ruko Jl Poros Maros Makassar
+Ruko Jl. Riau
+Ruko Jl. Sutarto (RSUD Moewardi)
+Ruko Joglo
+Ruko Juanda Cikampek
+Ruko Karang Satria Bekasi
+Ruko Kejayaan Depok
+Ruko Kelapa Dua Cilincing
+Ruko Kelapa Dua Tangerang
+Ruko Kelapa Dua Wetan
+Ruko Kenten Palembang
+Ruko Ketintang Surabaya
+Ruko KH Hasyim Ashari Jakarta
+Ruko Kramat Jaya Koja
+Ruko Lagoa
+Ruko Lhokseumawe Aceh
+Ruko M. Yamin Medan
+Ruko Mandala Tomang
+Ruko Manennungeng Palopo
+Ruko Matraman Jakarta Timur
+Ruko Meruya Selatan Jakarta
+Ruko Moh Toha Tangerang
+Ruko Muncang Jakarta Utara
+Ruko Pangeran Jayakarta
+Ruko Pasar Rebo
+Ruko Pematang Siantar
+Ruko Persahabatan Jakarta Timur
+Ruko Perumahan Jatijajar Depok
+Ruko Perumnas 3 Bekasi
+Ruko Pesanggrahan
+Ruko Pondok Cina Depok
+Ruko Pondokjati Sidoarjo
+Ruko Pusri Palembang
+Ruko RS Fatmawati
+Ruko Rungkut Madya Surabaya
+Ruko Sabang Jakarta Pusat
+Ruko Sawah Besar
+Ruko Sedayu City
+Ruko Sepatan Tangerang
+Ruko Serang
+Ruko Serpong Garden
+Ruko Siliwangi Kuningan
+Ruko Sumbersari Jember
+Ruko Sunan Gunung Jati Cirebon
+Ruko Surotokunto Karawang Timur
+Ruko Taman Mutiara Palem
+Ruko Taman Ubud Karawaci
+Ruko Taruna Pulogadung
+Ruko Tebet Barat
+Ruko Tebet Jakarta
+Ruko Veteran Purwakarta
+Ruko Wahid Hasyim Jombang
+Sawojajar Malang
+Sentosa Depok
+Setiabudi Jakarta Selatan
+Setiabudi One
+Shinta Tangerang
+Skyline Building
+Slamet Riyadi Samarinda
+SPBU BP Alternatif Sentul
+SPBU COCO 31.129.02 Kuningan
+SPBU Pertamina (Kamal Muara)
+SPBU Pertamina (M. Kahfi II)
+SPBU Pertamina 34.132.05 Perintis Kemerdekaan Jakarta Timur
+SPBU Sunter Kemayoran
+Sriwijaya Mataram
+Stand Alone Ijen Malang
+Stasiun Duri
+Stasiun KCJB Halim
+Sultan Agung Semarang
+Summarecon Mall Bekasi
+Summitmas Tower
+Sunrise Mall Mojokerto
+Supermall Karawaci
+Sutoyo Samarinda
+Taman Royal Cipondoh
+Tempo Scan Tower
+The Park Pejaten
+Tirtayasa Cilegon
+TransStudio Mall Cibubur
+Tunjungan Plaza 3
+U Town Bintaro
