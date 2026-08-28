@@ -337,6 +337,7 @@ async function openOutlet(outletName, firstOutlet = false, preciseClick = false)
   const text = searchName
     .replace(/\s/g, "%s")
     .replace(/([()])/g, "\\$1")
+    .replace(/'/g, "\\'")
     .replace(/[^\w%@.'\\()\-/]/g, "");
   runAdb(["shell", "svc", "power", "stayon", "true"]);
   runAdb(["shell", "input", "keyevent", "224"]);
