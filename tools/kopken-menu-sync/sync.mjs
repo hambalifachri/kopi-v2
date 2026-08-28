@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +8,7 @@ const root = resolve(here, "..", "..");
 const configPath = join(root, ".env.kopken-sync");
 const logDir = join(here, "logs");
 const progressPath = join(logDir, "progress.json");
+const refreshProgressPath = join(logDir, "refresh-progress.json");
 mkdirSync(logDir, { recursive: true });
 
 function loadEnv(path) {
@@ -54,7 +55,11 @@ function loadSuccessfulOutlets() {
 }
 
 function loadCompletedOutlets() {
-  return repeatMode ? new Set() : new Set(loadSuccessfulOutlets());
+  if (repeatMode) {
+    if (!existsSync(refreshProgressPath)) return new Set();
+    try { return new Set(JSON.parse(readFileSync(refreshProgressPath, "utf8"))); } catch { return new Set(); }
+  }
+  return new Set(loadSuccessfulOutlets());
 }
 
 async function loadSyncedOutletsFromSupabase() {
@@ -380,6 +385,9 @@ async function main() {
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
   const completedOutlets = loadCompletedOutlets();
+  if (repeatMode && completedOutlets.size) {
+    console.log(`Melanjutkan sinkron ulang: ${completedOutlets.size} outlet sudah selesai sebelumnya.\n`);
+  }
   try {
     for (let index = 0; index < outlets.length; index++) {
       const outletName = outlets[index];
@@ -423,7 +431,7 @@ async function main() {
         console.log(`  OK ${captured.storeCode}: ${count} produk\n`);
         results.push({ outletName, status: "berhasil", storeCode: captured.storeCode, products: count });
         completedOutlets.add(outletName);
-        writeFileSync(progressPath, JSON.stringify([...completedOutlets], null, 2));
+        writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
       } catch (error) {
         console.error(`  GAGAL: ${error.message}\n`);
         results.push({ outletName, status: "gagal", error: error.message });
@@ -455,6 +463,10 @@ async function main() {
   console.log(`Selesai: ${success} berhasil, ${skipped} dilewati, ${failed} gagal.`);
   console.log(`Laporan: ${report}`);
   console.log(`Outlet gagal: ${failedReport}`);
+  if (repeatMode && !failed && existsSync(refreshProgressPath)) {
+    rmSync(refreshProgressPath);
+    console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
+  }
   if (failed) process.exitCode = 2;
 }
 
