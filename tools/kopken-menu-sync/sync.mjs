@@ -385,7 +385,10 @@ async function main() {
   }
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
-  const completedOutlets = loadCompletedOutlets();
+  const completedNames = repeatMode
+    ? [...loadCompletedOutlets()]
+    : await loadSyncedOutletsFromSupabase();
+  const completedOutlets = new Set(completedNames.map(normalizeOutletName));
   if (repeatMode && completedOutlets.size) {
     console.log(`Melanjutkan sinkron ulang: ${completedOutlets.size} outlet sudah selesai sebelumnya.\n`);
   }
@@ -393,7 +396,7 @@ async function main() {
     for (let index = 0; index < outlets.length; index++) {
       const outletName = outlets[index];
       console.log(`[${index + 1}/${outlets.length}] ${outletName}`);
-      if (!outletArg && completedOutlets.has(outletName)) {
+      if (!outletArg && completedOutlets.has(normalizeOutletName(outletName))) {
         console.log("  LEWATI: sudah berhasil pada proses sebelumnya.\n");
         results.push({ outletName, status: "dilewati" });
         continue;
@@ -431,7 +434,7 @@ async function main() {
         const count = captured.menu.data.menu_groups.reduce((sum, group) => sum + (group.menu_products?.length || 0), 0);
         console.log(`  OK ${captured.storeCode}: ${count} produk\n`);
         results.push({ outletName, status: "berhasil", storeCode: captured.storeCode, products: count });
-        completedOutlets.add(outletName);
+        completedOutlets.add(normalizeOutletName(outletName));
         writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
       } catch (error) {
         console.error(`  GAGAL: ${error.message}\n`);
