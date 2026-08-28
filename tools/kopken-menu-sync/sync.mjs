@@ -88,9 +88,22 @@ if (!outlets.length) fail(repeatMode
 
 function runAdb(args) {
   const scopedArgs = adbSerial && args[0] !== "devices" ? ["-s", adbSerial, ...args] : args;
-  const result = spawnSync(adb, scopedArgs, { encoding: "utf8", windowsHide: true });
-  if (result.status !== 0) throw new Error(result.stderr?.trim() || `ADB gagal: ${args.join(" ")}`);
-  return result.stdout || "";
+  let lastError = "";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = spawnSync(adb, scopedArgs, { encoding: "utf8", windowsHide: true });
+    if (result.status === 0) return result.stdout || "";
+    lastError = result.stderr?.trim() || result.stdout?.trim() || `ADB gagal: ${args.join(" ")}`;
+    if (!/not_ready|device offline|device not found|closed/i.test(lastError) || !adbSerial) break;
+    spawnSync(adb, ["disconnect", adbSerial], { encoding: "utf8", windowsHide: true });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+    spawnSync(adb, ["connect", adbSerial], { encoding: "utf8", windowsHide: true });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 700);
+  }
+  throw new Error(lastError);
+}
+
+function isDeviceNotReadyError(error) {
+  return /not_ready|device offline|device not found|connection.*closed|koneksi adb/i.test(error?.message || "");
 }
 
 class McpClient {
@@ -439,6 +452,7 @@ async function main() {
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
   let sessionPaused = false;
+  let devicePaused = false;
   const completedNames = repeatMode
     ? [...loadCompletedOutlets()]
     : await loadSyncedOutletsFromSupabase();
@@ -493,6 +507,12 @@ async function main() {
         completedOutlets.add(normalizeOutletName(outletName));
         writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
       } catch (error) {
+        if (isDeviceNotReadyError(error)) {
+          devicePaused = true;
+          console.log("  JEDA VSPHONE: perangkat belum siap setelah dicoba sambung ulang.");
+          console.log("  Jalankan BAT yang sama lagi; outlet yang sudah sukses tetap dilewati.\n");
+          break;
+        }
         if (isSessionLimitError(error)) {
           sessionPaused = true;
           console.log(`  JEDA SESI: ${error.message}`);
@@ -529,11 +549,12 @@ async function main() {
   console.log(`Selesai sesi: ${success} berhasil, ${skipped} dilewati, ${failed} gagal (${mcp.toolCalls} panggilan HTTP Toolkit).`);
   console.log(`Laporan: ${report}`);
   console.log(`Outlet gagal: ${failedReport}`);
-  if (repeatMode && !sessionPaused && !failed && existsSync(refreshProgressPath)) {
+  if (repeatMode && !sessionPaused && !devicePaused && !failed && existsSync(refreshProgressPath)) {
     rmSync(refreshProgressPath);
     console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
   }
-  if (failed) process.exitCode = 2;
+  if (devicePaused) process.exitCode = 76;
+  else if (failed) process.exitCode = 2;
 }
 
 main().catch((error) => fail(error.message));
