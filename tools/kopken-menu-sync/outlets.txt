@@ -1,6 +1,1323 @@
 # Satu outlet Kopi Kenangan per baris. Baris bertanda # akan diabaikan.
+Ruko Meruya Selatan Jakarta
+RS Mitra Plumbon (Container)
+TransStudio Mall Cibubur
 Ruko Taruna Pulogadung
 U Town Bintaro
 Ruko Pasar Rebo
 Galuh Mas Karawang
 SPBU Sunter Kemayoran
+Ruko Taman Mutiara Palem
+Ruko Ir. H. Juanda 3 Jakarta
+Pertamina Palmerah Utara
+Arifin Ahmad Pekanbaru (DT)
+Mall Ciputra Semarang
+Kota Kasablanka
+Tirtayasa Cilegon
+Ruko Cideng
+Kebayoran Lama
+Ruko Cikadut
+Skyline Building
+Ruko Juanda Cikampek
+Taman Royal Cipondoh
+Gedung KAI Veteran
+Ruko Pematang Siantar
+Setiabudi Jakarta Selatan
+Summitmas Tower
+Lodaya Bogor
+Ruko Jl. Riau
+SPBU Pertamina (M. Kahfi II)
+Bojongsari Sawangan
+Ruko Citraland Tegal
+Ruko Ketintang Surabaya
+Ruko Moh Toha Tangerang
+Ruko Veteran Purwakarta
+SPBU Pertamina (Kamal Muara)
+Airmadidi Minahasa Utara
+Apotik Roxy Depok
+Pertamina BSD
+Ruko Gentan Sukoharjo
+Ruko Kejayaan Depok
+Ruko Sabang Jakarta Pusat
+Ruko Taman Ubud Karawaci
+Bukit Serua Ciputat
+Ruko Bojonegara Cilegon
+Ruko Condet Jakarta Timur
+Ruko Pangeran Jayakarta
+Ruko Pondok Cina Depok
+Ruko Tebet Barat
+Geluran (DT)
+Letjend Suprapto Subang
+Pertamina Alam Sutra
+Ruko Pondokjati Sidoarjo
+Sentosa Depok
+Sriwijaya Mataram
+Bondowoso Malang
+Graha Raya Pinang Tangerang (FCK)
+JKT Living Star
+Lokasari Square
+Renon Bali
+RS Pelni
+Ruko Aria Putra
+Ruko Cikarang Festival
+Ruko Jenderal Ahmad Yani Pandeglang
+Ruko Kelapa Dua Cilincing
+Ruko KH Hasyim Ashari Jakarta
+Ruko Lhokseumawe Aceh
+Ruko Perumnas 3 Bekasi
+Ruko Sunan Gunung Jati Cirebon
+Ruko Tebet Jakarta
+Slamet Riyadi Samarinda
+Stasiun KCJB Halim
+Alfamidi Radar Auri
+Beltway Office Park
+D'Mall Depok
+Food Court PIM 3
+Grage Mall Cirebon
+Green Pramuka Square
+Mall Artha Gading
+Park Serpong Legok
+Pejanggik Mataram
+Pertamina Kampung Sawah / Bojong Gede
+Raffles Square Juanda Jakarta
+RSCM Gedung Kirana
+Ruko Ahmad Yani Cilegon
+Ruko Andi Djemma Palopo
+Ruko Avenue A-6 (MERR Surabaya)
+Ruko Cilandak KKO
+Ruko Citra Raya Cikupa
+Ruko Colombo Yogyakarta
+Ruko Dr Ratna Bekasi
+Ruko Gading Terrace Bekasi
+Ruko Gedong Panjang Jakarta Utara
+Ruko Harapan Indah
+Ruko Joglo
+Ruko Karang Satria Bekasi
+Ruko Kelapa Dua Tangerang
+Ruko Kelapa Dua Wetan
+Ruko Pusri Palembang
+Ruko Rungkut Madya Surabaya
+Ruko Sawah Besar
+Ruko Serang
+Ruko Sumbersari Jember
+Stand Alone Ijen Malang
+Summarecon Mall Bekasi
+AEON Mall Deltamas
+Ahmad Yani Banjarmasin
+Alam Sutera (DT)
+Anyer Cilegon
+BP Legok
+BP Margorejo Surabaya
+BP Meruya
+Cikarang Avenue
+Cinere Mall
+Cipete Raya
+Ciputra World Surabaya
+Dapur Kitchen Bekasi
+Diponegoro Surabaya
+Dr Radjiman Surakarta
+English 1 Hayam Wuruk Bali
+Ibrahim Adjie Bandung
+Mall @BASSURA CITY
+Merdeka Palembang
+MERR Rungkut Surabaya (DT)
+Pakuwon Mall
+Paniki Manado
+Pasar Lama Tangerang
+Pasaraya Blok M
+The Park Pejaten
+Pertamina 34.116.12 Meruya Utara
+Pertamina DODO Pertamina Gas Alam
+Pertamina Puspitek
+R Suprapto Purwodadi
+Rawa Belong Jakarta
+Ruko Bukit Dago
+Ruko Bukit Duri Tebet
+Ruko Ceger
+Ruko Cilebut
+Ruko Citra Garden Bintaro
+Ruko Citraland Celebes Makassar
+Ruko Dersalam Square Jend. Sudirman Kudus
+Ruko Dewi Sri
+Ruko Jatiuwung Tangerang
+Ruko Jl. Sutarto (RSUD Moewardi)
+Ruko Kenten Palembang
+Ruko Lagoa
+Ruko M. Yamin Medan
+Ruko Mandala Tomang
+Ruko Manennungeng Palopo
+Ruko Matraman Jakarta Timur
+Ruko Muncang Jakarta Utara
+Ruko Persahabatan Jakarta Timur
+Ruko Perumahan Jatijajar Depok
+Ruko Pesanggrahan
+Ruko RS Fatmawati
+Ruko Sedayu City
+Ruko Sepatan Tangerang
+Ruko Serpong Garden
+Ruko Siliwangi Kuningan
+Ruko Surotokunto Karawang Timur
+Ruko Wahid Hasyim Jombang
+Sawojajar Malang
+Shinta Tangerang
+SPBU BP Alternatif Sentul
+SPBU COCO 31.129.02 Kuningan
+Pertamina PASAR KEMIS
+SPBU Pertamina 34.132.05 Perintis   Kemerdekaan Jakarta Timur
+Stasiun Duri
+Sultan Agung Semarang
+Sunrise Mall Mojokerto
+Supermall Karawaci
+Sutoyo Samarinda
+Tunjungan Plaza 3
+Ruko Haji Lebar
+23Paskal Bandung
+Adityawarman Surabaya
+Aeon Mall BSD
+AEON Mall Jakarta Garden City
+AEON Mall Sentul Bogor
+Agung Podomoro Golf View Cimanggis
+Agus Salim Bekasi
+AH Nasution Metro Lampung
+Ahmad Dahlan Yogyakarta
+Ahmad Yani Semarang
+Ahmad Yani Surabaya (Drive Thru)
+Alfamidi Adi Sucipto Solo
+Alfamidi Kebayoran Lama (Bondex)
+Alfamidi Penggilingan
+Alfamidi Stasiun Pondok Ranji
+Alfamidi Sumur Batu (Container)
+Alfamidi Super Kaliurang KM 9
+Alfamidi Wahid Hasyim Purwokerto (Bondex)
+Ambassador Dr. Satrio
+Anjasmoro Semarang
+Apartement Pakubuwono Terrace
+AR Hakim Tegal
+Armada Town Square Magelang
+Astonia Parkview Gresik
+Bandung Electronic Center
+Bangkalan Madura
+Banjaran Adiwerna
+Batam City Square
+Bayfront Mall Batam
+Baywalk Mall Pluit
+Belopa Luwu
+BG Junction
+Biak Jakarta Pusat
+Big Mall Samarinda
+Bintan Center Tanjung Pinang
+Bintaro Exchange
+Bintaro Plaza
+Bintaro Sektor 3 Tangerang Selatan
+Bintaro Sektor 9
+Blok M Plaza (6th Floor)
+Blok M Plaza (LG)
+Bogor Great Mall
+Botani Square
+Botania 2
+Botania Batam
+Boulevard Golf Island English 1 PIK
+BP BSD Delatinos
+BP Ciater Pamulang
+BP Cikarang
+BP Embong Malang (DT)
+BP Jababeka Hollywood
+BP Karawang Barat
+BP Kertajaya Indah
+BP KHI Boulevard
+BP Metland
+BP Pemuda Surabaya
+BP Raffless
+Buaran Serpong
+Burangrang Bandung
+Cambridge City Square
+Ceger, Jakarta Timur
+Cemara Angin Jakarta Utara
+Cemara Asri Boulevard
+Central Grand Indonesia 2nd Floor
+Central Park 1
+Central Park 2
+Centre Point Medan
+Chigo BP Delatinos
+Chigo Ruko Cempaka Putih
+Chigo Ruko OCBC Medan
+Chigo x Flip Supermall Karawaci
+Chigo x Flip Tangcity Mall
+Cibadak Sukabumi
+Cibinong City Mall
+Cibubur (Drive Thru)
+Cihampelas Walk
+Cik Ditiro Menteng
+Cikajang
+Cilandak Town Square
+Cilangkap
+Cilegon Centre Mall
+Cilendek Bogor
+Cilincing Landak Jakarta Utara
+Cinere Raya English 1 Cinere
+Citra Garden Serpong English 1 Cisauk
+Citra Grand Semarang
+Citra Raya Unesa
+Citra Tower Kemayoran
+Citraland Banjarmasin
+Citraland Helvetia
+City Plaza Kotabumi
+Danau Semayang Tenggarong
+Dapur Kitchen Palmerah
+Deli Park
+Diponegoro Sidoarjo
+Diponegoro Temanggung
+District 1 Meikarta
+Djunjunan Pasteur Bandung (Drive Thru)
+DP Mall
+Dramaga Bogor
+Drive Thru Pancing Medan
+Duta Mall Banjarmasin
+E WALK BALIKPAPAN
+Eastvara BSD
+Emporium Pluit
+Enggano
+Epicentrum Walk
+Fairway Nine
+Fajar Indah Solo
+Fakultas Kedokteran UPH
+FMIPA UI
+Food Centrum Sunter
+Food Court PIM 1 - Area 51
+Food Hub Cyber Tower 2
+FX Sudirman
+Gaia Mall Pontianak
+Gajah Mada Mediterania
+Gama Tower
+Gandaria City (Island)
+Gandaria Kramat Pela
+Garuda Head Quarter
+Gatot Subroto Medan (Drive Thru)
+Gedung Aurum
+Gedung GKBI
+Godean Yogyakarta
+Golden Road English 1 BSD
+Graha CIMB Niaga
+Graha Emerald English 1 Gading Serpong
+Graha Pena Surabaya (Relokasi)
+Graha POS RE Martadinata
+Grand Batam Mall
+Grand Batavia (Drive Thru)
+Grand Cakung Mall
+Grand Eastern Surabaya
+Grand Harvest Surabaya
+Grand Icon Caman
+Grand Residence City
+Grapari Telkomsel Mall Kelapa Gading 3
+Green Terrace Mall
+Hos Cokroaminoto Ciledug
+Hyfresh Bojongsari
+Intiland Tower
+Irian Supermarket Marelan
+Jalan Panjang Kelapa Dua
+Jambi Prima Mall
+Jaticempaka Kota Bekasi
+Jatinangor Town Square
+JB Tower
+Jemursari Surabaya
+Jl Kartini Pangkal Pinang
+Jl. Majapahit No. 324 Semarang
+Jl. Raya Bogor Jakarta Timur (DT)
+Jogja City Mall
+K Square Mall Batam
+Kabanjahe Karo
+Kalibata City
+Kantor Pos Banjarmasin
+Kapten Sudibyo Tegal
+Karawang Central Plaza
+Kartini Jepara
+Kawasan Megamas Manado
+Kemang Bogor
+Kemang Timur
+Kemayoran (Drive Thru)
+Kenangan Heritage
+Kenangan Signature Agora Mall
+Kenangan Signature Botani Square
+Kenangan Signature Emporium Mall Pluit
+Kenangan Signature Galaxy Mall 3
+Kenangan Signature Mall of Indonesia
+Kenangan Signature One Satrio
+Kenangan Signature Pakuwon Bekasi
+Kenangan Signature Pakuwon City Mall
+Kenangan Signature SMB
+Kenangan Signature Sun Plaza
+Kenangan Signature The Breeze
+Kenten Food Market
+Keprabon Surakarta
+KK Ruko Kaliurang KM5 Bawah
+Kol. Sugiono Duren Sawit
+Kopi Kenangan Hanya Untukmu
+Kopi KopKen Alfamidi H. Mansur Gondrong
+Kopindosat Kebagusan
+KopKen Alfamid Subandi
+Kota Baru Jogja
+Krian Sidoarjo
+Kualanamu Airport - Departure
+Kukusan UI Depok
+Kupang Jaya Surabaya
+Kusuma Kebumen
+Kyai Maja
+La Codefin Kemang
+LA Terrace
+Lagoon Avenue Sungkono
+Langsa Aceh
+Lebak Bulus 1
+Lenteng Agung (Drive Thru)
+Lepo Lepo Kendari
+Letjen Suprapto Cempaka Putih
+Level 21 Mall Bali
+Lippo Cikarang
+Lippo Icon Cibubur
+Lippo Mall Kemang
+Lippo Mall Nusantara
+Lippo Mall Puri 2
+Lippo Plaza Batu
+Lippo Plaza Jogja
+Lippo Plaza KJI
+Living Plaza Bintaro
+Living Plaza Cinere Depok
+Living Plaza Jababeka
+Living World Alam Sutera
+Living World Grand Wisata
+Living World Kota Wisata
+Living World Pekanbaru
+Lotte Mall Jakarta (LG)
+Lottemart Bintaro
+Lumimuut Manado
+M Kahfi
+M Ten
+M Toha Bandung
+Malang Town Square Mall
+Mall Ambasador
+Mall Balekota Tangerang
+Mall Cipinang Indah
+Mall Ciputra Cibubur
+Mall Ciputra Jakarta
+Mall Ekalokasari
+Mall Graha Cijantung
+Mall Kelapa Gading 3
+Mall of Serang
+Mall SKA Pekanbaru
+Mall Taman Anggrek Jakarta
+Mampang
+Manado Town Square
+Mangga Dua Square
+Mangkuluhur City (HANA)
+Manhattan Time Square
+Manukan Wetan Surabaya
+Marchand Hype Station
+Margo City Depok
+Margoyoso Jepara
+Marktlane Sentul
+Mayapada Hospital
+Medan Fair
+Mega Bekasi Hypermall
+Mega Regency Bekasi
+Megamall Batam
+Menara Imperium
+Menara Jamsostek
+Menara Karya
+Menara Mandiri
+Menoreh Semarang
+Mertoyudan Kedungdowo Magelang
+Metro Indah Mall
+Metro Lampung
+Metro Park Residence
+Metropolitan Cibubur
+Metropolitan City Pekanbaru
+Metropolitan Mall Bekasi
+Millennium City
+Multatuli Medan
+Mutiara Gading City Bekasi
+Naga Supermarket Hankam
+Naga Swalayan Ciracas
+Nani Wartabone Gorontalo
+Ngawi
+One Bell Park Cinere
+Onzo Harvest City
+Opi Mall
+Pacific Mall Tegal
+Pacific Place
+Padang Merdeka Bintaro
+Padel Villa Sektor 4
+Pagedangan Tangerang Selatan
+Pahlawan Sidoarjo
+Pajajaran Bandung
+Pakelan Magelang (Container)
+Pakuwon Jogja
+Pakuwon Mall Bekasi
+Pal 3 Banjarmasin
+Palembang Indah Mall
+Palu Arena
+Pamekasan Madura
+Panakkukang Mall
+Panbil Mall Batam
+Pancoran China Town
+Pancoran Mas Depok
+Paragon Mall Semarang
+Paris Van Java
+Pasar Atom Mall
+Pasar Jaya Teluk Gong 2
+Pasar Kenari (Bondex)
+Pasar Kota Pondok Gede
+Pasar Minggu Jakarta Selatan
+Pasar Pagi Mangga Dua
+Pelabuhan Ratu
+Pemuda Demak
+Pemuda Jepara
+Pemuda Kota Magelang
+Pendidikan Mataram
+Pengasinan Bekasi
+Perak Surabaya
+Permata Cimanggis Depok
+Pertamina 14.202.113 Tembung Medan
+Pertamina 14.203.1117 Semayang Medan
+Pertamina 14.203.1156 Lubuk Pakam Medan
+Pertamina 14.203.116 Sunggal Medan
+Pertamina 14.211.205 A. Yani Pematang Siantar
+Pertamina 14.251.583 Khatib Sulaeman Padang
+Pertamina 142011144 Lau Chi
+Pertamina 34-11708 Duri Kosambi
+Pertamina 34-11803 Daan Mogot
+Pertamina 34-16303 Jampang Parung
+Pertamina 34-16920 Cilangkap
+Pertamina 34.10206 Hanglekir
+Pertamina 34.11711 Cendrawasih Cengkareng
+Pertamina 34.14413 Kemayoran
+Pertamina 34.15131 Duta Garden
+Pertamina 34.17131 Rawalumbu
+Pertamina 34.40236 Laswi
+Pertamina 34.40310 Cibiru
+Pertamina 34.40314 Cicalengka
+Pertamina 34.40316 Baleendah
+Pertamina 34.40502 Kota Cimahi
+Pertamina 34.41212 Rawa Badak Subang
+Pertamina 34.413.28 Wadas Karawang
+Pertamina 34.46106 Rancabango
+Pertamina 41.502.02 Kaliwiru
+Pertamina 44.501.19 Pamularsih
+Pertamina 44.531.23 Karanglewas
+Pertamina 44.564.04 Baledono Magelang
+Pertamina 44.574.03 Jonggrangan Klaten
+Pertamina 54.60.115 Sutorejo
+Pertamina 54.601.42 Kenjeran Surabaya
+Pertamina 54.612.36 Jenggolo
+Pertamina 54.612.55 Tropodo Sidoarjo
+Pertamina 54.612.58 Waru
+Pertamina 54.612.63 Juanda Sidoarjo
+Pertamina 54.61208 Gedangan
+Pertamina 54.61252 Gelam Sidoarjo
+Pertamina 54.631.05 Panjaitan Madiun
+Pertamina 54.651.63 Plaosan Blimbing
+Pertamina 74.951.08 Sario Manado
+Pertamina AR Hakim Medan
+Pertamina Benggala Yumaga Serang
+Pertamina Bulak Kapal
+Pertamina Cibitung Bekasi
+Pertamina Cibogo
+Pertamina Cikaret Cibinong
+Pertamina Cikupa
+Pertamina Ciputat
+Pertamina Citra Raya Tangerang
+Pertamina COCO 31.103.03 Cikini
+Pertamina COCO 31.151.02 Modernland
+Pertamina COCO 41.552.01 Laksda Adisucipto Yogyakarta
+Pertamina COCO 51.601.65 Jemusari Surabaya
+Pertamina COCO 61.751.01 Kesuma Bangsa Samarinda
+Pertamina DODO 64.751.14 Jl.Urip Sumoharjo
+Pertamina DODO Cirendeu Raya
+Pertamina DODO Curug
+Pertamina DODO Pertamina Batang Kuis Medan
+Pertamina DODO Pertamina Pajajaran Bogor
+Pertamina Gas Station 54.651.75 Karanglo Malang
+Pertamina Gresik
+Pertamina H. Anif Cemara Asri
+Pertamina Jababeka II
+Pertamina Jalan Panjang
+Pertamina Jatake
+Pertamina Jatiwaringin
+Pertamina Juanda Depok
+Pertamina Karang Asam
+Pertamina Kartini
+Pertamina Kedung Halang
+Pertamina Laut Dendang
+Pertamina Limo Raya
+Pertamina Marindal Medan
+Pertamina Mayor Oking Cibinong
+Pertamina MH Thamrin Serpong
+Pertamina Panjang Jiwo
+Pertamina Panjang Kelapa Dua
+Pertamina Pasar Sapi Veteran Salatiga
+Pertamina Pengasinan
+Pertamina Pondok Kacang
+Pertamina S. Parman
+Pertamina Samsat Jelutung
+Pertamina Sangiang Jaya
+Pertamina Satu Maret Kalideres
+Pertamina Sawangan Baru Depok
+Pertamina Selayang Utama
+Pertamina Singapore Station Belawan
+Pertamina Sisingamangaraja Medan
+Pertamina Tanjung Morawa
+Pertamina Teluk Jambe
+Pertamina Tigaraksa
+Pettarani Makassar
+PHX Grogol
+PIM 2
+Plaza Asia
+Plaza Atrium
+Plaza Bintaro Satoe (Superindo)
+Plaza Bunsay (Drive Thru)
+Plaza Indonesia
+Plaza Slipi Jaya
+Pluit Village
+Poins Square
+Pondok Pinang
+Pos Pengumben Jakarta Barat
+Pucang Anom Surabaya
+Puncak Bogor
+Puri Indah Mall
+Pusat Grosir Cililitan
+Pusat Jantung Nasional Harapan Kita
+Pusat Mode Tanah Abang
+Pusdiklat Depnaker
+Q-Mall Banjarbaru
+Queen City Semarang
+Raden Saleh Ciledug
+Raden Saleh Depok
+Ramai Malioboro
+Rawabuntu Tangerang
+Raya Dompak Tanjung Pinang
+Raya Galaxy
+RC Veteran (Container) Drive Thru
+Reformasi Pontianak
+Rest Area 101
+Rest Area 102
+Rest Area 228A Cirebon (Container)
+Rest Area 260B
+Rest Area 360B Batang
+Rest Area 725A Gresik (Container) Drive Thru
+Rest Area 792 A Tol Gempol Pasuruan (DT)
+Rest Area 792 B Tol Gempol Pasuruan
+Rest Area KM 10A Jagorawi
+Rest Area KM 13,5
+Rest Area KM 14
+Rest Area KM 19
+Rest Area Km 207A, Cirebon (Container)
+Rest Area KM 36B Samarinda
+Rest Area Km 379A (Container)
+Rest Area Km 429 Semarang
+Rest Area KM 57
+Rest Area KM 597 A Solo Kertosono
+Rest Area KM 597 B Solo Kertosono
+Rest Area KM 62B
+Rest Area KM 65A Tol Medan - Tebing Tinggi
+Rest Area KM 65B Tol Medan - Tebing Tinggi
+Rest Area KM 66A (Arah ke Malang) Container
+Rest Area KM 66B (Arah ke Surabaya) DT
+Rest Area km 72
+Rest Area KM 726
+Rest Area KM 753 (Arah ke Surabaya) Non DT
+Rest Area KM 754 (Arah ke Sidoarjo) DT
+Rest Area KM 84A ( Arah ke Malang)
+Rest Area KM 88 B Cipularang
+Rest Area KM 88A Cipularang (Container)
+Rest Area KM519A Solo Ngawi
+Rest Area KM519B Solo Ngawi
+Rest Area Pendopo B (KM 456)
+Rita Supermall Purwokerto
+Roxy Banyuwangi
+Roxy Square Jember
+Royal Plaza Surabaya
+Royal Residence Square
+RS Abdul Wahab Sjahranie Samarinda
+RS Harapan Bunda
+RS Husada (Container)
+RS Primaya Bekasi Utara
+RS Saint Carolus Jakarta
+RS Samarinda Medika Citra
+RS Sentra Medika Cikarang
+RS Sentra Medika Gempol
+RS Yarsi Jakarta Pusat
+Rs. PHC Surabaya
+RS. Polri
+RSUD Sidoarjo Jawa Timur
+RSUP Dr Hasan Sadikin Bandung
+RSUP Dr. Sardjito Yogyakarta
+Ruko Madison Grande
+Ruko 14 Februari Manado
+Ruko 88 Berlian Tangerang
+Ruko A Yani Batang
+Ruko A. Yani Makassar
+Ruko A. Yani Ungaran Semarang
+Ruko Abdullah Lubis Medan
+Ruko Agung Sunter
+Ruko Agus Salim Wonosari
+Ruko Ahmad Karim Bukittinggi
+Ruko Ahmad Muksin Tenggarong
+Ruko Ahmad Yani Balikpapan
+Ruko Ahmad Yani Banjarbaru
+Ruko Ahmad Yani Banyuwangi
+Ruko Ahmad Yani Cilacap
+Ruko Ahmad Yani Lampung
+Ruko Ahmad Yani Rantau Prapat Medan
+Ruko Alauddin
+Ruko Alaya Samarinda
+Ruko AM Sangaji
+Ruko Ambengan Surabaya
+Ruko Andalas Gorontalo
+Ruko Anduonohu Kendari
+Ruko Antapani
+Ruko Antasari Lampung
+Ruko Arau Padang
+Ruko Arcamanik Bandung
+Ruko Arcawinangun Purwokerto
+Ruko Arundina Cibubur
+Ruko Aryana Aquaplay Kab. Tangerang
+Ruko Asiamegamas Medan
+Ruko Astha Arcade Suvana Sutera
+Ruko Azores
+Ruko Babakan Madang Bogor
+Ruko Babakan Tangerang
+Ruko Bahu Manado
+Ruko Balaraja
+Ruko Baleendah Kab. Bandung
+Ruko Balikpapan Superblock
+Ruko Bandar Agung Lahat
+Ruko Bandara City Mall Tangerang
+Ruko Bandara Mas
+Ruko Banjaran Bandung
+Ruko Banjarbaru Kalimantan Selatan
+Ruko Bantar Gebang
+Ruko Banuhampu Bukittinggi
+Ruko Banyumanik Semarang
+Ruko Barcelona BSD
+Ruko Basuki Rahmat Tuban
+Ruko Batu Ampar Balikpapan
+Ruko Batu X Tanjung Pinang
+Ruko Batubulan
+Ruko Batulicin
+Ruko Batununggal Bandung (Mini Ck)
+Ruko Bau Massepe Pare Pare
+Ruko Bawakaraeng Makassar
+Ruko Bendungan Hilir (FCK)
+Ruko Benowo Surabaya
+Ruko Beringin Jambi
+Ruko Beringin Raya
+Ruko Betoambari Bau Bau
+Ruko Bintara
+Ruko Bojongsoang Bandung
+Ruko Bolsena
+Ruko Bosih Bekasi
+Ruko Boulevard Hijau Bekasi
+Ruko Boulevard Kelapa Gading
+Ruko Brayan Medan
+Ruko Brigjen Hasan Basri Banjarmasin
+Ruko Buah Batu
+Ruko Bukit Lama Palembang
+Ruko Bumi Tamanlarea Permai
+Ruko Bung Tomo Samarinda
+Ruko Bungursari
+Ruko Bunyamin Purwokerto
+Ruko By Pass Ngurah Rai
+Ruko Candrabaga Pd. Ungu
+Ruko Canggu Raya Bali
+Ruko Capital Point Majalengka
+Ruko Casavalli Bintaro
+Ruko Cempaka Putih
+Ruko Cendrawasih Makassar
+Ruko Chandra Teluk Betung
+Ruko Cianjur
+Ruko Cibaduyut
+Ruko Cibeber Cilegon
+Ruko Cicadas Gunung Putri
+Ruko Ciganjur Jagakarsa
+Ruko Cikarang Baru
+Ruko Cikarang Utara
+Ruko Ciledug Mencong
+Ruko Cileungsi
+Ruko Cimanggis Jawa Barat
+Ruko Cimanuk Garut
+Ruko Cimone Pantura Tangerang
+Ruko Ciparay Kab. Bandung
+Ruko Cipayung
+Ruko Cipondoh
+Ruko Cipto Mangunkusumo Samarinda
+Ruko Cirebon Superblock
+Ruko Ciruas Serang
+Ruko Cisarua Puncak
+Ruko Cisoka Tangerang
+Ruko Citayam Centre
+Ruko Citra 6
+Ruko Citra 7
+Ruko Citra Harmoni Sidoarjo
+Ruko Citra Indah Square Jonggol
+Ruko Citraland Puri Serang
+Ruko Cleon Park Cakung
+Ruko Cokroaminoto Madiun
+Ruko Commpark Kota Wisata
+Ruko Cordoba Green Lake City
+Ruko Curug Tangerang
+Ruko Daan Mogot
+Ruko Daeng Tata Raya Makassar
+Ruko Danau Sunter Utara
+Ruko Deli Tua Kab Deli Serdang
+Ruko Delta Sari Indah Sidoarjo
+Ruko Deltamas
+Ruko Demang Palembang
+Ruko Desa Harapan Mandau Duri
+Ruko Devant Cibubur
+Ruko Dewi Sartika
+Ruko Dharmahusada Surabaya
+Ruko DI Panjaitan Indramayu
+Ruko DI Panjaitan Palembang
+Ruko Diponegoro Pekalongan
+Ruko Dr M Hatta Baturaja
+Ruko Dr Mansyur Medan
+Ruko Driyorejo Kota Baru S03 - 018 & 019
+Ruko Dukuh Zamrud
+Ruko Duta Mas Jelambar
+Ruko Edi Sabara Kendari
+Ruko Elang Laut
+Ruko G Walk
+Ruko Gading Tutuka Soreang
+Ruko Gadog Ciawi
+Ruko Gajah Mada Jember
+Ruko Gajah Mada Mojokerto
+Ruko Gajah Mada Padang
+Ruko Gajah Mada Pontianak
+Ruko Gajah Mada Semarang
+Ruko Gajah Mada Tarakan
+Ruko Gandul
+Ruko Garuda Mas Solo
+Ruko Gatot Subroto Bali
+Ruko Gatot Subroto Banjarmasin
+Ruko Gatot Subroto Kudus
+Ruko Genteng Banyuwangi
+Ruko Gianyar Bali
+Ruko Glugur Darat - UMSU
+Ruko Gobah Pekanbaru
+Ruko Graha Raya
+Ruko Graha Siliwangi Sukabumi
+Ruko Grand Galaxy City Bekasi
+Ruko Grand Kota Bintang
+Ruko Grand Wisata Bekasi
+Ruko Green Lake Sunter
+Ruko Green Market Jababeka
+Ruko Greenland Batam Center
+Ruko Greenville
+Ruko Gresik Kota Baru
+Ruko Gunung Putri
+Ruko H Nawi
+Ruko Hang Tuah Ujung
+Ruko Hankam Jatiwarna
+Ruko Harapan Kita Karawaci Tangerang
+Ruko Harlin Solo
+Ruko Harmoni City Center
+Ruko Hasan
+Ruko Hasyim Ashari Tangerang
+Ruko Hayam Wuruk Kediri
+Ruko Helvetia Medan
+Ruko Hos Cokroaminoto Kisaran
+Ruko HR Muhammad Surabaya
+Ruko IBC Garut
+Ruko Imam Bonjol Kisaran
+Ruko Indralaya Sumatera Selatan
+Ruko Ion Martasasmita Pamanukan
+Ruko Ir H Juanda Samarinda
+Ruko Iskandar Muda Medan
+Ruko Iskandar Muda Surabaya
+Ruko Jalan Bek. Murad
+Ruko Jalan Bugis Jakarta Utara
+Ruko Jalan Jeruk Jagakarsa
+Ruko Jalan Karya
+Ruko Jalan Setia Budi
+Ruko Jalan Seturan
+Ruko Jalan Soekarno Hatta
+Ruko Jamin Ginting Medan
+Ruko Jatiasih
+Ruko Jatimakmur
+Ruko Jatinangor
+Ruko Jatiwaringin
+Ruko JCity Square
+Ruko Jend A Yani Bontang
+Ruko Jend. A Yani Brebes
+Ruko Jend. Sudirman Muara Enim
+Ruko Jend. Sudirman Palembang
+Ruko Jend. Sudirman Purwokerto
+Ruko Jenderal Ahmad Yani Karawang
+Ruko Jenderal Sudirman Balikpapan
+Ruko Jenderal Sudirman Bontang
+Ruko Jenderal Sudirman Mamuju
+Ruko Jendral Sudirman Maros
+Ruko Jendral Sudirman Purbalingga
+Ruko Jl Denai Medan
+Ruko Jl Jakarta Samarinda
+Ruko Jl. Ahmad Yani Kesawan II Medan
+Ruko Jl. Kemang Selatan
+Ruko Jl. Krakatau Medan
+Ruko Jl. Lahalede Pare Pare
+Ruko JL. Merdeka Bandung (ALVA)
+Ruko Jl. MT Haryono Balikpapan
+Ruko Johar Baru
+Ruko Jombang Raya
+Ruko Juanda Ciputat
+Ruko Kadu Jaya Tangerang
+Ruko Kaliabang
+Ruko Kalisari
+Ruko Kaliurang KM6 Atas
+Ruko Kaloka Patimura Salatiga
+Ruko Kapten A Rivai Palembang
+Ruko Kapten Muslim
+Ruko Karang Tengah
+Ruko Karang Tengah Lebak Bulus
+Ruko Karanganyar
+Ruko Karangasih (Pilar) Cikarang Utara
+Ruko Kartini Depok
+Ruko Kartini Salatiga
+Ruko Katapang Soreang
+Ruko Kawi
+Ruko Kayu Agung
+Ruko Kebantenan
+Ruko Kedungmundu Semarang
+Ruko Kelapa Dua Depok
+Ruko Kelapa Gading Boulevard Timur
+Ruko Kemang Pratama Bekasi
+Ruko Kertapati Palembang
+Ruko KH Wahid Hasyim Cirebon
+Ruko Klari Karawang
+Ruko KM 12 Sukarami Palembang
+Ruko Komplek OCBC Medan
+Ruko Kondangjaya Karawang
+Ruko Kopo Bihbul
+Ruko Kota Baru Parahyangan Bandung
+Ruko Kota Ciledug Cirebon
+Ruko Kota Wisata
+Ruko Kramat Sentiong Jakarta
+Ruko Kranggan
+Ruko Krendang
+Ruko KS Tubun Jakarta Barat
+Ruko Kuta Jaya Kab. Tangerang
+Ruko Lamongrejo Lamongan
+Ruko Landak Makassar
+Ruko Lebak Bulus
+Ruko Legenda Wisata
+Ruko Lemabang Palembang
+Ruko Lembang Bandung Barat
+Ruko Letjend Sutoyo Surakarta
+Ruko Limo Cinere
+Ruko Lubang Buaya
+Ruko Lubuklinggau Sumatera Selatan
+Ruko M Yamin Samarinda
+Ruko Maggiore Gading Serpong
+Ruko Majalaya Kab. Bandung
+Ruko Malaka Sari
+Ruko Mall Cikampek
+Ruko Mampang Business Park
+Ruko Mangga Berau Kalimantan Timur
+Ruko Mangga Besar
+Ruko Manggar Balikpapan
+Ruko Mangunjaya Tambun
+Ruko Manukan Surabaya
+Ruko Manyar Surabaya
+Ruko Mardani Jakarta Pusat
+Ruko Marelan
+Ruko Margacinta
+Ruko Margasatwa Jakarta Selatan
+Ruko Margonda
+Ruko Martadinata Tasikmalaya
+Ruko Mayang Mangurai
+Ruko Megaland Pematang Siantar
+Ruko Mekarsari
+Ruko Mekarsari Balikpapan
+Ruko Melody Gading Serpong
+Ruko Menjangan
+Ruko Merak Samarinda
+Ruko Merci Medan
+Ruko Meruya Utara Jakarta Barat
+Ruko Metland Cakung
+Ruko Metland Cibitung
+Ruko Metro Pondok Indah
+Ruko MH Thamrin Tangerang
+Ruko MH Thamrin Tebing Tinggi Medan
+Ruko Modern Industrial Estate Cikande
+Ruko MOI
+Ruko Mojosongo Boyolali
+Ruko Monginsidi Makassar
+Ruko MT Haryono Balikpapan 2
+Ruko MT Haryono Bengkulu
+Ruko MT Haryono Kendari
+Ruko Muara Karang
+Ruko Muara Rapak Balikpapan
+Ruko Mulawarman Balikpapan
+Ruko Mulawarman Tarakan
+Ruko Multatuli Rangkasbitung
+Ruko Mulyosari Surabaya
+Ruko Muntilan Magelang
+Ruko Murhum Bau Bau
+Ruko Mutiara Gading Timur
+Ruko Nagoya Hill Batam
+Ruko Nambo Jaya Tangerang
+Ruko Ngagel
+Ruko Ngaliyan
+Ruko Nusantara Depok
+Ruko Nyak Makam Aceh
+Ruko Opi Raya Sumatera Selatan
+Ruko Osaka PIK 2
+Ruko Otista
+Ruko Otista Subang
+Ruko Otista Sukagalih Garut
+Ruko Otista Tangerang
+Ruko Paccerakkang Makassar
+Ruko Padalarang Kab. Bandung
+Ruko Padang Luwih Bali
+Ruko Padasuka Cimahi
+Ruko Padat Karya Prabumulih
+Ruko Pahlawan Bogor
+Ruko Pahlawan Revolusi Jakarta Timur
+Ruko Pakansari Bogor
+Ruko Palem Semi Karawaci
+Ruko Palembang Trade Center
+Ruko Pallangga Gowa
+Ruko Palm Spring Batam
+Ruko Panam Pekanbaru
+Ruko Pandu Raya Bogor
+Ruko Pangeran Hidayatullah Banjarmasin
+Ruko Pangkep Sulawesi Selatan
+Ruko Panglima Polem Aceh
+Ruko Panglima Sudirman Lumajang
+Ruko Pantura
+Ruko Papandayan Garut
+Ruko Paramount Petals
+Ruko Parangtritis Yogyakarta
+Ruko Parung
+Ruko Pasar Kemis Tangerang
+Ruko Pasar Segar
+Ruko Pasirkuda Ciomas
+Ruko Paskal
+Ruko Peak Avenue Karawaci
+Ruko Pecenongan Jakarta Pusat
+Ruko Pejaten Raya
+Ruko Pejuangan Kebon Jeruk
+Ruko Pekayon Bekasi
+Ruko Pemda Tigaraksa
+Ruko Pemuda Klaten
+Ruko Perintis Makassar
+Ruko Perjuangan Cirebon
+Ruko Petukangan
+Ruko PIK
+Ruko Pisangan
+Ruko Plaju
+Ruko PM Noor Samarinda
+Ruko Podomoro Tenjo
+Ruko Pondok Bambu
+Ruko Pondok Benda Tangerang
+Ruko Pondok Betung
+Ruko Pondok Cabe Tangerang
+Ruko Pondok Duta Depok
+Ruko Pondok Jagung Timur
+Ruko Pondok Kelapa
+Ruko Pondok Rajeg
+Ruko Poris
+Ruko Pringsewu Lampung
+Ruko Pulogadung Trade Center (PTC)
+Ruko Puri Beta
+Ruko Puri Utama Cipondoh
+Ruko Puspitek Tangerang
+Ruko RA Kartini Bekasi
+Ruko Rabam Kendari
+Ruko Raden Fatah
+Ruko Raden Sanim Depok
+Ruko Radio Dalam (FCK)
+Ruko Rajeg Kab. Tangerang
+Ruko Rancaekek
+Ruko Rancamaya
+Ruko Rapoccini
+Ruko Rawamangun (Jl. Paus)
+Ruko Raya Ragunan
+Ruko Raya Serpong Tangerang
+Ruko Rogojampi Banyuwangi
+Ruko Royal Living Tangerang
+Ruko Ruhui Rahayu Balikpapan
+Ruko S Parman Bengkulu
+Ruko S Parman Cilacap
+Ruko S. Parman Malang
+Ruko Sadang Purwakarta
+Ruko Sam Ratulangi Manado
+Ruko Samanhudi Pemalang
+Ruko Sangatta Kalimantan Timur
+Ruko Satelit Utara Surabaya
+Ruko Sawangan Depok
+Ruko Selincah Jambi
+Ruko Serang Cibarusah
+Ruko Sesetan
+Ruko Setiabudi Medan
+Ruko Shilla Sawangan
+Ruko Siliwangi Pamulang
+Ruko Siliwangi Tasikmalaya
+Ruko Simpang Bandara Palembang
+Ruko Sindanglaya Cipanas
+Ruko Soekarno Hatta Balikpapan
+Ruko Sokaraja
+Ruko Sorrento Gading Serpong
+Ruko South City (ALVA)
+Ruko STM
+Ruko Sudirman Awal Bros Pekanbaru
+Ruko Sudirman Bogor
+Ruko Sudirman Dumai
+Ruko Sudirman Lampung
+Ruko Sudirman Manado
+Ruko Sudirman Pekanbaru
+Ruko Suharso Purwokerto
+Ruko Sukahati Cibinong
+Ruko Sukajaya Serang
+Ruko Sukodono Sidoarjo
+Ruko Sukowati Sragen
+Ruko Sukun Malang
+Ruko Sultan Abdurrahman Pontianak
+Ruko Sultan Hasanuddin Binjai
+Ruko Sultan Hasanuddin Dumai
+Ruko Sultan Hassanuddin Makassar
+Ruko Sumber Cirebon
+Ruko Sumur Batu
+Ruko Sunset Avenue Citra 8
+Ruko Surya Kencana Pamulang
+Ruko Surya Sumantri
+Ruko Sutisna Senjaya Tasikmalaya
+Ruko Sutomo Padang
+Ruko Sutomo Ujung Medan
+Ruko Syeh Quro Karawang
+Ruko Symphonie Harapan Indah Bekasi
+Ruko Tabanan Bali
+Ruko Tajur Bogor
+Ruko Talagasari
+Ruko Talun Cirebon
+Ruko Taman Dayu Pandaan
+Ruko Taman Galaxy
+Ruko Taman Kopo Indah 2
+Ruko Taman Semanan
+Ruko Taman Siswa Yogyakarta
+Ruko Taman Sunter Indah
+Ruko Tamangapa Makassar
+Ruko Tambun Bekasi
+Ruko Tanah Merdeka
+Ruko Tananima Parung
+Ruko Tanjung Balai
+Ruko Tanjung Duren
+Ruko Tanjung Morawa
+Ruko Tanjung Uncang
+Ruko Tapos Pekapuran Depok
+Ruko Tarandam (Proklamasi Padang)
+Ruko Tarum Barat Cikarang
+Ruko TB Simatupang
+Ruko Tegal Rotan Tangerang Selatan
+Ruko Telagamas Semarang
+Ruko Telagasari Kosambi Karawang
+Ruko Tembalang Semarang
+Ruko Tembung
+Ruko Tentara Pelajar Semarang
+Ruko Teuku Umar Bali
+Ruko The Icon BSD
+Ruko The Modern Arcade Tangerang
+Ruko Tiban Batam
+Ruko Tlogosari Semarang
+Ruko TMP Taruna Tangerang
+Ruko Tole Iskandar
+Ruko Topaz Summarecon Bekasi
+Ruko Tuparev Cirebon
+Ruko UIN (FCK)
+Ruko Ujung Berung Bandung
+Ruko UNJA Jambi
+Ruko UNSRI Indralaya Sumatera Selatan
+Ruko Urip Sumoharjo Makassar
+Ruko Utan Panjang
+Ruko Vasanta Innopark
+Ruko Vazza Graha Raya
+Ruko Veteran Bekasi
+Ruko Veteran Blitar
+Ruko Veteran Palembang
+Ruko Wachid Hasyim Kediri
+Ruko Waterpark Grand Depok City
+Ruko Wibawa Mukti Bekasi
+Ruko Wiyung Surabaya
+Ruko Wolter Monginsidi Bitung
+Ruko Yos Sudarso Paal Dua Manado
+Rumah Kenangan
+Rumah Sakit Jakarta
+Sahid Sudirman
+Samarinda Central Plaza
+Samesta Mahata Tanjung Barat
+San Antonio Surabaya
+Season City
+Sedati Sidoarjo
+Sekupang Batam
+Senayan Park
+Serdam Pontianak
+Serpong Paradise Walk
+Shell (Tanjung Barat)
+Shell Antasari
+Shell Cipinang
+Shell Ciputat 1
+Shell Cirebon
+Shell Citraland Cirebon (Drive Thru)
+Shell Cut Mutia
+Shell Daan Mogot 1
+Shell Dupak
+Shell Galuhmas Karawang
+Shell Gunung Sahari
+Shell Hasyim Ashari
+Shell Kedoya
+Shell Pamulang
+Shell Pasar Minggu
+Shell Puspitek Tangerang
+Shell Semper Koja
+Shell Suwarna Cengkareng
+SIM Square
+Simpang 6 Teuku Umar Bali
+Singapore Station 2 Adam Malik
+Singapore Station Brig. Katamso
+Singapore Station M. Isa
+Singaraja Bali
+Singosari Malang
+Sipin Jambi (Container) Drive Thru
+Slawi Jawa Tengah
+Sleman City Hall
+Social Market Palembang
+Solo Square
+Sopo Del Tower
+SPBU 34.122.08 Kebayoran Lama
+SPBU 74.902.25 Pengayoman Makassar
+SPBU Aie Pacah Padang
+SPBU Ampeldento Malang
+SPBU Amplas
+SPBU Artha Gading
+SPBU Barombong Makassar
+SPBU Bunder Gresik
+SPBU Cisauk Tangerang
+SPBU COCO Pasar Kemuning Banjarbaru Drive Thru
+SPBU DODO (Raya Condet)
+SPBU DODO Pertamina (Raden Inten)
+SPBU Grogol Cilegon
+SPBU Jagakarsa
+SPBU Kapten Muslim
+SPBU Kebonagung Pasuruan
+SPBU Kedungturi Sidoarjo
+SPBU Leuwinanggung
+SPBU Lontar Surabaya
+SPBU Minangkabau Jakarta Selatan (Container)
+SPBU Pertamina (Andalas Makassar)
+SPBU Pertamina (Gandaria Pasar Rebo)
+SPBU Pertamina (Gatot Subroto)
+SPBU Pertamina (Gedong Panjang)
+SPBU Pertamina (Jatipadang)
+SPBU Pertamina (Kalimalang Duren Sawit)
+SPBU Pertamina (Kapten Tendean)
+SPBU Pertamina (Lenteng Agung)
+SPBU Pertamina (Ngagel) (Drive Thru)
+SPBU Pertamina (Perintis Makassar)
+SPBU Pertamina (Pulo Gebang)
+SPBU Pertamina (Radjiman Cakung)
+SPBU Pertamina (Tongkol)
+SPBU Pertamina (Ujung Menteng)
+SPBU Pertamina 34-134.15 Pondok Kopi
+SPBU Pertamina DODO (Kp. Rambutan)
+SPBU Sepinggan Balikpapan
+SPBU Shell Gatot Subroto
+SPBU Tanah Tinggi
+SPBU Terban Yogyakarta
+SPBU Timoho Yogyakarta
+SPBU Volvo
+Stasiun Cilebut
+Stasiun Citayam
+Stasiun Duren Kalibata
+Stasiun Gambir Selatan
+Stasiun Gubeng Surabaya
+Stasiun Palmerah
+Stasiun Parung Panjang
+Stasiun Pasar Minggu
+Stasiun Pasar Turi
+Stasiun Senen
+Stasiun Solo Balapan
+Stasiun Tabing Padang (Bondex)
+Stasiun Tawang
+Sudirman Park
+Sulawesi Surabaya
+Sultan Agung Bekasi
+Summarecon Bogor
+Summarecon Digital Center (SDC Serpong)
+Summarecon Mall Bandung Island
+Summarecon Mall Serpong
+Sun Plaza
+Sunset Quay
+Super Indo Basilica
+Super Indo Cerewed Bekasi
+Super Indo Citraland Utara Surabaya
+Super Indo Gaplek
+Super Indo Jatibening
+Super Indo Mastrip
+Super Indo Pajajaran
+Super Indo Parangtritis Yogyakarta
+Super Indo Pinang (Container)
+Super Indo Ronggowarsito
+Superindo Limus Pratama
+Suroyo Probolinggo
+Sutomo Lubuk Pakam
+Suzuya Plaza Binjai
+Suzuya Plaza Tamora
+Suzuya Rantau Prapat Mall
+T2D Keberangkatan Bandara Soekarno Hatta
+T2E Kedatangan Bandara Soekarno Hatta
+T2F Keberangkatan Bandara Soekarno Hatta
+Taman Ismail Marzuki
+Tamini Square
+Tanah Bumbu Batulicin Kalimantan Selatan
+Tangerang City Mall
+Tanjung Duren Jakarta Barat
+Telaga Bestari
+Tempo Pavilion 1
+Teras Kota
+Terminal Bus Purabaya Sidoarjo Jawa Timur
+Terminal Keberangkatan Bandara Ahmad Yani Semarang
+Terminal Kedatangan Domestik Bandara Kualanamu Deli Serdang
+Terminal Kedatangan Domestik Bandara Ngurah Rai Bali
+Thamrin City
+Thamrine Nine
+The Crest West Vista
+The Park Mall Solo
+The Square Surabaya
+The Tower Jakarta
+The Vida Kebon Jeruk
+Timbang Langkat Binjai (DT)
+Tlogomas Malang
+Tokyo Hub Pantai Indah Kapuk 2
+Tomohon
+Toserba Yogya (Cherbon Junction)
+Toserba Yogya (Ciumbuleuit)
+Toserba Yogya Karawang
+Trans Studio Mall Bandung
+Trans Studio Mall Makassar
+Transmart Buah Batu Square Bandung
+Transmart Lampung
+Transyogi
+Tulungagung
+Ubertos Bandung
+Udayana Hub Jimbaran
+Universitas Indonesia
+Urban Hub Palmerah
+Urip Sumoharjo Ponorogo
+Utan Kayu (Container)
+Vatulemo Park Palu
+Warakas Jakarta Utara
+Waru Sidoarjo
+Wisma BNI 46
+Wolter Monginsidi Manado
+WTC Batanghari
+WTC Sudirman
+Yogya Grand Kepatihan
+ZA Pagar Alam Kedaton
+Zona Blu x GOFIT GBK
