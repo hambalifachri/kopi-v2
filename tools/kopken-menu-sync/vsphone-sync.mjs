@@ -115,6 +115,13 @@ if (!connection?.adb || (needsTunnel && (!connection.command || !connection.key)
 if (needsTunnel) {
   const ssh = connection.command.match(/ssh\s+.*?([^\s]+@[^\s]+)\s+-p\s+(\d+)\s+-L\s+([^\s]+)\s+-Nf/i);
   if (!ssh) fail("Format koneksi SSH VSPhone tidak dikenali.");
+  const localPort = ssh[3].split(":")[0];
+  const staleTarget = connection.adb.match(/adb\s+connect\s+([^\s]+)/i)?.[1];
+  if (staleTarget) spawnSync(adb, ["disconnect", staleTarget], { encoding: "utf8", windowsHide: true });
+  if (process.platform === "win32" && /^\d+$/.test(localPort)) {
+    const cleanup = `$port='${localPort}'; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'ssh.exe' -and $_.CommandLine -match ('-L\\s+' + $port + ':') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
+    spawnSync("powershell.exe", ["-NoProfile", "-Command", cleanup], { encoding: "utf8", windowsHide: true });
+  }
   const tunnel = spawn("ssh", [
     "-oHostKeyAlgorithms=+ssh-rsa",
     "-o", "StrictHostKeyChecking=accept-new",
