@@ -92,24 +92,35 @@ function getHttpToolkitServer() {
 }
 
 async function activateHttpToolkit(device) {
-  const { token, port } = getHttpToolkitServer();
   const query = "mutation($id: ID!, $port: Int!, $options: Json) { activateInterceptor(id:$id, proxyPort:$port, options:$options) }";
-  const request = () => fetch(`http://127.0.0.1:${port}/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Origin: "https://app.httptoolkit.tech",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-      query,
-      variables: {
-        id: "android-adb",
-        port: 8000,
-        options: { deviceId: device.adb, enableSocks: false },
-      },
-    }),
-  });
+  const request = async () => {
+    let lastError;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const { token, port } = getHttpToolkitServer();
+        return await fetch(`http://127.0.0.1:${port}/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Origin: "https://app.httptoolkit.tech",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query,
+            variables: {
+              id: "android-adb",
+              port: 8000,
+              options: { deviceId: device.adb, enableSocks: false },
+            },
+          }),
+        });
+      } catch (error) {
+        lastError = error;
+        await sleep(1000);
+      }
+    }
+    throw lastError;
+  };
   const response = await request();
   const result = await response.json();
   if (!response.ok || result.errors || result.data?.activateInterceptor?.success !== true) {
@@ -138,6 +149,10 @@ async function activateHttpToolkit(device) {
     await sleep(1000);
   }
   spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
+  spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-n", "com.kopikenangan/.heart"], {
+    encoding: "utf8", windowsHide: true,
+  });
+  await sleep(500);
 }
 
 async function runWorker(device, index) {

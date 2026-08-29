@@ -212,6 +212,8 @@ class McpClient {
     } finally {
       releaseLock();
     }
+    // Beri worker lain kesempatan mengambil lock agar satu HP tidak menguasai socket.
+    await sleep(150);
     const text = (result.content || []).find((item) => item.type === "text")?.text;
     if (!text) throw new Error(`Respons kosong dari ${name}`);
     let parsed;
