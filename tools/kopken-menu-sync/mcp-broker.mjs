@@ -68,16 +68,14 @@ async function freshClient() {
 }
 
 async function execute(message) {
-  if (!client || (message.method === "tools/call" && client.calls >= callLimit)) await freshClient();
+  if (!client) await freshClient();
+  if (message.method === "tools/call" && client.calls >= callLimit) {
+    throw new Error(`Batas aman sesi HTTP Toolkit tercapai (${client.calls} panggilan).`);
+  }
   if (message.method === "tools/call") client.calls++;
   try {
     return await client.request(message.method, message.params || {});
   } catch (error) {
-    if (/control socket|timed out|limited to 100 calls/i.test(error.message)) {
-      await freshClient();
-      if (message.method === "tools/call") client.calls++;
-      return client.request(message.method, message.params || {});
-    }
     throw error;
   }
 }
@@ -108,4 +106,3 @@ const server = createServer((socket) => {
 
 await freshClient();
 server.listen(port, "127.0.0.1", () => console.log(`READY ${port}`));
-

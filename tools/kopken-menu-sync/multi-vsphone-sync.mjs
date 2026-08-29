@@ -22,12 +22,7 @@ function loadEnv(path) {
 
 const mainEnv = loadEnv(join(root, ".env.kopken-sync"));
 const deviceEnv = loadEnv(join(root, ".env.kopken-devices"));
-const devices = [{
-  name: "menu",
-  ssh: mainEnv.VSPHONE_SSH_COMMAND,
-  key: mainEnv.VSPHONE_CONNECTION_KEY,
-  adb: mainEnv.VSPHONE_ADB_TARGET,
-}];
+const devices = [];
 for (let index = 1; index <= 3; index++) {
   devices.push({
     name: deviceEnv[`DEVICE_${index}_NAME`],
@@ -37,12 +32,13 @@ for (let index = 1; index <= 3; index++) {
   });
 }
 if (devices.some((device) => !device.name || !device.ssh || !device.key || !device.adb)) {
-  throw new Error("Konfigurasi empat VSPhone belum lengkap.");
+  throw new Error("Konfigurasi tiga VSPhone belum lengkap.");
 }
 
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
 async function connectDevice(device) {
+  console.log(`[${device.name}] Menyambungkan ADB...`);
   const current = spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true }).stdout || "";
   if (!current.includes(`${device.adb}\tdevice`)) {
     const ssh = device.ssh.match(/ssh\s+.*?([^\s]+@[^\s]+)\s+-p\s+(\d+)\s+-L\s+([^\s]+)\s+-Nf/i);
@@ -73,6 +69,7 @@ async function connectDevice(device) {
     const current = spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true }).stdout || "";
     if (current.includes(`${device.adb}\tdevice`)) {
       spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
+      console.log(`[${device.name}] ADB siap.`);
       return;
     }
     await sleep(500);
@@ -92,40 +89,43 @@ function getHttpToolkitServer() {
 }
 
 async function activateHttpToolkit(device) {
-  const query = "mutation($id: ID!, $port: Int!, $options: Json) { activateInterceptor(id:$id, proxyPort:$port, options:$options) }";
-  const request = async () => {
-    let lastError;
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const { token, port } = getHttpToolkitServer();
-        return await fetch(`http://127.0.0.1:${port}/`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Origin: "https://app.httptoolkit.tech",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query,
-            variables: {
-              id: "android-adb",
-              port: 8000,
-              options: { deviceId: device.adb, enableSocks: false },
-            },
-          }),
-        });
-      } catch (error) {
-        lastError = error;
-        await sleep(1000);
-      }
-    }
-    throw lastError;
-  };
-  const response = await request();
+  console.log(`[${device.name}] Mengaktifkan HTTP Toolkit...`);
+  const { token, port } = getHttpToolkitServer();
+  const response = await fetch(`http://127.0.0.1:${port}/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Origin: "https://app.httptoolkit.tech",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: "query { config { certificateFingerprint } }" }),
+    signal: AbortSignal.timeout(5000),
+  });
   const result = await response.json();
-  if (!response.ok || result.errors || result.data?.activateInterceptor?.success !== true) {
-    throw new Error(`${device.name}: aktivasi HTTP Toolkit gagal.`);
-  }
+  const certFingerprint = result.data?.config?.certificateFingerprint;
+  if (!response.ok || !certFingerprint) throw new Error(`${device.name}: konfigurasi HTTP Toolkit tidak terbaca.`);
+
+  const setup = {
+    addresses: ["10.0.2.2", "10.0.3.2", "127.0.0.1"],
+    port: 8000,
+    localTunnelPort: 8000,
+    enableSocks: false,
+    certFingerprint,
+  };
+  const intentData = Buffer.from(JSON.stringify(setup), "utf8").toString("base64")
+    .replaceAll("+", "-").replaceAll("/", "_");
+  spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
+  spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-n", "tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity"], {
+    encoding: "utf8", windowsHide: true, timeout: 8000,
+  });
+  await sleep(300);
+  const activated = spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-W",
+    "-a", "tech.httptoolkit.android.ACTIVATE",
+    "-d", `https://android.httptoolkit.tech/connect/?data=${intentData}`,
+  ], { encoding: "utf8", windowsHide: true, timeout: 10000 });
+  if (activated.status !== 0) throw new Error(`${device.name}: intent VPN HTTP Toolkit gagal.`);
+  await sleep(1500);
+  spawnSync(adb, ["connect", device.adb], { encoding: "utf8", windowsHide: true, timeout: 5000 });
   // Android 13 dapat menahan aktivasi pertama pada dialog izin notifikasi.
   const dumpPath = "/sdcard/kopken-htk-permission.xml";
   spawnSync(adb, ["-s", device.adb, "shell", "uiautomator", "dump", dumpPath], { encoding: "utf8", windowsHide: true });
@@ -141,25 +141,18 @@ async function activateHttpToolkit(device) {
     encoding: "utf8", windowsHide: true,
   }).stdout || "";
   if (!/type:\s*VPN/i.test(connectivity)) {
-    const retry = await request();
-    const retryResult = await retry.json();
-    if (!retry.ok || retryResult.errors || retryResult.data?.activateInterceptor?.success !== true) {
-      throw new Error(`${device.name}: aktivasi ulang VPN HTTP Toolkit gagal.`);
-    }
-    await sleep(1000);
+    throw new Error(`${device.name}: VPN HTTP Toolkit tidak aktif.`);
   }
   spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
   spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-n", "com.kopikenangan/.heart"], {
     encoding: "utf8", windowsHide: true,
   });
   await sleep(500);
+  console.log(`[${device.name}] HTTP Toolkit siap.`);
 }
 
-async function runWorker(device, index) {
-  await sleep(index * 1500);
-  let status = 75;
-  while (status === 75) {
-    status = await new Promise((resolvePromise) => {
+async function runWorkerSession(device, index) {
+  return new Promise((resolvePromise) => {
       const child = spawn(process.execPath, [
         join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
         `--worker-index=${index}`, `--worker-count=${devices.length}`,
@@ -175,38 +168,79 @@ async function runWorker(device, index) {
       relay(child.stdout);
       relay(child.stderr);
       child.on("exit", (code) => resolvePromise(code ?? 1));
-    });
-    if (status === 75) {
-      console.log(`[${device.name}] Membuka sesi HTTP Toolkit baru...`);
-      await sleep(2000);
-    }
-  }
-  return status;
+  });
 }
 
-console.log("Menghubungkan 4 VSPhone...");
+function stopInterception(device) {
+  spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-W", "-a", "tech.httptoolkit.android.DEACTIVATE"], {
+    encoding: "utf8", windowsHide: true, timeout: 5000,
+  });
+  spawnSync(adb, ["-s", device.adb, "shell", "am", "force-stop", "tech.httptoolkit.android.v1"], {
+    encoding: "utf8", windowsHide: true,
+  });
+}
+
+function internetReady(device) {
+  const result = spawnSync(adb, ["-s", device.adb, "shell", "ping", "-c", "1", "-W", "3", "1.1.1.1"], {
+    encoding: "utf8", windowsHide: true, timeout: 6000,
+  });
+  return result.status === 0;
+}
+
+async function restoreInternet(device) {
+  stopInterception(device);
+  await sleep(1500);
+  console.log(`[${device.name}] VPN dihentikan; internet ${internetReady(device) ? "aman" : "belum pulih"}.`);
+}
+
+async function startBroker() {
+  const broker = spawn(process.execPath, [join(here, "mcp-broker.mjs")], {
+    cwd: root,
+    env: { ...process.env, ...mainEnv, KOPKEN_MCP_BROKER_PORT: "47831" },
+    windowsHide: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  await new Promise((resolvePromise, reject) => {
+    const timer = setTimeout(() => reject(new Error("Broker HTTP Toolkit tidak siap.")), 30000);
+    broker.stdout.on("data", (chunk) => {
+      if (chunk.toString().includes("READY")) { clearTimeout(timer); resolvePromise(); }
+    });
+    broker.stderr.on("data", (chunk) => console.log(`[HTTP Toolkit] ${chunk.toString().trim()}`));
+    broker.once("exit", () => reject(new Error("Broker HTTP Toolkit berhenti saat mulai.")));
+  });
+  return broker;
+}
+
+console.log("Menghubungkan 3 VSPhone (perangkat menu tidak dipakai)...");
 await Promise.all(devices.map(connectDevice));
-console.log("Mengaktifkan HTTP Toolkit pada semua perangkat...");
-for (const device of devices) await activateHttpToolkit(device);
 if (setupOnly) {
-  console.log("SETUP BERHASIL: empat VSPhone dan HTTP Toolkit siap.");
+  for (const device of devices) {
+    await restoreInternet(device);
+    if (!internetReady(device)) throw new Error(`${device.name}: internet tidak tersedia.`);
+  }
+  console.log("SETUP BERHASIL: tiga VSPhone tersambung dan internet aman.");
   process.exit(0);
 }
-console.log(`Semua VSPhone tersambung. Memulai empat worker mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
-const broker = spawn(process.execPath, [join(here, "mcp-broker.mjs")], {
-  cwd: root,
-  env: { ...process.env, ...mainEnv, KOPKEN_MCP_BROKER_PORT: "47831" },
-  windowsHide: true,
-  stdio: ["ignore", "pipe", "pipe"],
-});
-await new Promise((resolvePromise, reject) => {
-  const timer = setTimeout(() => reject(new Error("Broker HTTP Toolkit tidak siap.")), 30000);
-  broker.stdout.on("data", (chunk) => {
-    if (chunk.toString().includes("READY")) { clearTimeout(timer); resolvePromise(); }
-  });
-  broker.stderr.on("data", (chunk) => console.log(`[HTTP Toolkit] ${chunk.toString().trim()}`));
-  broker.once("exit", () => reject(new Error("Broker HTTP Toolkit berhenti saat mulai.")));
-});
-const statuses = await Promise.all(devices.map(runWorker));
-broker.kill();
-process.exitCode = statuses.some((status) => status !== 0 && status !== 2) ? 1 : 0;
+console.log(`Semua VSPhone tersambung. Memulai rotasi tiga sesi mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
+const pending = new Set(devices.map((_, index) => index));
+while (pending.size) {
+  for (const index of [...pending]) {
+    const device = devices[index];
+    console.log(`\n[${device.name}] Memulai sesi HTTP Toolkit terpisah.`);
+    await activateHttpToolkit(device);
+    if (!internetReady(device)) {
+      await restoreInternet(device);
+      console.log(`[${device.name}] Dilewati karena internet tidak aman.`);
+      continue;
+    }
+    const broker = await startBroker();
+    const status = await runWorkerSession(device, index);
+    broker.kill();
+    await restoreInternet(device);
+    if (status !== 75) pending.delete(index);
+    else console.log(`[${device.name}] Batas sesi tercapai; lanjut ke perangkat berikutnya.`);
+    if (status === 76) process.exit(0);
+    await sleep(1000);
+  }
+}
+console.log("Semua pembagian outlet selesai diproses.");
