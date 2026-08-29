@@ -86,7 +86,7 @@ async function connectDevice(device) {
 }
 
 function getHttpToolkitServer() {
-  const command = "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '--htk-server-auth-token=' } | Sort-Object CreationDate -Descending | Select-Object -First 1).CommandLine";
+  const command = "(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'HTTP Toolkit.exe' -and $_.CommandLine -match '--htk-server-auth-token=' } | Sort-Object CreationDate -Descending | Select-Object -First 1).CommandLine";
   const line = spawnSync("powershell.exe", ["-NoProfile", "-Command", command], {
     encoding: "utf8", windowsHide: true,
   }).stdout || "";
