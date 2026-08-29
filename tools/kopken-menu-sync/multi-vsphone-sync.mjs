@@ -93,14 +93,14 @@ function getHttpToolkitServer() {
 async function activateHttpToolkit(device) {
   const { token, port } = getHttpToolkitServer();
   const query = "mutation($id: ID!, $port: Int!, $options: Json) { activateInterceptor(id:$id, proxyPort:$port, options:$options) }";
-  const response = await fetch(`http://127.0.0.1:${port}/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Origin: "https://app.httptoolkit.tech",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const request = () => fetch(`http://127.0.0.1:${port}/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Origin: "https://app.httptoolkit.tech",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
       query,
       variables: {
         id: "android-adb",
@@ -109,6 +109,7 @@ async function activateHttpToolkit(device) {
       },
     }),
   });
+  const response = await request();
   const result = await response.json();
   if (!response.ok || result.errors || result.data?.activateInterceptor?.success !== true) {
     throw new Error(`${device.name}: aktivasi HTTP Toolkit gagal.`);
@@ -119,6 +120,20 @@ async function activateHttpToolkit(device) {
   const hierarchy = spawnSync(adb, ["-s", device.adb, "shell", "cat", dumpPath], { encoding: "utf8", windowsHide: true }).stdout || "";
   if (/permission_allow_button/.test(hierarchy)) {
     spawnSync(adb, ["-s", device.adb, "shell", "input", "tap", "540", "1040"], { encoding: "utf8", windowsHide: true });
+    await sleep(1000);
+  }
+  spawnSync(adb, ["-s", device.adb, "shell", "cmd", "appops", "set", "tech.httptoolkit.android.v1", "ACTIVATE_VPN", "allow"], {
+    encoding: "utf8", windowsHide: true,
+  });
+  const connectivity = spawnSync(adb, ["-s", device.adb, "shell", "dumpsys", "connectivity"], {
+    encoding: "utf8", windowsHide: true,
+  }).stdout || "";
+  if (!/type:\s*VPN/i.test(connectivity)) {
+    const retry = await request();
+    const retryResult = await retry.json();
+    if (!retry.ok || retryResult.errors || retryResult.data?.activateInterceptor?.success !== true) {
+      throw new Error(`${device.name}: aktivasi ulang VPN HTTP Toolkit gagal.`);
+    }
     await sleep(1000);
   }
   spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
