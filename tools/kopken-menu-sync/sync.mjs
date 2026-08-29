@@ -9,6 +9,7 @@ const configPath = join(root, ".env.kopken-sync");
 const logDir = join(here, "logs");
 const progressPath = join(logDir, "progress.json");
 const refreshProgressPath = join(logDir, "refresh-progress.json");
+const pausePath = join(logDir, "pause-all");
 mkdirSync(logDir, { recursive: true });
 
 function loadEnv(path) {
@@ -463,6 +464,14 @@ async function main() {
   }
   try {
     for (let index = 0; index < outlets.length; index++) {
+      let pauseAnnounced = false;
+      while (existsSync(pausePath)) {
+        if (!pauseAnnounced) {
+          console.log("PAUSE: sinkronisasi berhenti sebelum outlet berikutnya. Klik Lanjutkan Semua untuk meneruskan.\n");
+          pauseAnnounced = true;
+        }
+        await sleep(1000);
+      }
       const outletName = outlets[index];
       console.log(`[${index + 1}/${outlets.length}] ${outletName}`);
       if (!outletArg && completedOutlets.has(normalizeOutletName(outletName))) {
