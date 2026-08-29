@@ -7,8 +7,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
 const configPath = join(root, ".env.kopken-sync");
 const logDir = join(here, "logs");
-const progressPath = join(logDir, "progress.json");
-const refreshProgressPath = join(logDir, "refresh-progress.json");
 const pausePath = join(logDir, "pause-all");
 mkdirSync(logDir, { recursive: true });
 
@@ -23,6 +21,10 @@ function loadEnv(path) {
 }
 
 const env = { ...process.env, ...loadEnv(configPath) };
+const workerId = env.SYNC_WORKER_ID || "";
+const workerSuffix = workerId ? `-${workerId}` : "";
+const progressPath = join(logDir, `progress${workerSuffix}.json`);
+const refreshProgressPath = join(logDir, `refresh-progress${workerSuffix}.json`);
 const adb = env.ADB_PATH || "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
 const adbSerial = env.ADB_SERIAL || "";
 const mcpCommand = env.HTTP_TOOLKIT_MCP || "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\resources\\httptoolkit-mcp.cmd";
@@ -32,6 +34,8 @@ const supabaseUrl = (env.SUPABASE_URL || "")
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const testMode = process.argv.includes("--test");
 const repeatMode = process.argv.includes("--ulang");
+const workerIndex = Number(process.argv.find((arg) => arg.startsWith("--worker-index="))?.split("=")[1] || 0);
+const workerCount = Number(process.argv.find((arg) => arg.startsWith("--worker-count="))?.split("=")[1] || 1);
 const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice("--outlet=".length).trim();
 const freeSessionCallLimit = Number(env.HTTP_TOOLKIT_SESSION_CALL_LIMIT || 80);
 const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
@@ -451,6 +455,10 @@ async function main() {
     if (!syncedOutlets.length) throw new Error("Belum ada menu outlet yang tersimpan di Supabase.");
     outlets.splice(0, outlets.length, ...syncedOutlets);
   }
+  if (!outletArg && workerCount > 1) {
+    const assigned = outlets.filter((_, index) => index % workerCount === workerIndex);
+    outlets.splice(0, outlets.length, ...assigned);
+  }
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
   let sessionPaused = false;
@@ -548,7 +556,7 @@ async function main() {
   const skipped = results.filter((item) => item.status === "dilewati").length;
   const failedItems = results.filter((item) => item.status === "gagal");
   const failed = failedItems.length;
-  const failedReport = join(logDir, "outlet-gagal-terakhir.txt");
+  const failedReport = join(logDir, `outlet-gagal-terakhir${workerSuffix}.txt`);
   const failedLines = failedItems.length
     ? failedItems.map((item, index) => `${index + 1}. ${item.outletName}\n   Alasan: ${item.error}`)
     : ["Tidak ada outlet yang gagal."];

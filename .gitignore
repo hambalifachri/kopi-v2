@@ -1,4 +1,5 @@
 .env.local
 .env.kopken-sync
+.env.kopken-devices
 vsphone-output/
 tools/kopken-menu-sync/logs/
