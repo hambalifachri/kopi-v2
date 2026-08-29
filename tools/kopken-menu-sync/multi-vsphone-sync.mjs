@@ -165,7 +165,7 @@ async function runWorker(device, index) {
         `--worker-index=${index}`, `--worker-count=${devices.length}`,
       ], {
         cwd: root,
-        env: { ...process.env, ...mainEnv, ADB_SERIAL: device.adb, SYNC_WORKER_ID: device.name },
+        env: { ...process.env, ...mainEnv, ADB_SERIAL: device.adb, SYNC_WORKER_ID: device.name, KOPKEN_MCP_BROKER_PORT: "47831" },
         windowsHide: true,
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -193,5 +193,20 @@ if (setupOnly) {
   process.exit(0);
 }
 console.log(`Semua VSPhone tersambung. Memulai empat worker mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
+const broker = spawn(process.execPath, [join(here, "mcp-broker.mjs")], {
+  cwd: root,
+  env: { ...process.env, ...mainEnv, KOPKEN_MCP_BROKER_PORT: "47831" },
+  windowsHide: true,
+  stdio: ["ignore", "pipe", "pipe"],
+});
+await new Promise((resolvePromise, reject) => {
+  const timer = setTimeout(() => reject(new Error("Broker HTTP Toolkit tidak siap.")), 30000);
+  broker.stdout.on("data", (chunk) => {
+    if (chunk.toString().includes("READY")) { clearTimeout(timer); resolvePromise(); }
+  });
+  broker.stderr.on("data", (chunk) => console.log(`[HTTP Toolkit] ${chunk.toString().trim()}`));
+  broker.once("exit", () => reject(new Error("Broker HTTP Toolkit berhenti saat mulai.")));
+});
 const statuses = await Promise.all(devices.map(runWorker));
+broker.kill();
 process.exitCode = statuses.some((status) => status !== 0 && status !== 2) ? 1 : 0;

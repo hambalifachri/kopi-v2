@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { connect } from "node:net";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -227,6 +228,60 @@ class McpClient {
   }
 
   close() { this.proc?.kill(); }
+}
+
+class BrokerMcpClient {
+  constructor(port) {
+    this.port = port;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.buffer = "";
+    this.toolCalls = 0;
+  }
+
+  async start() {
+    await new Promise((resolvePromise, reject) => {
+      this.socket = connect(this.port, "127.0.0.1", resolvePromise);
+      this.socket.setEncoding("utf8");
+      this.socket.once("error", reject);
+    });
+    this.socket.on("data", (chunk) => this.read(chunk));
+  }
+
+  read(chunk) {
+    this.buffer += chunk;
+    while (this.buffer.includes("\n")) {
+      const split = this.buffer.indexOf("\n");
+      const line = this.buffer.slice(0, split).trim();
+      this.buffer = this.buffer.slice(split + 1);
+      if (!line) continue;
+      let message;
+      try { message = JSON.parse(line); } catch { continue; }
+      const pending = this.pending.get(message.id);
+      if (!pending) continue;
+      this.pending.delete(message.id);
+      message.error ? pending.reject(new Error(message.error)) : pending.resolve(message.result);
+    }
+  }
+
+  request(method, params) {
+    const id = this.nextId++;
+    this.socket.write(`${JSON.stringify({ id, method, params })}\n`);
+    return new Promise((resolvePromise, reject) => this.pending.set(id, { resolve: resolvePromise, reject }));
+  }
+
+  async call(name, args) {
+    this.toolCalls++;
+    const result = await this.request("tools/call", { name, arguments: args });
+    const text = (result.content || []).find((item) => item.type === "text")?.text;
+    if (!text) throw new Error(`Respons kosong dari ${name}`);
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { throw new Error(text.slice(0, 300)); }
+    if (!parsed.success) throw new Error(parsed.error || `${name} gagal`);
+    return parsed.data;
+  }
+
+  close() { this.socket?.destroy(); }
 }
 
 function isSessionLimitError(error) {
@@ -460,7 +515,9 @@ async function main() {
     fail(`Harus ada tepat 1 HP ADB. Terdeteksi ${devices.length}.`);
   }
 
-  const mcp = new McpClient(mcpCommand);
+  const mcp = env.KOPKEN_MCP_BROKER_PORT
+    ? new BrokerMcpClient(Number(env.KOPKEN_MCP_BROKER_PORT))
+    : new McpClient(mcpCommand);
   await mcp.start();
   if (testMode) {
     const available = await mcp.request("tools/list", {});
