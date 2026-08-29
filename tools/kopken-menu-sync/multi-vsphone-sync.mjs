@@ -22,18 +22,14 @@ function loadEnv(path) {
 }
 
 const mainEnv = loadEnv(join(root, ".env.kopken-sync"));
-const deviceEnv = loadEnv(join(root, ".env.kopken-devices"));
-const devices = [];
-for (let index = 1; index <= 3; index++) {
-  devices.push({
-    name: deviceEnv[`DEVICE_${index}_NAME`],
-    ssh: deviceEnv[`DEVICE_${index}_SSH`],
-    key: deviceEnv[`DEVICE_${index}_KEY`],
-    adb: deviceEnv[`DEVICE_${index}_ADB`],
-  });
-}
-if (devices.some((device) => !device.name || !device.ssh || !device.key || !device.adb)) {
-  throw new Error("Konfigurasi tiga VSPhone belum lengkap.");
+const devices = [{
+  name: "menu",
+  ssh: mainEnv.VSPHONE_SSH_COMMAND,
+  key: mainEnv.VSPHONE_CONNECTION_KEY,
+  adb: mainEnv.VSPHONE_ADB_TARGET,
+}];
+if (devices.some((device) => !device.ssh || !device.key || !device.adb)) {
+  throw new Error("Konfigurasi VSPhone menu belum lengkap di .env.kopken-sync.");
 }
 
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
@@ -267,17 +263,17 @@ async function restartHttpToolkit() {
   throw new Error("HTTP Toolkit tidak siap setelah dibuka ulang.");
 }
 
-console.log("Menghubungkan 3 VSPhone (perangkat menu tidak dipakai)...");
+console.log("Menghubungkan VSPhone menu (DEVICE-1, DEVICE-2, dan DEVICE-3 tidak dipakai)...");
 await Promise.all(devices.map(connectDevice));
 if (setupOnly) {
   for (const device of devices) {
     await restoreInternet(device);
     if (!internetReady(device)) throw new Error(`${device.name}: internet tidak tersedia.`);
   }
-  console.log("SETUP BERHASIL: tiga VSPhone tersambung dan internet aman.");
+  console.log("SETUP BERHASIL: VSPhone menu tersambung dan internet aman.");
   process.exit(0);
 }
-console.log(`Semua VSPhone tersambung. Menyiapkan tiga perangkat paralel mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
+console.log(`VSPhone menu tersambung. Menyiapkan mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
 for (const device of devices) {
   await activateHttpToolkit(device);
   if (!internetReady(device)) {
@@ -289,7 +285,7 @@ let statuses;
 let sessionNumber = 1;
 while (true) {
   const broker = await startBroker();
-  console.log(`Tiga perangkat mulai mencari outlet secara bersamaan (sesi ${sessionNumber}).\n`);
+  console.log(`VSPhone menu mulai mencari outlet (sesi ${sessionNumber}).\n`);
   statuses = await Promise.all(devices.map((device, index) => runWorkerSession(device, index)));
   broker.kill();
   if (!statuses.some((status) => status === 75)) break;
