@@ -37,6 +37,17 @@ if (devices.some((device) => !device.name || !device.ssh || !device.key || !devi
 
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
+async function reconnectDevice(device) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const current = spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true }).stdout || "";
+    if (current.includes(`${device.adb}\tdevice`)) return true;
+    spawnSync(adb, ["disconnect", device.adb], { encoding: "utf8", windowsHide: true, timeout: 5000 });
+    spawnSync(adb, ["connect", device.adb], { encoding: "utf8", windowsHide: true, timeout: 5000 });
+    await sleep(800);
+  }
+  return false;
+}
+
 async function connectDevice(device) {
   console.log(`[${device.name}] Menyambungkan ADB...`);
   const current = spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true }).stdout || "";
@@ -125,7 +136,7 @@ async function activateHttpToolkit(device) {
   ], { encoding: "utf8", windowsHide: true, timeout: 10000 });
   if (activated.status !== 0) throw new Error(`${device.name}: intent VPN HTTP Toolkit gagal.`);
   await sleep(1500);
-  spawnSync(adb, ["connect", device.adb], { encoding: "utf8", windowsHide: true, timeout: 5000 });
+  await reconnectDevice(device);
   // Android 13 dapat menahan aktivasi pertama pada dialog izin notifikasi.
   const dumpPath = "/sdcard/kopken-htk-permission.xml";
   spawnSync(adb, ["-s", device.adb, "shell", "uiautomator", "dump", dumpPath], { encoding: "utf8", windowsHide: true });
@@ -137,10 +148,26 @@ async function activateHttpToolkit(device) {
   spawnSync(adb, ["-s", device.adb, "shell", "cmd", "appops", "set", "tech.httptoolkit.android.v1", "ACTIVATE_VPN", "allow"], {
     encoding: "utf8", windowsHide: true,
   });
-  const connectivity = spawnSync(adb, ["-s", device.adb, "shell", "dumpsys", "connectivity"], {
-    encoding: "utf8", windowsHide: true,
-  }).stdout || "";
-  if (!/type:\s*VPN/i.test(connectivity)) {
+  let vpnActive = false;
+  for (let attempt = 0; attempt < 3 && !vpnActive; attempt++) {
+    await reconnectDevice(device);
+    const connectivity = spawnSync(adb, ["-s", device.adb, "shell", "dumpsys", "connectivity"], {
+      encoding: "utf8", windowsHide: true, timeout: 8000,
+    }).stdout || "";
+    vpnActive = /type:\s*VPN/i.test(connectivity);
+    if (!vpnActive) await sleep(1000);
+  }
+  if (!vpnActive) {
+    const dumpPath = "/sdcard/kopken-htk-status.xml";
+    spawnSync(adb, ["-s", device.adb, "shell", "uiautomator", "dump", dumpPath], {
+      encoding: "utf8", windowsHide: true, timeout: 8000,
+    });
+    const hierarchy = spawnSync(adb, ["-s", device.adb, "shell", "cat", dumpPath], {
+      encoding: "utf8", windowsHide: true, timeout: 5000,
+    }).stdout || "";
+    vpnActive = /text="Connected"|text="Disconnect"/i.test(hierarchy);
+  }
+  if (!vpnActive) {
     throw new Error(`${device.name}: VPN HTTP Toolkit tidak aktif.`);
   }
   spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
@@ -188,9 +215,16 @@ function internetReady(device) {
 }
 
 async function restoreInternet(device) {
+  await reconnectDevice(device);
   stopInterception(device);
   await sleep(1500);
-  console.log(`[${device.name}] VPN dihentikan; internet ${internetReady(device) ? "aman" : "belum pulih"}.`);
+  await reconnectDevice(device);
+  let ready = false;
+  for (let attempt = 0; attempt < 3 && !ready; attempt++) {
+    ready = internetReady(device);
+    if (!ready) await sleep(1000);
+  }
+  console.log(`[${device.name}] VPN dihentikan; internet ${ready ? "aman" : "belum pulih"}.`);
 }
 
 async function startBroker() {
