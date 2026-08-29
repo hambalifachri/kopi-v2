@@ -517,11 +517,15 @@ async function main() {
         if (isSessionLimitError(error)) {
           sessionPaused = true;
           console.log(`  JEDA SESI: ${error.message}`);
-          console.log("  Restart HTTP Toolkit, lalu jalankan BAT yang sama untuk melanjutkan.\n");
+          console.log("  Membuka sesi HTTP Toolkit baru lalu melanjutkan otomatis.\n");
           break;
         }
         console.error(`  GAGAL: ${error.message}\n`);
         results.push({ outletName, status: "gagal", error: error.message });
+        if (repeatMode) {
+          completedOutlets.add(normalizeOutletName(outletName));
+          writeFileSync(refreshProgressPath, JSON.stringify([...completedOutlets], null, 2));
+        }
       }
     }
   } finally {
@@ -550,11 +554,12 @@ async function main() {
   console.log(`Selesai sesi: ${success} berhasil, ${skipped} dilewati, ${failed} gagal (${mcp.toolCalls} panggilan HTTP Toolkit).`);
   console.log(`Laporan: ${report}`);
   console.log(`Outlet gagal: ${failedReport}`);
-  if (repeatMode && !sessionPaused && !devicePaused && !failed && existsSync(refreshProgressPath)) {
+  if (repeatMode && !sessionPaused && !devicePaused && existsSync(refreshProgressPath)) {
     rmSync(refreshProgressPath);
     console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
   }
-  if (devicePaused) process.exitCode = 76;
+  if (sessionPaused) process.exitCode = 75;
+  else if (devicePaused) process.exitCode = 76;
   else if (failed) process.exitCode = 2;
 }
 

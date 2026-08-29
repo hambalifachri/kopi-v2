@@ -163,10 +163,18 @@ spawnSync(adb, ["-s", adbTarget, "reverse", "tcp:8000", "tcp:8000"], {
 });
 
 console.log(`VSPhone tersambung di ${adbTarget}. Memulai sinkron menu.\n`);
-const sync = spawnSync(node, [join(here, "sync.mjs"), ...process.argv.slice(2)], {
-  cwd: root,
-  env: { ...process.env, ...env, ADB_SERIAL: adbTarget },
-  stdio: "inherit",
-  windowsHide: true,
-});
-process.exitCode = sync.status ?? 1;
+let syncStatus = 1;
+do {
+  const sync = spawnSync(node, [join(here, "sync.mjs"), ...process.argv.slice(2)], {
+    cwd: root,
+    env: { ...process.env, ...env, ADB_SERIAL: adbTarget },
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  syncStatus = sync.status ?? 1;
+  if (syncStatus === 75) {
+    console.log("Sesi HTTP Toolkit selesai. Membuka sesi baru dalam 2 detik...\n");
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
+  }
+} while (syncStatus === 75);
+process.exitCode = syncStatus;
