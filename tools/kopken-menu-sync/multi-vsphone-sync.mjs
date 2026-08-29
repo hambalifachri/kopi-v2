@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
 const adb = "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
+const httpToolkitExe = "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\HTTP Toolkit.exe";
 const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
 const newOnly = process.argv.includes("--baru");
@@ -245,6 +246,27 @@ async function startBroker() {
   return broker;
 }
 
+async function restartHttpToolkit() {
+  console.log("\nBatas sesi tercapai. Membuka sesi HTTP Toolkit yang benar-benar baru...");
+  spawnSync("powershell.exe", ["-NoProfile", "-Command",
+    "Get-Process -Name 'HTTP Toolkit' -ErrorAction SilentlyContinue | Stop-Process -Force; " +
+    "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.ExecutablePath -like '*httptoolkit-server*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }",
+  ], { encoding: "utf8", windowsHide: true, timeout: 15000 });
+  await sleep(1500);
+  const desktop = spawn(httpToolkitExe, [], { detached: true, stdio: "ignore", windowsHide: true });
+  desktop.unref();
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      getHttpToolkitServer();
+      console.log("Sesi HTTP Toolkit baru siap.");
+      return;
+    } catch {
+      await sleep(1000);
+    }
+  }
+  throw new Error("HTTP Toolkit tidak siap setelah dibuka ulang.");
+}
+
 console.log("Menghubungkan 3 VSPhone (perangkat menu tidak dipakai)...");
 await Promise.all(devices.map(connectDevice));
 if (setupOnly) {
@@ -263,10 +285,23 @@ for (const device of devices) {
     throw new Error(`${device.name}: internet tidak aman setelah HTTP Toolkit aktif.`);
   }
 }
-const broker = await startBroker();
-console.log("Tiga perangkat mulai mencari outlet secara bersamaan.\n");
-const statuses = await Promise.all(devices.map((device, index) => runWorkerSession(device, index)));
-broker.kill();
+let statuses;
+let sessionNumber = 1;
+while (true) {
+  const broker = await startBroker();
+  console.log(`Tiga perangkat mulai mencari outlet secara bersamaan (sesi ${sessionNumber}).\n`);
+  statuses = await Promise.all(devices.map((device, index) => runWorkerSession(device, index)));
+  broker.kill();
+  if (!statuses.some((status) => status === 75)) break;
+
+  for (const device of devices) await restoreInternet(device);
+  await restartHttpToolkit();
+  for (const device of devices) {
+    await activateHttpToolkit(device);
+    if (!internetReady(device)) throw new Error(`${device.name}: internet tidak aman setelah sesi baru aktif.`);
+  }
+  sessionNumber++;
+}
 for (const device of devices) await restoreInternet(device);
 if (statuses.some((status) => status === 76)) process.exit(0);
 process.exitCode = statuses.some((status) => status !== 0 && status !== 2) ? 1 : 0;
