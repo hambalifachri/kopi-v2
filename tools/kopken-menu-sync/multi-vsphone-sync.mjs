@@ -8,6 +8,7 @@ const root = resolve(here, "..", "..");
 const adb = "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
 const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
+const newOnly = process.argv.includes("--baru");
 
 function loadEnv(path) {
   if (!existsSync(path)) return {};
@@ -144,7 +145,7 @@ async function runWorker(device, index) {
   while (status === 75) {
     status = await new Promise((resolvePromise) => {
       const child = spawn(process.execPath, [
-        join(here, "sync.mjs"), "--ulang",
+        join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
         `--worker-index=${index}`, `--worker-count=${devices.length}`,
       ], {
         cwd: root,
@@ -175,6 +176,6 @@ if (setupOnly) {
   console.log("SETUP BERHASIL: empat VSPhone dan HTTP Toolkit siap.");
   process.exit(0);
 }
-console.log("Semua VSPhone tersambung. Memulai empat worker.\n");
+console.log(`Semua VSPhone tersambung. Memulai empat worker mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
 const statuses = await Promise.all(devices.map(runWorker));
 process.exitCode = statuses.some((status) => status !== 0 && status !== 2) ? 1 : 0;
