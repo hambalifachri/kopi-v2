@@ -794,8 +794,8 @@ window.searchOutlets = async function(keyword) {
         name: row.outlet_name,
         address: row.outlet_address,
         category: row.category,
-        isOpen: false,
-        openStatus: "Status outlet belum dapat diverifikasi",
+        isOpen: null,
+        openStatus: "Status buka belum dapat diperbarui",
       }));
     }
 
