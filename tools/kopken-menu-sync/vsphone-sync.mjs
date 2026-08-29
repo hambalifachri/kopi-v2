@@ -155,6 +155,13 @@ for (let attempt = 0; attempt < 12; attempt++) {
 }
 if (!adbConnected) fail("Koneksi ADB VSPhone gagal setelah terowongan SSH dibuka.");
 
+// ADB reverse hilang setiap koneksi cloud tersambung ulang. HTTP Toolkit Android
+// memakai port ini, sehingga tanpa dipasang lagi VPN-nya membuat internet buntu.
+spawnSync(adb, ["-s", adbTarget, "reverse", "tcp:8000", "tcp:8000"], {
+  encoding: "utf8",
+  windowsHide: true,
+});
+
 console.log(`VSPhone tersambung di ${adbTarget}. Memulai sinkron menu.\n`);
 const sync = spawnSync(node, [join(here, "sync.mjs"), ...process.argv.slice(2)], {
   cwd: root,
