@@ -10,6 +10,7 @@ const httpToolkitExe = "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit
 const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
 const newOnly = process.argv.includes("--baru");
+const discoverOutlets = process.argv.includes("--discover-outlets");
 
 function loadEnv(path) {
   if (!existsSync(path)) return {};
@@ -191,10 +192,11 @@ async function activateHttpToolkit(device) {
 
 async function runWorkerSession(device, index) {
   return new Promise((resolvePromise) => {
-      const child = spawn(process.execPath, [
-        join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
-        `--worker-index=${index}`, `--worker-count=${devices.length}`,
-      ], {
+      const childArgs = discoverOutlets
+        ? [join(here, "discover-outlets.mjs")]
+        : [join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
+          `--worker-index=${index}`, `--worker-count=${devices.length}`];
+      const child = spawn(process.execPath, childArgs, {
         cwd: root,
         env: { ...process.env, ...mainEnv, ADB_SERIAL: device.adb, SYNC_WORKER_ID: device.name, KOPKEN_MCP_BROKER_PORT: "47831" },
         windowsHide: true,
@@ -279,7 +281,8 @@ if (setupOnly) {
   console.log("SETUP BERHASIL: VSPhone menu tersambung dan internet aman.");
   process.exit(0);
 }
-console.log(`VSPhone menu tersambung. Menyiapkan mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
+const modeLabel = discoverOutlets ? "pencarian outlet baru" : (newOnly ? "menu outlet baru" : "sinkron ulang");
+console.log(`VSPhone menu tersambung. Menyiapkan mode ${modeLabel}.\n`);
 for (const device of devices) {
   await activateHttpToolkit(device);
   if (!internetReady(device)) {

@@ -2,6 +2,12 @@
 
 Program mencari outlet lewat aplikasi Kopi Kenangan di HP, membaca respons menu yang ditangkap HTTP Toolkit, lalu menyimpannya ke `kopken_outlets_catalog` di Supabase.
 
+## Cari outlet baru
+
+Jalankan `Cari Outlet Baru Kopken.bat` saat sinkron menu sedang tidak berjalan. Program memakai VSPhone `menu` untuk mencari outlet melalui aplikasi Kopi Kenangan, menangkap respons `query_pageable_store`, lalu hanya menambahkan `outlet_code` Kopi Kenangan yang belum ada ke Supabase. Menu outlet yang sudah tersimpan tidak diubah.
+
+Jika batas sesi HTTP Toolkit tercapai, aplikasi HTTP Toolkit dibuka ulang dan pencarian dilanjutkan dari checkpoint secara otomatis. Daftar outlet yang ditemukan pada sesi terakhir disimpan di `logs/outlet-baru-terakhir.json`.
+
 ## Persiapan pertama
 
 1. Salin `.env.example` menjadi `.env.kopken-sync` di folder utama proyek.
