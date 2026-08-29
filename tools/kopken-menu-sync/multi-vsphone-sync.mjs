@@ -141,6 +141,7 @@ async function activateHttpToolkit(device) {
 }
 
 async function runWorker(device, index) {
+  await sleep(index * 1500);
   let status = 75;
   while (status === 75) {
     status = await new Promise((resolvePromise) => {

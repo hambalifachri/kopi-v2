@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,6 +8,7 @@ const root = resolve(here, "..", "..");
 const configPath = join(root, ".env.kopken-sync");
 const logDir = join(here, "logs");
 const pausePath = join(logDir, "pause-all");
+const mcpLockPath = join(logDir, "httptoolkit-control.lock");
 mkdirSync(logDir, { recursive: true });
 
 function loadEnv(path) {
@@ -42,6 +43,24 @@ const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+
+async function acquireMcpLock() {
+  for (;;) {
+    try {
+      mkdirSync(mcpLockPath);
+      return () => rmSync(mcpLockPath, { recursive: true, force: true });
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - statSync(mcpLockPath).mtimeMs > 30000) {
+          rmSync(mcpLockPath, { recursive: true, force: true });
+          continue;
+        }
+      } catch { /* worker lain baru melepas lock */ }
+      await sleep(100);
+    }
+  }
+}
 const outletSearchAliases = new Map([
   ["ahmad yani banjarmasin", "Ahmad Yani Banj"],
   ["burangrang bandung", "Burangrang"],
@@ -183,12 +202,15 @@ class McpClient {
       throw error;
     }
     this.toolCalls++;
+    const releaseLock = await acquireMcpLock();
     let result;
     try {
       result = await this.request("tools/call", { name, arguments: args });
     } catch (error) {
       if (/limited to 100 calls per session/i.test(error.message)) error.code = "HTTP_TOOLKIT_SESSION_LIMIT";
       throw error;
+    } finally {
+      releaseLock();
     }
     const text = (result.content || []).find((item) => item.type === "text")?.text;
     if (!text) throw new Error(`Respons kosong dari ${name}`);
@@ -207,7 +229,7 @@ class McpClient {
 
 function isSessionLimitError(error) {
   return error?.code === "HTTP_TOOLKIT_SESSION_LIMIT"
-    || /limited to 100 calls per session|batas aman sesi HTTP Toolkit/i.test(error?.message || "");
+    || /limited to 100 calls per session|batas aman sesi HTTP Toolkit|Cannot connect to the HTTP Toolkit control socket/i.test(error?.message || "");
 }
 
 function normalizeOutletName(value) {
