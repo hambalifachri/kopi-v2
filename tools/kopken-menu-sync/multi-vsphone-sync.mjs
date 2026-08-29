@@ -86,7 +86,7 @@ async function connectDevice(device) {
 }
 
 function getHttpToolkitServer() {
-  const command = "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '--htk-server-auth-token=' } | Select-Object -First 1).CommandLine";
+  const command = "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match '--htk-server-auth-token=' } | Sort-Object CreationDate -Descending | Select-Object -First 1).CommandLine";
   const line = spawnSync("powershell.exe", ["-NoProfile", "-Command", command], {
     encoding: "utf8", windowsHide: true,
   }).stdout || "";
@@ -96,22 +96,36 @@ function getHttpToolkitServer() {
   return { token, port };
 }
 
+async function waitForHttpToolkitServer(maxAttempts = 30) {
+  let lastError;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const { token, port } = getHttpToolkitServer();
+      const response = await fetch(`http://127.0.0.1:${port}/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "https://app.httptoolkit.tech",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: "query { config { certificateFingerprint } }" }),
+        signal: AbortSignal.timeout(3000),
+      });
+      const result = await response.json();
+      const certFingerprint = result.data?.config?.certificateFingerprint;
+      if (response.ok && certFingerprint) return { token, port, certFingerprint };
+      lastError = new Error(`HTTP Toolkit merespons ${response.status}.`);
+    } catch (error) {
+      lastError = error;
+    }
+    await sleep(1000);
+  }
+  throw new Error(`HTTP Toolkit belum siap: ${lastError?.message || "server lokal tidak merespons"}`);
+}
+
 async function activateHttpToolkit(device) {
   console.log(`[${device.name}] Mengaktifkan HTTP Toolkit...`);
-  const { token, port } = getHttpToolkitServer();
-  const response = await fetch(`http://127.0.0.1:${port}/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Origin: "https://app.httptoolkit.tech",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query: "query { config { certificateFingerprint } }" }),
-    signal: AbortSignal.timeout(5000),
-  });
-  const result = await response.json();
-  const certFingerprint = result.data?.config?.certificateFingerprint;
-  if (!response.ok || !certFingerprint) throw new Error(`${device.name}: konfigurasi HTTP Toolkit tidak terbaca.`);
+  const { certFingerprint } = await waitForHttpToolkitServer();
 
   const setup = {
     addresses: ["10.0.2.2", "10.0.3.2", "127.0.0.1"],
@@ -251,16 +265,8 @@ async function restartHttpToolkit() {
   await sleep(1500);
   const desktop = spawn(httpToolkitExe, [], { detached: true, stdio: "ignore", windowsHide: true });
   desktop.unref();
-  for (let attempt = 0; attempt < 30; attempt++) {
-    try {
-      getHttpToolkitServer();
-      console.log("Sesi HTTP Toolkit baru siap.");
-      return;
-    } catch {
-      await sleep(1000);
-    }
-  }
-  throw new Error("HTTP Toolkit tidak siap setelah dibuka ulang.");
+  await waitForHttpToolkitServer(45);
+  console.log("Sesi HTTP Toolkit baru siap.");
 }
 
 console.log("Menghubungkan VSPhone menu (DEVICE-1, DEVICE-2, dan DEVICE-3 tidak dipakai)...");
