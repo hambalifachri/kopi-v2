@@ -483,7 +483,6 @@ async function main() {
     const assigned = outlets.filter((_, index) => index % workerCount === workerIndex);
     outlets.splice(0, outlets.length, ...assigned);
   }
-  console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet.\n`);
   const results = [];
   let sessionPaused = false;
   let devicePaused = false;
@@ -491,6 +490,16 @@ async function main() {
     ? [...loadCompletedOutlets()]
     : await loadSyncedOutletsFromSupabase();
   const completedOutlets = new Set(completedNames.map(normalizeOutletName));
+  if (!repeatMode && !outletArg && completedOutlets.size) {
+    const pendingOutlets = outlets.filter((name) => !completedOutlets.has(normalizeOutletName(name)));
+    outlets.splice(0, outlets.length, ...pendingOutlets);
+  }
+  console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet yang belum punya menu.\n`);
+  if (!outlets.length) {
+    mcp.close();
+    console.log("SELESAI: tidak ada outlet baru yang perlu dicari.");
+    return;
+  }
   if (repeatMode && completedOutlets.size) {
     console.log(`Melanjutkan sinkron ulang: ${completedOutlets.size} outlet sudah selesai sebelumnya.\n`);
   }
