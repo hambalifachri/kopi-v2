@@ -27,6 +27,7 @@ const workerId = env.SYNC_WORKER_ID || "";
 const workerSuffix = workerId ? `-${workerId}` : "";
 const progressPath = join(logDir, `progress${workerSuffix}.json`);
 const refreshProgressPath = join(logDir, `refresh-progress${workerSuffix}.json`);
+const newRunProgressPath = join(logDir, `new-menu-progress${workerSuffix}.json`);
 const adb = env.ADB_PATH || "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
 const adbSerial = env.ADB_SERIAL || "";
 const mcpCommand = env.HTTP_TOOLKIT_MCP || "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\resources\\httptoolkit-mcp.cmd";
@@ -543,14 +544,28 @@ async function main() {
   const results = [];
   let sessionPaused = false;
   let devicePaused = false;
+  let newRunProgress = { attempted: [], processed: 0, total: 0 };
+  if (!repeatMode && !outletArg && existsSync(newRunProgressPath)) {
+    try { newRunProgress = JSON.parse(readFileSync(newRunProgressPath, "utf8")); } catch { /* mulai checkpoint baru */ }
+  }
+  const attemptedThisRun = new Set((newRunProgress.attempted || []).map(normalizeOutletName));
   const completedNames = repeatMode
     ? [...loadCompletedOutlets()]
     : await loadSyncedOutletsFromSupabase();
   const completedOutlets = new Set(completedNames.map(normalizeOutletName));
   if (!repeatMode && !outletArg && completedOutlets.size) {
-    const pendingOutlets = outlets.filter((name) => !completedOutlets.has(normalizeOutletName(name)));
+    const pendingOutlets = outlets.filter((name) => {
+      const normalized = normalizeOutletName(name);
+      return !completedOutlets.has(normalized) && !attemptedThisRun.has(normalized);
+    });
     outlets.splice(0, outlets.length, ...pendingOutlets);
   }
+  if (!repeatMode && !outletArg && !newRunProgress.total) {
+    newRunProgress.total = outlets.length;
+    writeFileSync(newRunProgressPath, JSON.stringify(newRunProgress, null, 2));
+  }
+  const displayOffset = !repeatMode && !outletArg ? Number(newRunProgress.processed || 0) : 0;
+  const displayTotal = !repeatMode && !outletArg ? Number(newRunProgress.total || outlets.length) : outlets.length;
   console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet yang belum punya menu.\n`);
   if (!outlets.length) {
     mcp.close();
@@ -571,7 +586,7 @@ async function main() {
         await sleep(1000);
       }
       const outletName = outlets[index];
-      console.log(`[${index + 1}/${outlets.length}] ${outletName}`);
+      console.log(`[${displayOffset + index + 1}/${displayTotal}] ${outletName}`);
       if (!outletArg && completedOutlets.has(normalizeOutletName(outletName))) {
         console.log("  LEWATI: sudah berhasil pada proses sebelumnya.\n");
         results.push({ outletName, status: "dilewati" });
@@ -614,6 +629,12 @@ async function main() {
         results.push({ outletName, status: "berhasil", storeCode: captured.storeCode, products: count });
         completedOutlets.add(normalizeOutletName(outletName));
         writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
+        if (!repeatMode && !outletArg) {
+          attemptedThisRun.add(normalizeOutletName(outletName));
+          newRunProgress.attempted.push(outletName);
+          newRunProgress.processed = displayOffset + index + 1;
+          writeFileSync(newRunProgressPath, JSON.stringify(newRunProgress, null, 2));
+        }
       } catch (error) {
         if (isDeviceNotReadyError(error)) {
           devicePaused = true;
@@ -629,6 +650,12 @@ async function main() {
         }
         console.error(`  GAGAL: ${error.message}\n`);
         results.push({ outletName, status: "gagal", error: error.message });
+        if (!repeatMode && !outletArg) {
+          attemptedThisRun.add(normalizeOutletName(outletName));
+          newRunProgress.attempted.push(outletName);
+          newRunProgress.processed = displayOffset + index + 1;
+          writeFileSync(newRunProgressPath, JSON.stringify(newRunProgress, null, 2));
+        }
         if (repeatMode) {
           completedOutlets.add(normalizeOutletName(outletName));
           writeFileSync(refreshProgressPath, JSON.stringify([...completedOutlets], null, 2));
@@ -664,6 +691,10 @@ async function main() {
   if (repeatMode && !sessionPaused && !devicePaused && existsSync(refreshProgressPath)) {
     rmSync(refreshProgressPath);
     console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
+  }
+  if (!repeatMode && !outletArg && !sessionPaused && !devicePaused && existsSync(newRunProgressPath)) {
+    rmSync(newRunProgressPath);
+    console.log("Pencarian menu baru selesai. Checkpoint proses sudah dibersihkan.");
   }
   if (sessionPaused) process.exitCode = 75;
   else if (devicePaused) process.exitCode = 76;
