@@ -68,10 +68,7 @@ async function freshClient() {
 }
 
 async function execute(message) {
-  if (!client) await freshClient();
-  if (message.method === "tools/call" && client.calls >= callLimit) {
-    throw new Error(`Batas aman sesi HTTP Toolkit tercapai (${client.calls} panggilan).`);
-  }
+  if (!client || (message.method === "tools/call" && client.calls >= callLimit)) await freshClient();
   if (message.method === "tools/call") client.calls++;
   try {
     return await client.request(message.method, message.params || {});

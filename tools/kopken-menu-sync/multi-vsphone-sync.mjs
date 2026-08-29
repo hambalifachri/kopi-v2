@@ -255,26 +255,19 @@ if (setupOnly) {
   console.log("SETUP BERHASIL: tiga VSPhone tersambung dan internet aman.");
   process.exit(0);
 }
-console.log(`Semua VSPhone tersambung. Memulai rotasi tiga sesi mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
-const pending = new Set(devices.map((_, index) => index));
-while (pending.size) {
-  for (const index of [...pending]) {
-    const device = devices[index];
-    console.log(`\n[${device.name}] Memulai sesi HTTP Toolkit terpisah.`);
-    await activateHttpToolkit(device);
-    if (!internetReady(device)) {
-      await restoreInternet(device);
-      console.log(`[${device.name}] Dilewati karena internet tidak aman.`);
-      continue;
-    }
-    const broker = await startBroker();
-    const status = await runWorkerSession(device, index);
-    broker.kill();
+console.log(`Semua VSPhone tersambung. Menyiapkan tiga perangkat paralel mode ${newOnly ? "outlet baru" : "sinkron ulang"}.\n`);
+for (const device of devices) {
+  await activateHttpToolkit(device);
+  if (!internetReady(device)) {
     await restoreInternet(device);
-    if (status !== 75) pending.delete(index);
-    else console.log(`[${device.name}] Batas sesi tercapai; lanjut ke perangkat berikutnya.`);
-    if (status === 76) process.exit(0);
-    await sleep(1000);
+    throw new Error(`${device.name}: internet tidak aman setelah HTTP Toolkit aktif.`);
   }
 }
+const broker = await startBroker();
+console.log("Tiga perangkat mulai mencari outlet secara bersamaan.\n");
+const statuses = await Promise.all(devices.map((device, index) => runWorkerSession(device, index)));
+broker.kill();
+for (const device of devices) await restoreInternet(device);
+if (statuses.some((status) => status === 76)) process.exit(0);
+process.exitCode = statuses.some((status) => status !== 0 && status !== 2) ? 1 : 0;
 console.log("Semua pembagian outlet selesai diproses.");
