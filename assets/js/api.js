@@ -691,29 +691,11 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   try {
     let rawResponse;
-    let menuSource = "supabase";
+    const menuSource = "supabase";
     let outletCategory = getKopiKenanganOutletState?.().outletCategory || "";
-    try {
-      const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
-      rawResponse = cachedOutlet.payload;
-      outletCategory = cachedOutlet.category || outletCategory;
-    } catch (supabaseError) {
-      console.warn("Menu Supabase belum tersedia, mencoba API cadangan:", supabaseError);
-      menuSource = "api";
-      try {
-        const response = await fetch(`${NUFS_API_BASE}/menu?outletCode=${encodeURIComponent(outletCode)}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        rawResponse = await response.json();
-        if (!Array.isArray(rawResponse?.menu) || rawResponse.menu.length === 0) {
-          throw new Error("Menu outlet kosong");
-        }
-      } catch (nufsError) {
-        console.warn("API menu NufsFood gagal, mencoba Worker:", nufsError);
-        const fallbackResponse = await fetch(`${CF_API_BASE}?outletCode=${encodeURIComponent(outletCode)}`);
-        if (!fallbackResponse.ok) throw new Error(`HTTP ${fallbackResponse.status}`);
-        rawResponse = await fallbackResponse.json();
-      }
-    }
+    const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
+    rawResponse = cachedOutlet.payload;
+    outletCategory = cachedOutlet.category || outletCategory;
 
     cacheOriginalKopiKenanganMenu();
     const localMenuByName = new Map(
@@ -781,39 +763,40 @@ window.searchOutlets = async function(keyword) {
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    const config = window.KOPI_SUPABASE_CONFIG || {};
-    const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
     let outlets = [];
+    let liveResponse;
 
-    if (config.url && config.anonKey && safeKeyword) {
-      const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
-      const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
-      const catalogResponse = await fetch(endpoint, {
-        headers: {
-          apikey: config.anonKey,
-          Authorization: `Bearer ${config.anonKey}`,
-        },
-      });
-      if (catalogResponse.ok) {
-        const rows = await catalogResponse.json();
-        outlets = (Array.isArray(rows) ? rows : []).map((row) => ({
-          code: row.outlet_code,
-          name: row.outlet_name,
-          address: row.outlet_address,
-          category: row.category,
-          isOpen: true,
-        }));
+    try {
+      liveResponse = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+      if (liveResponse.ok) {
+        const liveData = await liveResponse.json();
+        outlets = Array.isArray(liveData.outlets) ? liveData.outlets : [];
       }
+    } catch (liveError) {
+      console.warn("Status outlet realtime tidak tersedia, memakai katalog Supabase:", liveError);
     }
 
     if (!outlets.length) {
-      let response = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
-      if (!response.ok) {
-        response = await fetch(`${NUFS_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+      const config = window.KOPI_SUPABASE_CONFIG || {};
+      const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
+      if (!config.url || !config.anonKey || !safeKeyword) {
+        throw new Error(`API outlet realtime gagal${liveResponse ? ` (HTTP ${liveResponse.status})` : ""}`);
       }
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      outlets = Array.isArray(data.outlets) ? data.outlets : [];
+      const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
+      const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
+      const catalogResponse = await fetch(endpoint, {
+        headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` },
+      });
+      if (!catalogResponse.ok) throw new Error(`Supabase HTTP ${catalogResponse.status}`);
+      const rows = await catalogResponse.json();
+      outlets = (Array.isArray(rows) ? rows : []).map((row) => ({
+        code: row.outlet_code,
+        name: row.outlet_name,
+        address: row.outlet_address,
+        category: row.category,
+        isOpen: null,
+        openStatus: "Status buka belum dapat diperbarui",
+      }));
     }
 
     renderOutletResults(outlets, keyword);
