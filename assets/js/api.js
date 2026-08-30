@@ -1017,18 +1017,19 @@ function normalizedLiveName(value) {
 }
 
 const FORE_LIVE_CATEGORY_GROUPS = new Map([
-  ["taste of our journey", "sunny-burst-series"],
-  ["favorite choice", "fore-signature"],
-  ["fore signature", "fore-signature"],
+  ["taste-of-our-journey", "sunny-burst-series"],
+  ["favorite-choice", "fore-signature"],
+  ["fore-signature", "fore-signature"],
+  ["foreveryone-1l", "fore-literan"],
   ["coffee", "coffee"],
-  ["americano series", "americano-series"],
-  ["non coffee", "non-coffee"],
-  ["fore junior", "fore-junior"],
-  ["fore deli", "fore-deli"],
+  ["americano-series", "americano-series"],
+  ["non-coffee", "non-coffee"],
+  ["fore-junior", "fore-junior"],
+  ["fore-deli", "fore-deli"],
   ["refresher", "refresher"],
-  ["ice blended", "ice-blended"],
+  ["ice-blended", "ice-blended"],
   ["tea", "tea"],
-  ["peduli kalimantan", "fore-signature"],
+  ["peduli-kalimantan", "fore-signature"],
 ]);
 
 function foreLiveGroup(item) {
@@ -1058,98 +1059,18 @@ function foreDefaultLiveOptions(officialRegular, officialLarge = 0) {
 }
 
 function buildForeLiveMenu(payload) {
-  cacheOriginalLiveBrandMenus();
-  const originals = originalLiveBrandMenus?.fore || [];
   const master = Array.isArray(payload?.master) ? payload.master : [];
   const storeRows = new Map((payload?.storeMenu || []).map((row) => [String(row.product_code || "").toLowerCase(), row]));
-  const masterByName = new Map();
-  master.forEach((item) => {
-    const key = normalizedLiveName(item.name);
-    if (!masterByName.has(key) || /^iced?-/i.test(String(item.name))) masterByName.set(key, item);
-  });
-
-  const matchedItems = originals.flatMap((localItem) => {
-    const liveItem = masterByName.get(normalizedLiveName(localItem.name));
-    if (!liveItem?.product_code) return [];
-    const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
-    if (!storeItem || storeItem.is_sold_out === true) return [];
-
-    const officialRegular = firstNumber(storeItem.regular_price, storeItem.small_price, liveItem.regular_price, liveItem.small_price);
-    if (!officialRegular) return [];
-    const officialLarge = firstNumber(storeItem.large_price, liveItem.large_price);
-    const largeSellingPrice = officialLarge
-      ? localItem.price + Math.max(0, officialLarge - officialRegular)
-      : 0;
-    const optionTemplate = Array.isArray(localItem.options)
-      ? localItem.options
-      : (BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || []);
-    const liveOptionGroups = new Set((liveItem.addons || []).map((group) => normalizeApiText(group.group_name).replace(/-/g, "")));
-    const defaultOptions = optionTemplate
-      .filter((group) => group.key !== "sweetness" || liveOptionGroups.has("sweetness"))
-      .map((group) => ({
-        ...group,
-        options: (group.options || []).map((option) => ({ ...option })),
-      }));
-    const sizeGroup = defaultOptions.find((group) => group.key === "cupSize");
-    if (sizeGroup) {
-      sizeGroup.options = [{ value: "Reguler", label: "Reguler", price: localItem.price }];
-      if (officialLarge) sizeGroup.options.push({ value: "Large", label: "Large", price: largeSellingPrice });
-    }
-
-    return [{
-      ...localItem,
-      image: liveItem.image_url || localItem.image,
-      oldPrice: officialRegular,
-      oldLargePrice: officialLarge || undefined,
-      largePrice: largeSellingPrice || undefined,
-      options: defaultOptions,
-      liveOutletMenu: true,
-    }];
-  });
-
-  const literItems = master.flatMap((liveItem) => {
-    const isLiterItem = (liveItem.categories || []).some((category) => /foreveryone\s*1l/i.test(String(category)))
-      || /\b1l\b/i.test(String(liveItem.name || ""));
-    if (!isLiterItem || !liveItem.product_code) return [];
-
-    const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
-    if (!storeItem || storeItem.is_sold_out === true) return [];
-    const officialPrice = firstNumber(storeItem.regular_price, liveItem.regular_price);
-    if (!officialPrice) return [];
-
-    const options = (liveItem.addons || []).map((group) => ({
-      key: normalizeApiText(group.group_name).replace(/-/g, "") || "option",
-      label: group.group_name || "Option",
-      defaultValue: (group.options || []).find((option) => option.is_default)?.label,
-      options: (group.options || []).map((option) => ({
-        value: option.label,
-        label: option.label,
-        priceDelta: firstNumber(option.price) || 0,
-      })),
-    })).filter((group) => group.options.length);
-
-    return [{
-      id: `fore-live-${normalizeApiText(liveItem.product_code)}`,
-      brand: "fore",
-      group: "fore-literan",
-      name: liveItem.name,
-      oldPrice: officialPrice,
-      price: Math.max(0, officialPrice - 7000),
-      image: liveItem.image_url,
-      options,
-      liveOutletMenu: true,
-    }];
-  });
-
-  const localNames = new Set(originals.map((item) => normalizedLiveName(item.name)));
-  const newOfficialItems = master.flatMap((liveItem) => {
+  return master.flatMap((liveItem) => {
     const group = foreLiveGroup(liveItem);
-    if (!group || !liveItem.product_code || localNames.has(normalizedLiveName(liveItem.name))) return [];
+    if (!group || !liveItem.product_code) return [];
 
     const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
     if (!storeItem || storeItem.is_sold_out === true) return [];
     const officialRegular = firstNumber(storeItem.regular_price, liveItem.regular_price);
     if (!officialRegular) return [];
+    const isLiterItem = group === "fore-literan";
+    const sellingPrice = isLiterItem ? Math.max(0, officialRegular - 7000) : foreSellingPrice(officialRegular);
 
     return [{
       id: `fore-live-${normalizeApiText(liveItem.product_code)}`,
@@ -1157,14 +1078,12 @@ function buildForeLiveMenu(payload) {
       group,
       name: liveItem.name,
       oldPrice: officialRegular,
-      price: foreSellingPrice(officialRegular),
+      price: sellingPrice,
       image: liveItem.image_url || undefined,
-      options: foreDefaultLiveOptions(foreSellingPrice(officialRegular)),
+      options: isLiterItem ? [] : foreDefaultLiveOptions(sellingPrice),
       liveOutletMenu: true,
     }];
   });
-
-  return [...matchedItems, ...literItems, ...newOfficialItems];
 }
 
 function collectTomoroProducts(value, products = []) {
