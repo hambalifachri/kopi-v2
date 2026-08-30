@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
 const logDir = join(here, "logs");
 const checkpointPath = join(logDir, "discover-outlets-progress.json");
-const searchTermsPath = join(here, "outlet-discovery-terms.txt");
+const scrollCheckpointPath = join(logDir, "discover-outlets-scroll-progress.json");
 const envPath = join(root, ".env.kopken-sync");
 mkdirSync(logDir, { recursive: true });
 
@@ -174,6 +174,146 @@ async function insertNewStores(stores, knownCodes) {
   return rows;
 }
 
+async function prepareScrollableOutletList(resuming) {
+  runAdb(["shell", "svc", "power", "stayon", "true"]);
+  runAdb(["shell", "input", "keyevent", "224"]);
+  runAdb(["shell", "wm", "dismiss-keyguard"]);
+  runAdb(["shell", "am", "start", "-n", "com.kopikenangan/.heart"]);
+  await sleep(500);
+  runAdb(["shell", "input", "keyevent", "111"]);
+  if (resuming) return;
+
+  // Buka pemilih outlet jika aplikasi masih berada di halaman menu.
+  runAdb(["shell", "input", "tap", "965", "187"]);
+  await sleep(500);
+  runAdb(["shell", "input", "keyevent", "111"]);
+  // Pastikan daftar dimulai dari atas, lalu pilih filter Kopi Kenangan.
+  for (let index = 0; index < 6; index++) {
+    runAdb(["shell", "input", "swipe", "540", "650", "540", "1650", "180"]);
+    await sleep(80);
+  }
+  runAdb(["shell", "input", "tap", "840", "480"]);
+  await sleep(1000);
+}
+
+function tapLoadMoreOutletsIfVisible() {
+  const dumpPath = "/sdcard/kopken-discover-outlets.xml";
+  try {
+    runAdb(["shell", "uiautomator", "dump", dumpPath]);
+    const hierarchy = runAdb(["shell", "cat", dumpPath]);
+    const nodes = hierarchy.match(/<node\b[^>]*>/g) || [];
+    const loadMore = nodes.find((node) => /(?:text|content-desc)="Lihat outlet lainnya"/i.test(node));
+    const bounds = loadMore?.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (!bounds) return false;
+    const x = Math.round((Number(bounds[1]) + Number(bounds[3])) / 2);
+    const y = Math.round((Number(bounds[2]) + Number(bounds[4])) / 2);
+    runAdb(["shell", "input", "tap", String(x), String(y)]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readNewOutletResponses(mcp, afterTimestamp, seenEventIds) {
+  const summary = await mcp.call("events_list", { filter: eventFilter, limit: 1 });
+  if (!summary.total) return [];
+  const listed = await mcp.call("events_list", {
+    filter: eventFilter,
+    offset: Math.max(0, summary.total - 20),
+    limit: 20,
+  });
+  const events = listed.events.filter((event) =>
+    event.timestamp > afterTimestamp && !seenEventIds.has(event.id)
+  );
+  const responses = [];
+  for (const event of events) {
+    const response = await mcp.call("events_get-response-body", { id: event.id, offset: 0, maxLength: 100000 });
+    seenEventIds.add(event.id);
+    responses.push(JSON.parse(String(response.body || "{}")));
+  }
+  return responses;
+}
+
+async function scrollDiscoveryMain() {
+  const catalog = await loadCatalog();
+  const knownCodes = new Set(catalog.map((row) => row.outlet_code));
+  let state = { started: false, pagesProcessed: 0, totalPages: 0 };
+  if (existsSync(scrollCheckpointPath)) {
+    try { state = JSON.parse(readFileSync(scrollCheckpointPath, "utf8")); } catch { /* mulai dari atas */ }
+  }
+
+  const mcp = new BrokerClient();
+  await mcp.start();
+  const seenEventIds = new Set();
+  const discovered = [];
+  let sessionLimited = false;
+  let emptySwipes = 0;
+  let afterTimestamp = await latestEventTimestamp(mcp);
+
+  console.log(state.started
+    ? `Melanjutkan scroll daftar outlet dari ${state.pagesProcessed} halaman sebelumnya.\n`
+    : "Membuka daftar outlet dari paling atas dan mulai scroll sampai paling bawah.\n");
+
+  try {
+    await prepareScrollableOutletList(state.started);
+    state.started = true;
+    writeFileSync(scrollCheckpointPath, JSON.stringify(state, null, 2));
+
+    for (let swipe = 0; swipe < 2500 && emptySwipes < 20; swipe++) {
+      if (swipe > 0 || state.pagesProcessed > 0) {
+        runAdb(["shell", "input", "swipe", "540", "1500", "540", "620", "240"]);
+        await sleep(650);
+      }
+      try {
+        const responses = await readNewOutletResponses(mcp, afterTimestamp, seenEventIds);
+        if (!responses.length) {
+          if (tapLoadMoreOutletsIfVisible()) {
+            emptySwipes = 0;
+            console.log("Tombol 'Lihat outlet lainnya' diklik, menunggu halaman berikutnya...");
+            await sleep(900);
+            continue;
+          }
+          emptySwipes++;
+          console.log(`Tidak ada halaman baru (${emptySwipes}/20), lanjut scroll...`);
+          continue;
+        }
+        emptySwipes = 0;
+        for (const raw of responses) {
+          const stores = Array.isArray(raw?.data?.store) ? raw.data.store : [];
+          const inserted = await insertNewStores(stores, knownCodes);
+          discovered.push(...inserted);
+          state.pagesProcessed++;
+          state.totalPages = Math.max(state.totalPages || 0, Number(raw?.data?.pages || 0));
+          const pageLabel = state.totalPages ? `${state.pagesProcessed}/${state.totalPages}` : String(state.pagesProcessed);
+          console.log(inserted.length
+            ? `[halaman ${pageLabel}] BARU: ${inserted.map((row) => row.outlet_name).join(", ")}`
+            : `[halaman ${pageLabel}] Tidak ada outlet baru.`);
+          writeFileSync(scrollCheckpointPath, JSON.stringify(state, null, 2));
+        }
+        afterTimestamp = Math.max(afterTimestamp, ...responses.map(() => Date.now()));
+      } catch (error) {
+        if (/limited to 100 calls per session|Cannot connect to the HTTP Toolkit control socket/i.test(error.message)) {
+          sessionLimited = true;
+          console.log("Batas sesi HTTP Toolkit tercapai. Scroll dilanjutkan otomatis di sesi baru.\n");
+          break;
+        }
+        throw error;
+      }
+    }
+  } finally {
+    mcp.close();
+  }
+
+  const reportPath = join(logDir, "outlet-baru-terakhir.json");
+  writeFileSync(reportPath, JSON.stringify(discovered, null, 2));
+  console.log(`Sesi selesai: ${discovered.length} outlet baru. Laporan: ${reportPath}`);
+  if (sessionLimited) process.exitCode = 75;
+  else {
+    rmSync(scrollCheckpointPath, { force: true });
+    console.log("Bagian paling bawah daftar tercapai. Pemeriksaan outlet selesai.");
+  }
+}
+
 async function main() {
   const catalog = await loadCatalog();
   const knownCodes = new Set(catalog.map((row) => row.outlet_code));
@@ -231,7 +371,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+scrollDiscoveryMain().catch((error) => {
   console.error(`GAGAL: ${error.message}`);
   process.exitCode = 1;
 });
