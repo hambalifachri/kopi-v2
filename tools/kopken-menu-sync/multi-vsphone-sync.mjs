@@ -11,6 +11,7 @@ const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
 const newOnly = process.argv.includes("--baru");
 const discoverOutlets = process.argv.includes("--discover-outlets");
+const outletArgs = process.argv.filter((arg) => arg.startsWith("--outlet="));
 
 function loadEnv(path) {
   if (!existsSync(path)) return {};
@@ -195,7 +196,7 @@ async function runWorkerSession(device, index) {
       const childArgs = discoverOutlets
         ? [join(here, "discover-outlets.mjs")]
         : [join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
-          `--worker-index=${index}`, `--worker-count=${devices.length}`];
+          `--worker-index=${index}`, `--worker-count=${devices.length}`, ...outletArgs];
       const child = spawn(process.execPath, childArgs, {
         cwd: root,
         env: { ...process.env, ...mainEnv, ADB_SERIAL: device.adb, SYNC_WORKER_ID: device.name, KOPKEN_MCP_BROKER_PORT: "47831" },
