@@ -255,8 +255,8 @@ function getApiProductPrice(item, localItem) {
   const apiPrice = firstNumber(item.price, item.salePrice, item.sale_price, item.orig_price, item.origPrice);
   if (!apiPrice) return localItem.price || 0;
 
-  const outletCode = String(window.kopiKenanganOutletState?.outletCode || "").trim().toUpperCase();
-  const promoMarkup = outletCode === "TNG.T2FSOETA" ? 7000 : 3000;
+  const outletCategory = String(window.kopiKenanganOutletState?.outletCategory || "").trim().toLowerCase();
+  const promoMarkup = outletCategory === "airport" ? 7000 : 3000;
   const adjustedPrice = Math.round(apiPrice / 2) + promoMarkup;
   const manualAdjustment = PRICE_ADJUSTMENTS[normalizeApiText(item.name)] || 0;
   return adjustedPrice + manualAdjustment;
