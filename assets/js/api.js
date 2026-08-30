@@ -960,25 +960,35 @@ function renderLiveBrandOutletResults(brandId, outlets) {
     return;
   }
 
-  outlets.forEach((outlet) => {
-    const name = liveBrandOutletName(brandId, outlet);
-    const code = liveBrandOutletCode(brandId, outlet);
-    if (!name || !code) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "outlet-result";
-    const title = document.createElement("strong");
-    title.textContent = name;
-    button.appendChild(title);
-    const address = liveBrandOutletAddress(brandId, outlet);
-    if (address) {
-      const detail = document.createElement("span");
-      detail.textContent = address;
-      button.appendChild(detail);
-    }
-    button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name, outletAddress: address }));
-    results.appendChild(button);
-  });
+  [...outlets]
+    .sort((first, second) => Number(first?.is_open === false) - Number(second?.is_open === false))
+    .forEach((outlet) => {
+      const name = liveBrandOutletName(brandId, outlet);
+      const code = liveBrandOutletCode(brandId, outlet);
+      if (!name || !code) return;
+      const isClosed = brandId === "fore" && outlet?.is_open === false;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
+      button.disabled = isClosed;
+      const title = document.createElement("strong");
+      title.textContent = name;
+      button.appendChild(title);
+      const address = liveBrandOutletAddress(brandId, outlet);
+      if (address) {
+        const detail = document.createElement("span");
+        detail.textContent = address;
+        button.appendChild(detail);
+      }
+      if (isClosed) {
+        const status = document.createElement("span");
+        status.className = "outlet-closed-status";
+        status.textContent = "Outlet sedang tutup";
+        button.appendChild(status);
+      }
+      button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name, outletAddress: address }));
+      results.appendChild(button);
+    });
 }
 
 window.searchLiveBrandOutlets = async function(brandId, keyword) {
