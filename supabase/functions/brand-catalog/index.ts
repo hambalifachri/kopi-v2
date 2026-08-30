@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const UPSTREAM_BASE = "https://www.nufsfood.shop/api";
 const FORE_API_BASE = "https://api.fore.coffee";
+const FORE_IMAGE_BASE = "https://static.fore.coffee/";
 const FORE_APP_VERSION = Deno.env.get("FORE_APP_VERSION") || "5.3.0";
 const FORE_ACCESS_TOKEN_ENV = Deno.env.get("FORE_ACCESS_TOKEN") || "";
 const JSON_HEADERS = {
@@ -93,6 +94,13 @@ function numberValue(...values: unknown[]) {
   return 0;
 }
 
+function foreImageUrl(value: unknown) {
+  const path = textValue(value);
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${FORE_IMAGE_BASE}${path.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+}
+
 async function getOfficialForeOutlets() {
   if (foreOutletCache && foreOutletCache.expiresAt > Date.now()) return foreOutletCache.outlets;
   const data = await foreOfficial("/store/all?lat=-6.200000&long=106.816666&country_id=1&company_code=fki");
@@ -120,7 +128,7 @@ function normalizeOfficialForeMenu(products: ForeOutlet[]) {
       id: product.pd_id,
       categories: [textValue(product.cat_name)].filter(Boolean),
       name: textValue(product.pd_name),
-      image_url: "",
+      image_url: foreImageUrl(product.pd_img),
       regular_price: regularPrice,
       large_price: 0,
       regular_discount_price: numberValue(product.pd_final_price),

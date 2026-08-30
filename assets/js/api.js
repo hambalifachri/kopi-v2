@@ -1016,6 +1016,47 @@ function normalizedLiveName(value) {
     .replace(/cappucino/g, "cappuccino");
 }
 
+const FORE_LIVE_CATEGORY_GROUPS = new Map([
+  ["taste of our journey", "sunny-burst-series"],
+  ["favorite choice", "fore-signature"],
+  ["fore signature", "fore-signature"],
+  ["coffee", "coffee"],
+  ["americano series", "americano-series"],
+  ["non coffee", "non-coffee"],
+  ["fore junior", "fore-junior"],
+  ["fore deli", "fore-deli"],
+  ["refresher", "refresher"],
+  ["ice blended", "ice-blended"],
+  ["tea", "tea"],
+  ["peduli kalimantan", "fore-signature"],
+]);
+
+function foreLiveGroup(item) {
+  const category = Array.isArray(item?.categories) ? item.categories[0] : "";
+  return FORE_LIVE_CATEGORY_GROUPS.get(normalizeApiText(category)) || "";
+}
+
+function foreSellingPrice(officialPrice) {
+  return Math.round((officialPrice * 0.75 + 2250) / 250) * 250;
+}
+
+function foreDefaultLiveOptions(officialRegular, officialLarge = 0) {
+  const template = BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || [];
+  return template.map((group) => ({
+    ...group,
+    options: (group.options || []).map((option) => ({ ...option })),
+  })).map((group) => {
+    if (group.key !== "cupSize") return group;
+    return {
+      ...group,
+      options: [
+        { value: "Reguler", label: "Reguler", price: officialRegular },
+        ...(officialLarge ? [{ value: "Large", label: "Large", price: officialLarge }] : []),
+      ],
+    };
+  });
+}
+
 function buildForeLiveMenu(payload) {
   cacheOriginalLiveBrandMenus();
   const originals = originalLiveBrandMenus?.fore || [];
@@ -1100,7 +1141,30 @@ function buildForeLiveMenu(payload) {
     }];
   });
 
-  return [...matchedItems, ...literItems];
+  const localNames = new Set(originals.map((item) => normalizedLiveName(item.name)));
+  const newOfficialItems = master.flatMap((liveItem) => {
+    const group = foreLiveGroup(liveItem);
+    if (!group || !liveItem.product_code || localNames.has(normalizedLiveName(liveItem.name))) return [];
+
+    const storeItem = storeRows.get(String(liveItem.product_code).toLowerCase());
+    if (!storeItem || storeItem.is_sold_out === true) return [];
+    const officialRegular = firstNumber(storeItem.regular_price, liveItem.regular_price);
+    if (!officialRegular) return [];
+
+    return [{
+      id: `fore-live-${normalizeApiText(liveItem.product_code)}`,
+      brand: "fore",
+      group,
+      name: liveItem.name,
+      oldPrice: officialRegular,
+      price: foreSellingPrice(officialRegular),
+      image: liveItem.image_url || undefined,
+      options: foreDefaultLiveOptions(foreSellingPrice(officialRegular)),
+      liveOutletMenu: true,
+    }];
+  });
+
+  return [...matchedItems, ...literItems, ...newOfficialItems];
 }
 
 function collectTomoroProducts(value, products = []) {
