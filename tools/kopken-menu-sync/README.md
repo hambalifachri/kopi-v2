@@ -4,7 +4,13 @@ Program mencari outlet lewat aplikasi Kopi Kenangan di HP, membaca respons menu 
 
 ## Aplikasi Windows
 
-Buka `Kopken Menu Sync.exe` untuk menjalankan seluruh fitur dari satu jendela. Aplikasi menyediakan sinkron menu yang belum ada, sinkron ulang semua menu, pencarian outlet baru, pembaruan satu outlet, pause/lanjut/stop, pengaturan koneksi VSPhone, progress, dan log berjalan.
+Buka `Kopken Menu Sync.exe` untuk menjalankan seluruh fitur dari satu jendela. Aplikasi menyediakan sinkron menu yang belum ada, sinkron ulang semua menu, pembaruan khusus **Outlet Utama**, pencarian outlet baru, pembaruan satu outlet, pause/lanjut/stop, pengaturan koneksi VSPhone, progress, dan log berjalan.
+
+## Outlet utama dan jadwal
+
+Tombol **Update Outlet Utama** hanya memproses daftar pada `outlet utama wajib reload setiap hari.txt`. Proses ini tetap dapat dipause dan dilanjutkan; checkpoint terpisah akan dibersihkan saat seluruh daftar selesai sehingga pembaruan berikutnya kembali memproses semuanya.
+
+Tombol **Jadwalkan Update** membuat jadwal Windows harian untuk mode Outlet Utama. Pilih jamnya di aplikasi. Komputer, HTTP Toolkit, dan VSPhone harus tetap menyala serta tersambung pada jam tersebut.
 
 Shortcut `Kopken Menu Sync` juga dapat dibuat di Desktop. Jika source aplikasi diubah, jalankan `Build Aplikasi Sync.ps1` untuk membangun ulang file EXE.
 

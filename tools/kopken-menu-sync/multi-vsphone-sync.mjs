@@ -9,7 +9,9 @@ const adb = "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb
 const httpToolkitExe = "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\HTTP Toolkit.exe";
 const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
+const interceptOnly = process.argv.includes("--intercept-only");
 const newOnly = process.argv.includes("--baru");
+const priorityOnly = process.argv.includes("--utama");
 const discoverOutlets = process.argv.includes("--discover-outlets");
 const outletArgs = process.argv.filter((arg) => arg.startsWith("--outlet="));
 
@@ -23,7 +25,10 @@ function loadEnv(path) {
   }));
 }
 
-const mainEnv = loadEnv(join(root, ".env.kopken-sync"));
+const mainEnv = {
+  ...loadEnv(join(root, ".env.kopken-sync")),
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("VSPHONE_") || key === "ADB_PATH")),
+};
 const devices = [{
   name: "menu",
   ssh: mainEnv.VSPHONE_SSH_COMMAND,
@@ -195,7 +200,7 @@ async function runWorkerSession(device, index) {
   return new Promise((resolvePromise) => {
       const childArgs = discoverOutlets
         ? [join(here, "discover-outlets.mjs")]
-        : [join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]),
+        : [join(here, "sync.mjs"), ...(newOnly ? [] : ["--ulang"]), ...(priorityOnly ? ["--utama"] : []),
           `--worker-index=${index}`, `--worker-count=${devices.length}`, ...outletArgs];
       const child = spawn(process.execPath, childArgs, {
         cwd: root,
@@ -282,7 +287,12 @@ if (setupOnly) {
   console.log("SETUP BERHASIL: VSPhone menu tersambung dan internet aman.");
   process.exit(0);
 }
-const modeLabel = discoverOutlets ? "pencarian outlet baru" : (newOnly ? "menu outlet baru" : "sinkron ulang");
+if (interceptOnly) {
+  for (const device of devices) await activateHttpToolkit(device);
+  console.log("INTERCEPT BERHASIL: HTTP Toolkit aktif pada perangkat.");
+  process.exit(0);
+}
+const modeLabel = discoverOutlets ? "pencarian outlet baru" : (newOnly ? "menu outlet baru" : (priorityOnly ? "pembaruan outlet utama" : "sinkron ulang"));
 console.log(`VSPhone menu tersambung. Menyiapkan mode ${modeLabel}.\n`);
 for (const device of devices) {
   await activateHttpToolkit(device);

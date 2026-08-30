@@ -36,12 +36,17 @@ const supabaseUrl = (env.SUPABASE_URL || "")
   .replace(/\/$/, "");
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const testMode = process.argv.includes("--test");
-const repeatMode = process.argv.includes("--ulang");
+const priorityMode = process.argv.includes("--utama");
+const repeatMode = process.argv.includes("--ulang") || priorityMode;
 const workerIndex = Number(process.argv.find((arg) => arg.startsWith("--worker-index="))?.split("=")[1] || 0);
 const workerCount = Number(process.argv.find((arg) => arg.startsWith("--worker-count="))?.split("=")[1] || 1);
 const outletArg = process.argv.find((arg) => arg.startsWith("--outlet="))?.slice("--outlet=".length).trim();
 const freeSessionCallLimit = Number(env.HTTP_TOOLKIT_SESSION_CALL_LIMIT || 80);
-const outlets = readFileSync(join(here, "outlets.txt"), "utf8").split(/\r?\n/)
+const outletListPath = priorityMode
+  ? join(here, "outlet utama wajib reload setiap hari.txt")
+  : join(here, "outlets.txt");
+const priorityProgressPath = join(logDir, `priority-refresh-progress${workerSuffix}.json`);
+const outlets = readFileSync(outletListPath, "utf8").split(/\r?\n/)
   .map((line) => line.trim()).filter((line) => line && !line.startsWith("#"));
 if (outletArg) outlets.splice(0, outlets.length, outletArg);
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
@@ -86,8 +91,9 @@ function loadSuccessfulOutlets() {
 
 function loadCompletedOutlets() {
   if (repeatMode) {
-    if (!existsSync(refreshProgressPath)) return new Set();
-    try { return new Set(JSON.parse(readFileSync(refreshProgressPath, "utf8"))); } catch { return new Set(); }
+    const checkpointPath = priorityMode ? priorityProgressPath : refreshProgressPath;
+    if (!existsSync(checkpointPath)) return new Set();
+    try { return new Set(JSON.parse(readFileSync(checkpointPath, "utf8"))); } catch { return new Set(); }
   }
   return new Set(loadSuccessfulOutlets());
 }
@@ -532,7 +538,7 @@ async function main() {
     console.log(`Operasi body tersedia: ${bodyTools.join(", ") || "tidak ada"}`);
     return;
   }
-  if (repeatMode && !outletArg) {
+  if (repeatMode && !priorityMode && !outletArg) {
     const syncedOutlets = await loadSyncedOutletsFromSupabase();
     if (!syncedOutlets.length) throw new Error("Belum ada menu outlet yang tersimpan di Supabase.");
     outlets.splice(0, outlets.length, ...syncedOutlets);
@@ -566,7 +572,8 @@ async function main() {
   }
   const displayOffset = !repeatMode && !outletArg ? Number(newRunProgress.processed || 0) : 0;
   const displayTotal = !repeatMode && !outletArg ? Number(newRunProgress.total || outlets.length) : outlets.length;
-  console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} outlet yang belum punya menu.\n`);
+  const modeDescription = priorityMode ? "outlet utama" : (repeatMode ? "outlet tersimpan" : "outlet yang belum punya menu");
+  console.log(`HP dan HTTP Toolkit siap. Memproses ${outlets.length} ${modeDescription}.\n`);
   if (!outlets.length) {
     mcp.close();
     console.log("SELESAI: tidak ada outlet baru yang perlu dicari.");
@@ -628,7 +635,7 @@ async function main() {
         console.log(`  OK ${captured.storeCode}: ${count} produk\n`);
         results.push({ outletName, status: "berhasil", storeCode: captured.storeCode, products: count });
         completedOutlets.add(normalizeOutletName(outletName));
-        writeFileSync(repeatMode ? refreshProgressPath : progressPath, JSON.stringify([...completedOutlets], null, 2));
+        writeFileSync(repeatMode ? (priorityMode ? priorityProgressPath : refreshProgressPath) : progressPath, JSON.stringify([...completedOutlets], null, 2));
         if (!repeatMode && !outletArg) {
           attemptedThisRun.add(normalizeOutletName(outletName));
           newRunProgress.attempted.push(outletName);
@@ -658,7 +665,7 @@ async function main() {
         }
         if (repeatMode) {
           completedOutlets.add(normalizeOutletName(outletName));
-          writeFileSync(refreshProgressPath, JSON.stringify([...completedOutlets], null, 2));
+          writeFileSync(priorityMode ? priorityProgressPath : refreshProgressPath, JSON.stringify([...completedOutlets], null, 2));
         }
       }
     }
@@ -688,9 +695,10 @@ async function main() {
   console.log(`Selesai sesi: ${success} berhasil, ${skipped} dilewati, ${failed} gagal (${mcp.toolCalls} panggilan HTTP Toolkit).`);
   console.log(`Laporan: ${report}`);
   console.log(`Outlet gagal: ${failedReport}`);
-  if (repeatMode && !sessionPaused && !devicePaused && existsSync(refreshProgressPath)) {
-    rmSync(refreshProgressPath);
-    console.log("Sinkron ulang selesai seluruhnya. Checkpoint sudah dibersihkan.");
+  const completedRefreshPath = priorityMode ? priorityProgressPath : refreshProgressPath;
+  if (repeatMode && !sessionPaused && !devicePaused && existsSync(completedRefreshPath)) {
+    rmSync(completedRefreshPath);
+    console.log(`${priorityMode ? "Pembaruan outlet utama" : "Sinkron ulang"} selesai seluruhnya. Checkpoint sudah dibersihkan.`);
   }
   if (!repeatMode && !outletArg && !sessionPaused && !devicePaused && existsSync(newRunProgressPath)) {
     rmSync(newRunProgressPath);

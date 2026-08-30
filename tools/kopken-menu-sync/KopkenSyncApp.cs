@@ -27,6 +27,7 @@ namespace KopkenSyncDesktop
         private Button pauseButton;
         private Button resumeButton;
         private FlowLayoutPanel actionPanel;
+        private const string ScheduleTaskName = "Kopken Menu Sync - Outlet Utama";
 
         public MainForm()
         {
@@ -68,7 +69,9 @@ namespace KopkenSyncDesktop
             actionPanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 102, WrapContents = true, AutoSize = false };
             actionPanel.Controls.Add(MakeButton("Menu Belum Ada", Color.FromArgb(224, 73, 58), delegate { StartSync("--baru", "Mencari menu yang belum ada"); }));
             actionPanel.Controls.Add(MakeButton("Sinkron Ulang Semua", Color.FromArgb(42, 112, 82), delegate { StartSync("", "Memperbarui semua menu"); }));
+            actionPanel.Controls.Add(MakeButton("Update Outlet Utama", Color.FromArgb(185, 126, 43), delegate { StartSync("--utama", "Memperbarui outlet utama"); }));
             actionPanel.Controls.Add(MakeButton("Cari Outlet Baru", Color.FromArgb(52, 98, 139), delegate { StartSync("--discover-outlets", "Mencari outlet baru"); }));
+            actionPanel.Controls.Add(MakeButton("Jadwalkan Update", Color.FromArgb(92, 82, 74), ConfigurePrioritySchedule));
             actionPanel.Controls.Add(MakeButton("Buka Folder Log", Color.FromArgb(92, 82, 74), OpenLogs));
             page.Controls.Add(actionPanel);
 
@@ -219,6 +222,39 @@ namespace KopkenSyncDesktop
             string outlet = outletBox.Text.Trim();
             if (outlet.Length == 0) { MessageBox.Show("Isi nama outlet terlebih dahulu."); return; }
             StartSync("--baru --outlet=" + Quote(outlet), "Memperbarui " + outlet);
+        }
+
+        private void ConfigurePrioritySchedule(object sender, EventArgs e)
+        {
+            var dialog = new Form { Text = "Jadwal Update Outlet Utama", Size = new Size(420, 235), StartPosition = FormStartPosition.CenterParent, BackColor = BackColor, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false };
+            dialog.Controls.Add(new Label { Text = "UPDATE OUTLET UTAMA", AutoSize = true, Location = new Point(24, 22), Font = new Font("Segoe UI Semibold", 10F), ForeColor = Color.FromArgb(33, 83, 65) });
+            dialog.Controls.Add(new Label { Text = "Jalankan setiap hari pada jam:", AutoSize = true, Location = new Point(24, 57), ForeColor = Color.FromArgb(77, 69, 64) });
+            var time = new DateTimePicker { Format = DateTimePickerFormat.Time, ShowUpDown = true, Value = DateTime.Today.AddHours(8), Location = new Point(24, 82), Width = 130 };
+            dialog.Controls.Add(time);
+            dialog.Controls.Add(new Label { Text = "Hanya memakai daftar outlet utama harian.", AutoSize = true, Location = new Point(24, 118), ForeColor = Color.FromArgb(91, 75, 66) });
+            var save = MakeButton("Simpan Jadwal", Color.FromArgb(42, 112, 82), delegate {
+                try {
+                    string batch = Path.Combine(toolDir, "Jalankan Terjadwal VSPhone.cmd");
+                    string taskCommand = "\\\"" + batch + "\\\" --utama";
+                    string args = "/Create /TN " + Quote(ScheduleTaskName) + " /TR " + Quote(taskCommand) + " /SC DAILY /ST " + time.Value.ToString("HH:mm") + " /F";
+                    var result = Process.Start(new ProcessStartInfo("schtasks.exe", args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true });
+                    result.WaitForExit();
+                    if (result.ExitCode != 0) throw new Exception(result.StandardError.ReadToEnd());
+                    statusLabel.Text = "Jadwal outlet utama aktif setiap hari " + time.Value.ToString("HH:mm");
+                    dialog.Close();
+                    MessageBox.Show("Jadwal tersimpan. Update outlet utama akan berjalan setiap hari pada " + time.Value.ToString("HH:mm") + ".");
+                } catch (Exception error) { MessageBox.Show("Jadwal tidak dapat disimpan: " + error.Message); }
+            });
+            save.Location = new Point(24, 150);
+            dialog.Controls.Add(save);
+            var remove = new Button { Text = "Hapus Jadwal", Width = 120, Height = 42, Location = new Point(215, 150), FlatStyle = FlatStyle.Flat, BackColor = Color.White };
+            remove.Click += delegate {
+                Process.Start(new ProcessStartInfo("schtasks.exe", "/Delete /TN " + Quote(ScheduleTaskName) + " /F") { UseShellExecute = false, CreateNoWindow = true }).WaitForExit();
+                statusLabel.Text = "Jadwal outlet utama dihapus";
+                dialog.Close();
+            };
+            dialog.Controls.Add(remove);
+            dialog.ShowDialog(this);
         }
 
         private void PauseSync(object sender, EventArgs e)
