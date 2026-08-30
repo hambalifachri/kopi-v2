@@ -1,0 +1,117 @@
+# Wilayah dan tipe lokasi untuk menemukan outlet baru melalui query_pageable_store.
+# Tambahkan kota/wilayah baru di baris terpisah tanpa perlu mengubah program.
+Jakarta
+Jakarta Pusat
+Jakarta Barat
+Jakarta Selatan
+Jakarta Timur
+Jakarta Utara
+Tangerang
+Tangerang Selatan
+Serpong
+Ciputat
+Ciledug
+Karawaci
+Cikupa
+Depok
+Bekasi
+Bogor
+Cibinong
+Sentul
+Karawang
+Cikampek
+Purwakarta
+Subang
+Bandung
+Cimahi
+Sumedang
+Garut
+Tasikmalaya
+Cirebon
+Kuningan
+Majalengka
+Indramayu
+Sukabumi
+Cianjur
+Serang
+Cilegon
+Pandeglang
+Lebak
+Semarang
+Solo
+Surakarta
+Sukoharjo
+Klaten
+Boyolali
+Karanganyar
+Yogyakarta
+Sleman
+Bantul
+Magelang
+Salatiga
+Kudus
+Jepara
+Pati
+Tegal
+Pekalongan
+Purwokerto
+Cilacap
+Surabaya
+Sidoarjo
+Gresik
+Malang
+Batu
+Pasuruan
+Probolinggo
+Mojokerto
+Jombang
+Kediri
+Madiun
+Blitar
+Jember
+Banyuwangi
+Madura
+Denpasar
+Badung
+Gianyar
+Mataram
+Kupang
+Medan
+Binjai
+Deli Serdang
+Pematang Siantar
+Pekanbaru
+Padang
+Bukittinggi
+Palembang
+Jambi
+Bengkulu
+Bandar Lampung
+Batam
+Tanjung Pinang
+Pangkal Pinang
+Pontianak
+Samarinda
+Balikpapan
+Banjarmasin
+Palangkaraya
+Makassar
+Gowa
+Maros
+Manado
+Palu
+Kendari
+Gorontalo
+Ambon
+Jayapura
+Aceh
+Lhokseumawe
+Mall
+Bandara
+Stasiun
+Rest Area
+SPBU
+Rumah Sakit
+Kampus
+Office
+Tower

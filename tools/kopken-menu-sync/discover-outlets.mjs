@@ -8,6 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
 const logDir = join(here, "logs");
 const checkpointPath = join(logDir, "discover-outlets-progress.json");
+const searchTermsPath = join(here, "outlet-discovery-terms.txt");
 const envPath = join(root, ".env.kopken-sync");
 mkdirSync(logDir, { recursive: true });
 
@@ -127,11 +128,17 @@ async function searchOutlet(query, firstSearch) {
 }
 
 async function loadCatalog() {
-  const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name&order=outlet_name.asc&limit=2000`, {
-    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
-  });
-  if (!response.ok) throw new Error(`Gagal membaca katalog Supabase: ${await response.text()}`);
-  return response.json();
+  const rows = [];
+  for (let offset = 0; ; offset += 1000) {
+    const response = await fetch(`${supabaseUrl}/rest/v1/kopken_outlets_catalog?select=outlet_code&order=outlet_code.asc&offset=${offset}&limit=1000`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    });
+    if (!response.ok) throw new Error(`Gagal membaca katalog Supabase: ${await response.text()}`);
+    const page = await response.json();
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return rows;
 }
 
 function isKopiKenangan(store) {
@@ -158,7 +165,7 @@ async function insertNewStores(stores, knownCodes) {
     method: "POST",
     headers: {
       apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`,
-      "Content-Type": "application/json", Prefer: "return=representation",
+      "Content-Type": "application/json", Prefer: "resolution=ignore-duplicates,return=representation",
     },
     body: JSON.stringify(rows),
   });
@@ -170,7 +177,9 @@ async function insertNewStores(stores, knownCodes) {
 async function main() {
   const catalog = await loadCatalog();
   const knownCodes = new Set(catalog.map((row) => row.outlet_code));
-  const queries = [...new Set(catalog.map((row) => String(row.outlet_name || "").trim()).filter(Boolean))];
+  if (!existsSync(searchTermsPath)) throw new Error("outlet-discovery-terms.txt tidak ditemukan.");
+  const queries = [...new Set(readFileSync(searchTermsPath, "utf8").split(/\r?\n/)
+    .map((line) => line.trim()).filter((line) => line.length >= 3 && !line.startsWith("#")))];
   const completed = existsSync(checkpointPath)
     ? new Set(JSON.parse(readFileSync(checkpointPath, "utf8"))) : new Set();
   const mcp = new BrokerClient();
@@ -179,7 +188,8 @@ async function main() {
   let sessionLimited = false;
   let firstSearch = true;
 
-  console.log(`Memeriksa outlet baru dari ${queries.length} pencarian (${completed.size} sudah selesai).\n`);
+  const completedQueries = queries.filter((query) => completed.has(query)).length;
+  console.log(`Memeriksa outlet baru dari ${queries.length} pencarian (${completedQueries} sudah selesai).\n`);
   try {
     for (let index = 0; index < queries.length; index++) {
       const query = queries[index];
