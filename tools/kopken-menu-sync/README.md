@@ -2,6 +2,12 @@
 
 Program mencari outlet lewat aplikasi Kopi Kenangan di HP, membaca respons menu yang ditangkap HTTP Toolkit, lalu menyimpannya ke `kopken_outlets_catalog` di Supabase.
 
+## Aplikasi Windows
+
+Buka `Kopken Menu Sync.exe` untuk menjalankan seluruh fitur dari satu jendela. Aplikasi menyediakan sinkron menu yang belum ada, sinkron ulang semua menu, pencarian outlet baru, pembaruan satu outlet, pause/lanjut/stop, pengaturan koneksi VSPhone, progress, dan log berjalan.
+
+Shortcut `Kopken Menu Sync` juga dapat dibuat di Desktop. Jika source aplikasi diubah, jalankan `Build Aplikasi Sync.ps1` untuk membangun ulang file EXE.
+
 ## Cari outlet baru
 
 Jalankan `Cari Outlet Baru Kopken.bat` saat sinkron menu sedang tidak berjalan. Program memakai VSPhone `menu` untuk mencari outlet melalui aplikasi Kopi Kenangan, menangkap respons `query_pageable_store`, lalu hanya menambahkan `outlet_code` Kopi Kenangan yang belum ada ke Supabase. Menu outlet yang sudah tersimpan tidak diubah.
