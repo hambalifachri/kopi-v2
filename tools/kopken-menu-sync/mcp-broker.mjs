@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 
-const command = process.env.HTTP_TOOLKIT_MCP;
+const command = process.env.HTTP_TOOLKIT_MCP || "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit\\resources\\httptoolkit-mcp.cmd";
 const port = Number(process.env.KOPKEN_MCP_BROKER_PORT || 47831);
 const callLimit = Number(process.env.HTTP_TOOLKIT_SESSION_CALL_LIMIT || 80);
 let client;
