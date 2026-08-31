@@ -129,6 +129,38 @@ async function ensureHttpToolkitAndroid(device) {
   console.log(`[${device.name}] HTTP Toolkit Android siap.`);
 }
 
+function readDeviceUi(device, name) {
+  const path = `/sdcard/${name}.xml`;
+  const dumped = adbResult(device, ["shell", "uiautomator", "dump", path]);
+  if (dumped.status !== 0) return "";
+  return adbResult(device, ["shell", "cat", path]).stdout || "";
+}
+
+function tapUiText(device, hierarchy, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = hierarchy.match(new RegExp(`<node\\b[^>]*text="${escaped}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"[^>]*/>`));
+  if (!match) return false;
+  const x = Math.round((Number(match[1]) + Number(match[3])) / 2);
+  const y = Math.round((Number(match[2]) + Number(match[4])) / 2);
+  adbResult(device, ["shell", "input", "tap", String(x), String(y)]);
+  return true;
+}
+
+async function acceptHttpToolkitCertificate(device) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const hierarchy = readDeviceUi(device, "kopken-htk-certificate");
+    if (/text="Connected"|USER TRUST ENABLED/i.test(hierarchy)) return;
+    if (tapUiText(device, hierarchy, "Install")) {
+      console.log(`[${device.name}] Menyetujui pemasangan sertifikat HTTP Toolkit...`);
+    } else if (tapUiText(device, hierarchy, "OKE") || tapUiText(device, hierarchy, "OK")) {
+      console.log(`[${device.name}] Mengonfirmasi sertifikat HTTP Toolkit...`);
+    } else if (/PIN|pola|pattern|password|screen lock|kunci layar/i.test(hierarchy)) {
+      throw new Error(`${device.name}: Android meminta PIN atau pola layar untuk memasang sertifikat. Selesaikan sekali di perangkat, lalu jalankan lagi.`);
+    }
+    await sleep(700);
+  }
+}
+
 function getHttpToolkitServer() {
   const command = "(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'HTTP Toolkit.exe' -and $_.CommandLine -match '--htk-server-auth-token=' } | Sort-Object CreationDate -Descending | Select-Object -First 1).CommandLine";
   const line = spawnSync("powershell.exe", ["-NoProfile", "-Command", command], {
@@ -204,6 +236,7 @@ async function activateHttpToolkit(device) {
   ], { encoding: "utf8", windowsHide: true, timeout: 10000 });
   if (activated.status !== 0) throw new Error(`${device.name}: intent VPN HTTP Toolkit gagal.`);
   await sleep(1500);
+  await acceptHttpToolkitCertificate(device);
   await reconnectDevice(device);
   // Android 13 dapat menahan aktivasi pertama pada dialog izin notifikasi.
   const dumpPath = "/sdcard/kopken-htk-permission.xml";
