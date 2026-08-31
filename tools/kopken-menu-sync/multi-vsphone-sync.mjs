@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,10 +10,14 @@ const httpToolkitExe = "C:\\Users\\fachr\\AppData\\Local\\Programs\\HTTP Toolkit
 const askpass = join(here, "vsphone-askpass.cmd");
 const setupOnly = process.argv.includes("--setup-only");
 const interceptOnly = process.argv.includes("--intercept-only");
+const installHttpToolkitOnly = process.argv.includes("--install-httptoolkit-only");
 const newOnly = process.argv.includes("--baru");
 const priorityOnly = process.argv.includes("--utama");
 const discoverOutlets = process.argv.includes("--discover-outlets");
 const outletArgs = process.argv.filter((arg) => arg.startsWith("--outlet="));
+const httpToolkitAndroidPackage = "tech.httptoolkit.android.v1";
+const httpToolkitApkPath = join(here, "cache", "httptoolkit.apk");
+const httpToolkitApkUrl = "https://github.com/httptoolkit/httptoolkit-android/releases/latest/download/httptoolkit.apk";
 
 function loadEnv(path) {
   if (!existsSync(path)) return {};
@@ -92,6 +96,39 @@ async function connectDevice(device) {
   throw new Error(`${device.name}: ADB gagal tersambung.`);
 }
 
+function adbResult(device, args, timeout = 15000) {
+  return spawnSync(adb, ["-s", device.adb, ...args], { encoding: "utf8", windowsHide: true, timeout });
+}
+
+function httpToolkitInstalled(device) {
+  const result = adbResult(device, ["shell", "pm", "path", httpToolkitAndroidPackage]);
+  return result.status === 0 && /package:/.test(result.stdout || "");
+}
+
+async function downloadHttpToolkitApk() {
+  if (existsSync(httpToolkitApkPath)) return httpToolkitApkPath;
+  console.log("Mengunduh HTTP Toolkit Android resmi...");
+  const response = await fetch(httpToolkitApkUrl, { redirect: "follow", signal: AbortSignal.timeout(120000) });
+  if (!response.ok) throw new Error(`Unduh APK HTTP Toolkit gagal: HTTP ${response.status}`);
+  const apk = new Uint8Array(await response.arrayBuffer());
+  if (apk.length < 1024 * 1024) throw new Error("APK HTTP Toolkit yang diunduh tidak valid.");
+  mkdirSync(dirname(httpToolkitApkPath), { recursive: true });
+  writeFileSync(httpToolkitApkPath, apk);
+  return httpToolkitApkPath;
+}
+
+async function ensureHttpToolkitAndroid(device) {
+  if (httpToolkitInstalled(device)) return;
+  console.log(`[${device.name}] HTTP Toolkit Android belum ada. Memasang otomatis...`);
+  const apkPath = await downloadHttpToolkitApk();
+  const installed = adbResult(device, ["install", "-r", apkPath], 120000);
+  if (installed.status !== 0 || !/Success/i.test(`${installed.stdout}\n${installed.stderr}`)) {
+    throw new Error(`${device.name}: pemasangan HTTP Toolkit Android gagal: ${(installed.stderr || installed.stdout || "ADB install gagal").trim()}`);
+  }
+  if (!httpToolkitInstalled(device)) throw new Error(`${device.name}: HTTP Toolkit Android tidak terdeteksi setelah pemasangan.`);
+  console.log(`[${device.name}] HTTP Toolkit Android siap.`);
+}
+
 function getHttpToolkitServer() {
   const command = "(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'HTTP Toolkit.exe' -and $_.CommandLine -match '--htk-server-auth-token=' } | Sort-Object CreationDate -Descending | Select-Object -First 1).CommandLine";
   const line = spawnSync("powershell.exe", ["-NoProfile", "-Command", command], {
@@ -144,6 +181,7 @@ async function ensureHttpToolkitServer() {
 
 async function activateHttpToolkit(device) {
   console.log(`[${device.name}] Mengaktifkan HTTP Toolkit...`);
+  await ensureHttpToolkitAndroid(device);
   const { certFingerprint } = await ensureHttpToolkitServer();
 
   const setup = {
@@ -297,6 +335,11 @@ if (setupOnly) {
     if (!internetReady(device)) throw new Error(`${device.name}: internet tidak tersedia.`);
   }
   console.log("SETUP BERHASIL: VSPhone menu tersambung dan internet aman.");
+  process.exit(0);
+}
+if (installHttpToolkitOnly) {
+  for (const device of devices) await ensureHttpToolkitAndroid(device);
+  console.log("HTTP Toolkit Android siap di semua perangkat sinkron.");
   process.exit(0);
 }
 if (interceptOnly) {

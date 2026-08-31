@@ -3,3 +3,4 @@
 .env.kopken-devices
 vsphone-output/
 tools/kopken-menu-sync/logs/
+tools/kopken-menu-sync/cache/
