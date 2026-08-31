@@ -235,7 +235,7 @@ namespace KopkenSyncDesktop
             var save = MakeButton("Simpan Jadwal", Color.FromArgb(42, 112, 82), delegate {
                 try {
                     string batch = Path.Combine(toolDir, "Jalankan Terjadwal VSPhone.cmd");
-                    string taskCommand = "\\\"" + batch + "\\\" --utama";
+                    string taskCommand = batch + " --utama";
                     string args = "/Create /TN " + Quote(ScheduleTaskName) + " /TR " + Quote(taskCommand) + " /SC DAILY /ST " + time.Value.ToString("HH:mm") + " /F";
                     var result = Process.Start(new ProcessStartInfo("schtasks.exe", args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true });
                     result.WaitForExit();
