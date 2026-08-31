@@ -29,7 +29,7 @@ namespace KopkenSyncDesktop
         private FlowLayoutPanel actionPanel;
         private const string ScheduleTaskName = "Kopken Menu Sync - Outlet Utama";
 
-        public MainForm()
+        public MainForm(string[] startupArguments)
         {
             toolDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             rootDir = Path.GetFullPath(Path.Combine(toolDir, "..", ".."));
@@ -38,6 +38,9 @@ namespace KopkenSyncDesktop
             nodePath = File.Exists(bundledNode) ? bundledNode : @"C:\Program Files\nodejs\node.exe";
             BuildUi();
             LoadConnectionSettings();
+            if (Array.IndexOf(startupArguments, "--utama") >= 0) {
+                Shown += delegate { StartSync("--utama", "Memperbarui outlet utama terjadwal"); };
+            }
         }
 
         private void BuildUi()
@@ -336,11 +339,11 @@ namespace KopkenSyncDesktop
     static class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            Application.Run(new MainForm(args));
         }
     }
 }

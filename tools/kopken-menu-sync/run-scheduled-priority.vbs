@@ -1,7 +1,7 @@
 Option Explicit
 
-Dim shell, folder, runner
+Dim shell, folder, application
 Set shell = CreateObject("WScript.Shell")
 folder = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName)
-runner = folder & "\run-scheduled-priority.cmd"
-shell.Run "cmd.exe /d /c " & Chr(34) & runner & Chr(34), 0, False
+application = folder & "\Kopken Menu Sync - Scheduled.exe"
+shell.Run Chr(34) & application & Chr(34) & " --utama", 1, False
