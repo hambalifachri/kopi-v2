@@ -234,9 +234,9 @@ namespace KopkenSyncDesktop
             dialog.Controls.Add(new Label { Text = "Hanya memakai daftar outlet utama harian.", AutoSize = true, Location = new Point(24, 118), ForeColor = Color.FromArgb(91, 75, 66) });
             var save = MakeButton("Simpan Jadwal", Color.FromArgb(42, 112, 82), delegate {
                 try {
-                    string batch = Path.Combine(toolDir, "Jalankan Terjadwal VSPhone.cmd");
+                    string batch = Path.Combine(toolDir, "run-scheduled-priority.cmd");
                     string cmd = Environment.GetEnvironmentVariable("ComSpec") ?? Path.Combine(Environment.SystemDirectory, "cmd.exe");
-                    string taskCommand = cmd + " /d /c " + Quote(Quote(batch) + " --utama");
+                    string taskCommand = cmd + " /d /c " + batch;
                     string args = "/Create /TN " + Quote(ScheduleTaskName) + " /TR " + Quote(taskCommand) + " /SC DAILY /ST " + time.Value.ToString("HH:mm") + " /F";
                     var result = Process.Start(new ProcessStartInfo("schtasks.exe", args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true, RedirectStandardOutput = true });
                     result.WaitForExit();
