@@ -130,9 +130,21 @@ async function waitForHttpToolkitServer(maxAttempts = 30) {
   throw new Error(`HTTP Toolkit belum siap: ${lastError?.message || "server lokal tidak merespons"}`);
 }
 
+async function ensureHttpToolkitServer() {
+  try {
+    return await waitForHttpToolkitServer(3);
+  } catch {
+    if (!existsSync(httpToolkitExe)) throw new Error(`HTTP Toolkit tidak ditemukan: ${httpToolkitExe}`);
+    console.log("HTTP Toolkit belum terbuka. Membuka HTTP Toolkit otomatis...");
+    const desktop = spawn(httpToolkitExe, [], { detached: true, stdio: "ignore", windowsHide: true });
+    desktop.unref();
+    return waitForHttpToolkitServer(60);
+  }
+}
+
 async function activateHttpToolkit(device) {
   console.log(`[${device.name}] Mengaktifkan HTTP Toolkit...`);
-  const { certFingerprint } = await waitForHttpToolkitServer();
+  const { certFingerprint } = await ensureHttpToolkitServer();
 
   const setup = {
     addresses: ["10.0.2.2", "10.0.3.2", "127.0.0.1"],
