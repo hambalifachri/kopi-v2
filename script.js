@@ -674,7 +674,7 @@ function getKopkenPremiumOutletOfficialSurcharge(item) {
   const category = String(outletState.outletCategory || "").trim().toLowerCase();
   const outletCode = String(outletState.outletCode || "").trim().toUpperCase();
   const outletName = String(outletState.outletName || "").trim().toLowerCase();
-  const usesPremiumPricing = ["mall", "rest area"].includes(category)
+  const usesPremiumPricing = category === "rest area"
     || outletCode === "KK.JKT.STBDIJAKSEL"
     || outletName.includes("setiabudi jakarta selatan");
   return usesPremiumPricing ? 3000 : 0;
