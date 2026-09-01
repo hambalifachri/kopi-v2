@@ -12,6 +12,8 @@ Script mengambil outlet/menu dari official API Tomoro memakai header runtime app
 
 ## Menjalankan
 
+Untuk aplikasi Windows, buka `Tomoro Menu Sync.exe`.
+
 Salin `.env.example` menjadi `.env.tomoro-sync` di root project, lalu isi `SUPABASE_URL` dan `SUPABASE_SERVICE_ROLE_KEY`.
 
 ```bash
