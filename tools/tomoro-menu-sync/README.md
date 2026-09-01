@@ -19,9 +19,9 @@ Salin `.env.example` menjadi `.env.tomoro-sync` di root project, lalu isi `SUPAB
 ```bash
 node tools/tomoro-menu-sync/sync.mjs --keyword=bogor
 node tools/tomoro-menu-sync/sync.mjs --store=ID_STORE_TOMORO
-node tools/tomoro-menu-sync/capture-http-toolkit.mjs --seconds=90
+node tools/tomoro-menu-sync/capture-frida.mjs --seconds=90
 ```
 
 Gunakan `--keyword=` untuk mencari dan menyimpan outlet, dan `--store=` untuk refresh menu satu outlet.
 
-Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-http-toolkit.mjs`. Jalankan HTTP Toolkit interception, buka app Tomoro di VSPhone, lalu script akan mengambil response outlet/menu yang lewat HTTP Toolkit dan menyimpannya ke tabel cache Tomoro.
+Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida membaca response outlet/menu dari OkHttp di dalam app Tomoro, lalu menyimpannya ke tabel cache Tomoro.

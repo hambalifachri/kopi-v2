@@ -50,7 +50,7 @@ namespace TomoroSyncDesktop
             main.BringToFront();
 
             var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 54, WrapContents = false };
-            actionPanel.Controls.Add(MakeButton("Capture HTTP Toolkit", Color.FromArgb(24, 92, 82), delegate { StartCapture(); }));
+            actionPanel.Controls.Add(MakeButton("Capture Frida", Color.FromArgb(24, 92, 82), delegate { StartCapture(); }));
             actionPanel.Controls.Add(MakeButton("Sync Direct", Color.FromArgb(185, 126, 43), delegate { StartDirectSync(); }));
             stopButton = MakeButton("Stop", Color.FromArgb(150, 48, 42), delegate { StopProcess(); });
             actionPanel.Controls.Add(stopButton);
@@ -95,7 +95,7 @@ namespace TomoroSyncDesktop
 
         private void StartCapture()
         {
-            StartNode("capture-http-toolkit.mjs", "--seconds=" + Decimal.ToInt32(secondsBox.Value), "Capture Tomoro via HTTP Toolkit");
+            StartNode("capture-frida.mjs", "--seconds=" + Decimal.ToInt32(secondsBox.Value), "Capture Tomoro via Frida");
         }
 
         private void StartDirectSync()
