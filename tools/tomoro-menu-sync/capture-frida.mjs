@@ -54,11 +54,17 @@ function ensureFridaServer() {
 function parseFridaPayload(line) {
   const marker = "payload': '";
   const start = line.indexOf(marker);
-  if (start < 0) return null;
-  const rest = line.slice(start + marker.length);
-  const end = rest.lastIndexOf("'} data:");
-  if (end < 0) return null;
-  const pythonString = rest.slice(0, end);
+  let pythonString = "";
+  if (start >= 0) {
+    const rest = line.slice(start + marker.length);
+    const end = rest.lastIndexOf("'} data:");
+    if (end < 0) return null;
+    pythonString = rest.slice(0, end);
+  } else {
+    const jsonStart = line.indexOf('{"kind"');
+    if (jsonStart < 0) return null;
+    pythonString = line.slice(jsonStart);
+  }
   const jsonText = pythonString
     .replaceAll("\\\\", "\\")
     .replaceAll("\\'", "'")
@@ -188,6 +194,7 @@ child.stdout.on("data", (chunk) => {
     const line = buffer.slice(0, index).trim();
     buffer = buffer.slice(index + 1);
     if (!line) continue;
+    console.log(`[frida] ${line}`);
     Promise.resolve()
       .then(() => parseFridaPayload(line))
       .then((payload) => payload && handlePayload(payload))
@@ -202,9 +209,9 @@ child.stdout.on("data", (chunk) => {
 child.stderr.setEncoding("utf8");
 child.stderr.on("data", (chunk) => {
   const text = chunk.trim();
-  if (text) console.log(text);
+  if (text) console.log(`[frida:err] ${text}`);
 });
-console.log("Tomoro Frida capture aktif. Buka/cari outlet/menu di app Tomoro.");
+console.log(`Tomoro Frida capture aktif. PID ${pid}. Buka/cari outlet/menu di app Tomoro.`);
 await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));
 child.kill();
 console.log(`Capture selesai. Outlet tersimpan: ${outlets}. Menu tersimpan: ${menus}.`);
