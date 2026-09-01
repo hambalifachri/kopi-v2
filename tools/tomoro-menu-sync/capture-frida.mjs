@@ -28,9 +28,12 @@ const frida = env.FRIDA_EXE || "C:\\Users\\fachr\\AppData\\Local\\Packages\\Pyth
 const supabaseUrl = String(env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const durationMs = Number(process.argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1] || 120) * 1000;
-const keyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim()
+const allOutlets = process.argv.includes("--all-outlets") || process.argv.includes("--all");
+const explicitKeyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim();
+const keyword = explicitKeyword
   || env.TOMORO_DEFAULT_KEYWORD
   || "bogor";
+const maxScrolls = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--max-scrolls="))?.split("=")[1] || 80));
 const noAuto = process.argv.includes("--manual");
 
 function fail(message) {
@@ -257,8 +260,7 @@ async function waitForUi(predicate, timeoutMs = 4000) {
   return dumpUi();
 }
 
-async function triggerOutletSearch() {
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+async function openStoreList() {
   let xml = dumpUi();
   if (!hasStoreList(xml)) {
     if (!tapResource(xml, "/tvStoreName")) {
@@ -269,6 +271,62 @@ async function triggerOutletSearch() {
     }
     xml = await waitForUi(hasStoreList, 5000);
   }
+  return xml;
+}
+
+async function saveVisibleUiOutlets(label) {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 2500));
+  const visibleStores = extractVisibleStoresFromUi(dumpUi());
+  if (visibleStores.length) {
+    const saved = await upsertStores(visibleStores);
+    writeFileSync(join(logDir, "last-ui-outlets.json"), JSON.stringify(saved, null, 2));
+    let fresh = 0;
+    for (const store of visibleStores) {
+      if (!uiStoreCodes.has(store.store_code)) {
+        uiStoreCodes.add(store.store_code);
+        fresh += 1;
+      }
+    }
+    uiOutlets = uiStoreCodes.size;
+    console.log(`Outlet Tomoro dari UI tersimpan${label ? ` (${label})` : ""}: ${saved.length}, baru: ${fresh}, unik total: ${uiOutlets}`);
+  }
+  return visibleStores;
+}
+
+async function triggerAllOutletSweep() {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+  let xml = await openStoreList();
+  if (!hasStoreList(xml)) {
+    console.log("Auto sweep belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
+    return;
+  }
+
+  console.log("Sweep semua outlet Tomoro dimulai dari Store List.");
+  let staleRounds = 0;
+  for (let round = 1; round <= maxScrolls && staleRounds < 4; round += 1) {
+    const stores = await saveVisibleUiOutlets(`scroll ${round}`);
+    let fresh = 0;
+    for (const store of stores) {
+      if (!sweepSeenStoreCodes.has(store.store_code)) {
+        sweepSeenStoreCodes.add(store.store_code);
+        fresh += 1;
+      }
+    }
+    staleRounds = fresh === 0 ? staleRounds + 1 : 0;
+    runAdb(["shell", "input", "swipe", "540", "1700", "540", "850", "700"]);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 1200));
+  }
+  console.log(`Sweep semua outlet selesai. Outlet unik terlihat: ${sweepSeenStoreCodes.size}`);
+}
+
+async function triggerOutletSearch() {
+  if (allOutlets) {
+    await triggerAllOutletSweep();
+    return;
+  }
+
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+  let xml = await openStoreList();
   if (!hasStoreList(xml)) {
     console.log("Auto search belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
     return;
@@ -286,13 +344,7 @@ async function triggerOutletSearch() {
   runAdb(["shell", "input", "text", encodeAdbText(keyword)]);
   runAdb(["shell", "input", "keyevent", "66"]);
   console.log(`Search outlet Tomoro dipicu: ${keyword}`);
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 2500));
-  const visibleStores = extractVisibleStoresFromUi(dumpUi());
-  if (visibleStores.length) {
-    const saved = await upsertStores(visibleStores);
-    writeFileSync(join(logDir, "last-ui-outlets.json"), JSON.stringify(saved, null, 2));
-    console.log(`Outlet Tomoro dari UI tersimpan: ${saved.length}`);
-  }
+  await saveVisibleUiOutlets(keyword);
 }
 
 async function handlePayload(payload) {
@@ -350,6 +402,9 @@ const child = spawn(frida, ["-D", adbSerial, "-p", pid, "-l", hookPath, "-q"], {
 
 let outlets = 0;
 let menus = 0;
+let uiOutlets = 0;
+const uiStoreCodes = new Set();
+const sweepSeenStoreCodes = new Set();
 let buffer = "";
 
 child.stdout.setEncoding("utf8");
@@ -377,8 +432,14 @@ child.stderr.on("data", (chunk) => {
   const text = chunk.trim();
   if (text) console.log(`[frida:err] ${text}`);
 });
-console.log(`Tomoro Frida capture aktif. PID ${pid}. Buka/cari outlet/menu di app Tomoro.`);
-if (!noAuto) triggerOutletSearch().catch((error) => console.log(`Auto search gagal: ${error.message}`));
-await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));
+console.log(`Tomoro Frida capture aktif. PID ${pid}. ${allOutlets ? "Sweep outlet dari Store List." : "Buka/cari outlet/menu di app Tomoro."}`);
+const autoTask = noAuto
+  ? Promise.resolve()
+  : triggerOutletSearch().catch((error) => console.log(`Auto search gagal: ${error.message}`));
+if (allOutlets && !noAuto) {
+  await autoTask;
+} else {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));
+}
 child.kill();
-console.log(`Capture selesai. Outlet tersimpan: ${outlets}. Menu tersimpan: ${menus}.`);
+console.log(`Capture selesai. Outlet API tersimpan: ${outlets}. Outlet UI tersimpan: ${uiOutlets}. Menu tersimpan: ${menus}.`);

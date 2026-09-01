@@ -19,9 +19,10 @@ Salin `.env.example` menjadi `.env.tomoro-sync` di root project, lalu isi `SUPAB
 ```bash
 node tools/tomoro-menu-sync/sync.mjs --keyword=bogor
 node tools/tomoro-menu-sync/sync.mjs --store=ID_STORE_TOMORO
+node tools/tomoro-menu-sync/capture-frida.mjs --seconds=180 --all-outlets --max-scrolls=60
 node tools/tomoro-menu-sync/capture-frida.mjs --seconds=90 --keyword=bogor
 ```
 
-Gunakan `--keyword=` untuk mencari dan menyimpan outlet, dan `--store=` untuk refresh menu satu outlet.
+Gunakan `--all-outlets` untuk mengambil outlet yang muncul di Store List sambil auto-scroll. Tambahkan `--max-scrolls=` untuk membatasi jumlah scroll. Gunakan `--keyword=` kalau ingin mencari kota/outlet tertentu, dan `--store=` untuk refresh menu satu outlet.
 
-Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida otomatis mematikan HTTP Toolkit VPN/proxy dulu, membuka pencarian outlet sesuai keyword, membaca response outlet/menu dari OkHttp di dalam app Tomoro, lalu menyimpannya ke tabel cache Tomoro. Tambahkan `--manual` kalau ingin mencari outlet sendiri tanpa auto tap.
+Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida otomatis mematikan HTTP Toolkit VPN/proxy dulu, membuka Store List, lalu menyimpan outlet dari response OkHttp atau fallback UI Android. Tambahkan `--manual` kalau ingin mencari outlet sendiri tanpa auto tap.
