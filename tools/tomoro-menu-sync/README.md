@@ -24,4 +24,4 @@ node tools/tomoro-menu-sync/capture-frida.mjs --seconds=90
 
 Gunakan `--keyword=` untuk mencari dan menyimpan outlet, dan `--store=` untuk refresh menu satu outlet.
 
-Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida membaca response outlet/menu dari OkHttp di dalam app Tomoro, lalu menyimpannya ke tabel cache Tomoro.
+Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida otomatis mematikan HTTP Toolkit VPN/proxy dulu, membaca response outlet/menu dari OkHttp di dalam app Tomoro, lalu menyimpannya ke tabel cache Tomoro.

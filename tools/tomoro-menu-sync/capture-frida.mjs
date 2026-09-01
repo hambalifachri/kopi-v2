@@ -42,6 +42,11 @@ function runAdb(args, timeout = 10000) {
 
 function ensureFridaServer() {
   spawnSync(adb, ["connect", adbSerial], { encoding: "utf8", windowsHide: true });
+  runAdb(["shell", "am", "force-stop", "tech.httptoolkit.android.v1"]);
+  runAdb(["shell", "settings", "put", "global", "http_proxy", ":0"]);
+  runAdb(["shell", "settings", "delete", "global", "global_http_proxy_host"]);
+  runAdb(["shell", "settings", "delete", "global", "global_http_proxy_port"]);
+  runAdb(["shell", "settings", "delete", "global", "http_proxy"]);
   runAdb(["shell", "su", "-c", "pkill -f frida-server || true"]);
   runAdb(["shell", "su", "-c", "setsid /data/local/tmp/frida-server-17.17.0 >/data/local/tmp/frida-server.log 2>&1 < /dev/null &"]);
 }
