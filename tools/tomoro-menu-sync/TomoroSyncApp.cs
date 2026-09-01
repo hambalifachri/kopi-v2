@@ -95,7 +95,9 @@ namespace TomoroSyncDesktop
 
         private void StartCapture()
         {
-            StartNode("capture-frida.mjs", "--seconds=" + Decimal.ToInt32(secondsBox.Value), "Capture Tomoro via Frida");
+            string keyword = keywordBox.Text.Trim();
+            string args = "--seconds=" + Decimal.ToInt32(secondsBox.Value) + " --keyword=" + Quote(keyword.Length > 0 ? keyword : "bogor");
+            StartNode("capture-frida.mjs", args, "Capture Tomoro via Frida");
         }
 
         private void StartDirectSync()

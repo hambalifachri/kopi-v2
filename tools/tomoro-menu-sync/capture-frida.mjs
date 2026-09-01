@@ -28,6 +28,10 @@ const frida = env.FRIDA_EXE || "C:\\Users\\fachr\\AppData\\Local\\Packages\\Pyth
 const supabaseUrl = String(env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const durationMs = Number(process.argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1] || 120) * 1000;
+const keyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim()
+  || env.TOMORO_DEFAULT_KEYWORD
+  || "bogor";
+const noAuto = process.argv.includes("--manual");
 
 function fail(message) {
   console.error(`\nGAGAL: ${message}`);
@@ -138,6 +142,159 @@ function storeCodeFromUrl(url) {
   try { return new URL(url).searchParams.get("storeCode") || ""; } catch { return ""; }
 }
 
+function encodeAdbText(value) {
+  return String(value).replace(/\s/g, "%s").replace(/([()])/g, "\\$&")
+    .replace(/'/g, "\\'").replace(/[^\w%@.,'\\()\-/]/g, "");
+}
+
+function decodeXml(value) {
+  return String(value || "")
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function boundsCenter(bounds) {
+  const match = String(bounds || "").match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
+  if (!match) return null;
+  const [, left, top, right, bottom] = match.map(Number);
+  return [Math.round((left + right) / 2), Math.round((top + bottom) / 2)];
+}
+
+function dumpUi() {
+  runAdb(["shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], 15000);
+  const result = runAdb(["shell", "cat", "/sdcard/window_dump.xml"], 15000);
+  return String(result.stdout || "");
+}
+
+function findNodeBounds(xml, predicate) {
+  const nodes = String(xml || "").match(/<node\b[^>]*>/g) || [];
+  for (const node of nodes) {
+    const resourceId = decodeXml(node.match(/\bresource-id="([^"]*)"/)?.[1]);
+    const text = decodeXml(node.match(/\btext="([^"]*)"/)?.[1]);
+    const contentDesc = decodeXml(node.match(/\bcontent-desc="([^"]*)"/)?.[1]);
+    const bounds = node.match(/\bbounds="([^"]*)"/)?.[1] || "";
+    if (predicate({ node, resourceId, text, contentDesc, bounds })) return bounds;
+  }
+  return "";
+}
+
+function tapBounds(bounds) {
+  const center = boundsCenter(bounds);
+  if (!center) return false;
+  runAdb(["shell", "input", "tap", String(center[0]), String(center[1])]);
+  return true;
+}
+
+function tapResource(xml, idSuffix) {
+  const bounds = findNodeBounds(xml, ({ resourceId }) => resourceId.endsWith(idSuffix));
+  return tapBounds(bounds);
+}
+
+function hasStoreList(xml) {
+  return Boolean(findNodeBounds(xml, ({ text, resourceId }) =>
+    text === "Store List" || resourceId.endsWith("/tvSearchInput")));
+}
+
+function slugStoreCode(name) {
+  return `ui-${String(name || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96)}`;
+}
+
+function extractVisibleStoresFromUi(xml) {
+  const nodes = String(xml || "").match(/<node\b[^>]*>/g) || [];
+  const stores = [];
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    const resourceId = decodeXml(node.match(/\bresource-id="([^"]*)"/)?.[1]);
+    const text = decodeXml(node.match(/\btext="([^"]*)"/)?.[1]);
+    if (!resourceId.endsWith("/tvStoreName") || !text) continue;
+
+    let description = "";
+    let status = "";
+    for (let lookahead = index + 1; lookahead < Math.min(index + 8, nodes.length); lookahead += 1) {
+      const nextNode = nodes[lookahead];
+      const nextResourceId = decodeXml(nextNode.match(/\bresource-id="([^"]*)"/)?.[1]);
+      const nextText = decodeXml(nextNode.match(/\btext="([^"]*)"/)?.[1]);
+      if (nextResourceId.endsWith("/tvStoreName")) break;
+      if (nextResourceId.endsWith("/tvStoreType") && nextText) status = nextText;
+      if (nextResourceId.endsWith("/tvStoreDes") && nextText) description = nextText;
+    }
+
+    stores.push({
+      store_code: slugStoreCode(text),
+      store_name: text,
+      store_address: description.replace(/^\d+(?:[.,]\d+)?km\s*-\s*/i, "").trim(),
+      city: "",
+      raw_store: {
+        storeName: text,
+        description,
+        status,
+        capturedFrom: "android-ui",
+        keyword,
+      },
+      source: "tomoro-ui-sync",
+      updated_at: new Date().toISOString(),
+    });
+  }
+  return Array.from(new Map(stores.filter((store) => store.store_code !== "ui-").map((store) => [store.store_code, store])).values());
+}
+
+async function waitForUi(predicate, timeoutMs = 4000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const xml = dumpUi();
+    if (predicate(xml)) return xml;
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 500));
+  }
+  return dumpUi();
+}
+
+async function triggerOutletSearch() {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+  let xml = dumpUi();
+  if (!hasStoreList(xml)) {
+    if (!tapResource(xml, "/tvStoreName")) {
+      runAdb(["shell", "input", "keyevent", "111"]);
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 700));
+      xml = dumpUi();
+      tapResource(xml, "/tvStoreName");
+    }
+    xml = await waitForUi(hasStoreList, 5000);
+  }
+  if (!hasStoreList(xml)) {
+    console.log("Auto search belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
+    return;
+  }
+  if (!tapResource(xml, "/tvSearchInput")) {
+    console.log("Auto search belum menemukan kolom Search outlet.");
+    return;
+  }
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
+  xml = dumpUi();
+  tapResource(xml, "/etSearchInput");
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
+  runAdb(["shell", "input", "keyevent", "123"]);
+  runAdb(["shell", "input", "keyevent", ...Array(60).fill("67")]);
+  runAdb(["shell", "input", "text", encodeAdbText(keyword)]);
+  runAdb(["shell", "input", "keyevent", "66"]);
+  console.log(`Search outlet Tomoro dipicu: ${keyword}`);
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 2500));
+  const visibleStores = extractVisibleStoresFromUi(dumpUi());
+  if (visibleStores.length) {
+    const saved = await upsertStores(visibleStores);
+    writeFileSync(join(logDir, "last-ui-outlets.json"), JSON.stringify(saved, null, 2));
+    console.log(`Outlet Tomoro dari UI tersimpan: ${saved.length}`);
+  }
+}
+
 async function handlePayload(payload) {
   if (payload.kind === "ready") {
     console.log(`Hook siap: ${payload.hook}`);
@@ -145,6 +302,15 @@ async function handlePayload(payload) {
   }
   if (payload.kind === "hook-error" || payload.kind === "capture-error") {
     console.log(`${payload.kind}: ${payload.error}`);
+    return { outlets: 0, menus: 0 };
+  }
+  if (payload.kind === "api-url") {
+    try {
+      const url = new URL(payload.url);
+      console.log(`Tomoro API: ${url.pathname} HTTP ${payload.status}`);
+    } catch {
+      console.log(`Tomoro API HTTP ${payload.status}`);
+    }
     return { outlets: 0, menus: 0 };
   }
   if (payload.kind !== "response" || Number(payload.status) !== 200) return { outlets: 0, menus: 0 };
@@ -212,6 +378,7 @@ child.stderr.on("data", (chunk) => {
   if (text) console.log(`[frida:err] ${text}`);
 });
 console.log(`Tomoro Frida capture aktif. PID ${pid}. Buka/cari outlet/menu di app Tomoro.`);
+if (!noAuto) triggerOutletSearch().catch((error) => console.log(`Auto search gagal: ${error.message}`));
 await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));
 child.kill();
 console.log(`Capture selesai. Outlet tersimpan: ${outlets}. Menu tersimpan: ${menus}.`);

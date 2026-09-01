@@ -15,6 +15,14 @@ Java.perform(function () {
       try {
         const request = response.M0();
         const url = request.t().toString();
+        if (url.indexOf(API_HOST) >= 0) {
+          sendJson({
+            kind: "api-url",
+            method: request.n(),
+            url: url,
+            status: response.T(),
+          });
+        }
         if (url.indexOf(API_HOST) >= 0 && /getStoreList\/v3|getMenuList/.test(url)) {
           sendJson({
             kind: "response",
