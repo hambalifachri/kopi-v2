@@ -1,0 +1,265 @@
+jakarta
+jakarta pusat
+jakarta utara
+jakarta barat
+jakarta selatan
+jakarta timur
+bogor
+depok
+tangerang
+tangerang selatan
+bekasi
+cikarang
+karawang
+purwakarta
+subang
+bandung
+cimahi
+sumedang
+garut
+tasikmalaya
+ciamis
+banjar
+cirebon
+kuningan
+majalengka
+indramayu
+sukabumi
+cianjur
+semarang
+salatiga
+solo
+surakarta
+sukoharjo
+karanganyar
+boyolali
+klaten
+sragen
+yogyakarta
+jogja
+sleman
+bantul
+kulon progo
+gunungkidul
+magelang
+temanggung
+wonosobo
+purwokerto
+banyumas
+cilacap
+purbalingga
+banjarnegara
+kebumen
+tegal
+brebes
+pemalang
+pekalongan
+batang
+kendal
+demak
+kudus
+jepara
+pati
+rembang
+blora
+purwodadi
+surabaya
+sidoarjo
+gresik
+mojokerto
+malang
+batu
+pasuruan
+probolinggo
+lumajang
+jember
+banyuwangi
+situbondo
+bondowoso
+kediri
+blitar
+tulungagung
+trenggalek
+nganjuk
+madiun
+ponorogo
+magetan
+ngawi
+bojonegoro
+tuban
+lamongan
+sumenep
+pamekasan
+sampang
+bangkalan
+denpasar
+bali
+badung
+canggu
+kuta
+seminyak
+ubud
+gianyar
+tabanan
+singaraja
+buleleng
+karangasem
+klungkung
+bangli
+jembrana
+mataram
+lombok
+lombok barat
+lombok tengah
+lombok timur
+sumbawa
+bima
+kupang
+ende
+maumere
+labuan bajo
+manggarai
+medan
+binjai
+deli serdang
+lubuk pakam
+tebing tinggi
+pematangsiantar
+siantar
+balige
+parapat
+kabanjahe
+brastagi
+sidikalang
+kisaran
+tanjung balai
+rantauprapat
+padangsidimpuan
+sibolga
+gunungsitoli
+padang
+bukittinggi
+payakumbuh
+solok
+sawahlunto
+pariaman
+painan
+pekanbaru
+dumai
+bengkalis
+siak
+kampar
+pelalawan
+rokan
+batam
+tanjung pinang
+bintan
+karimun
+natuna
+jambi
+muaro jambi
+sarolangun
+bangko
+bungo
+kerinci
+palembang
+prabumulih
+pagar alam
+lubuklinggau
+banyuasin
+ogan
+lahat
+muara enim
+lampung
+bandar lampung
+metro
+lampung selatan
+lampung tengah
+lampung timur
+lampung utara
+pesawaran
+pringsewu
+tulang bawang
+bengkulu
+curup
+rejang lebong
+mukomuko
+pangkalpinang
+bangka
+belitung
+tanjung pandan
+banda aceh
+aceh
+sabang
+lhokseumawe
+langsa
+meulaboh
+sigli
+bireuen
+takengon
+makassar
+gowa
+maros
+parepare
+palopo
+bone
+watampone
+bulukumba
+bantaeng
+pinrang
+sidrap
+toraja
+mamuju
+majene
+polewali
+kendari
+bau bau
+kolaka
+palu
+donggala
+poso
+gorontalo
+manado
+bitung
+tomohon
+minahasa
+kotamobagu
+ternate
+tidore
+ambon
+maluku
+tual
+sorong
+manokwari
+fakfak
+jayapura
+sentani
+merauke
+nabire
+timika
+biak
+balikpapan
+samarinda
+bontang
+tenggarong
+kutai
+berau
+tarakan
+tanjung selor
+nunukan
+pontianak
+singkawang
+mempawah
+ketapang
+sintang
+sanggau
+banjarmasin
+banjarbaru
+martapura
+barabai
+kandangan
+kotabaru
+palangkaraya
+sampit
+pangkalan bun
+muara teweh

@@ -35,18 +35,13 @@ const keyword = explicitKeyword
   || env.TOMORO_DEFAULT_KEYWORD
   || "bogor";
 const maxScrolls = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--max-scrolls="))?.split("=")[1] || 80));
-const keywordList = (process.argv.find((arg) => arg.startsWith("--keywords="))?.slice("--keywords=".length)
+const keywordFilePath = join(here, "tomoro-city-keywords.txt");
+const keywordList = Array.from(new Set((process.argv.find((arg) => arg.startsWith("--keywords="))?.slice("--keywords=".length)
   || env.TOMORO_CITY_KEYWORDS
-  || [
-    "jakarta", "bogor", "depok", "tangerang", "bekasi", "bandung", "cimahi", "karawang", "cirebon", "tasikmalaya",
-    "semarang", "solo", "yogyakarta", "magelang", "purwokerto", "tegal", "surabaya", "sidoarjo", "malang", "gresik",
-    "kediri", "madiun", "jember", "bali", "denpasar", "badung", "medan", "binjai", "palembang", "lampung",
-    "pekanbaru", "batam", "padang", "jambi", "bengkulu", "aceh", "makassar", "manado", "balikpapan", "samarinda",
-    "banjarmasin", "pontianak", "mataram", "kupang", "ambon", "jayapura"
-  ].join(","))
-  .split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
+  || (existsSync(keywordFilePath) ? readFileSync(keywordFilePath, "utf8") : "jakarta,bogor,bandung,surabaya,medan"))
+  .split(/[\r\n,]+/)
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean)));
 const noAuto = process.argv.includes("--manual");
 
 function fail(message) {
