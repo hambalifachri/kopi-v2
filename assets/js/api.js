@@ -252,13 +252,11 @@ function getApiProductPrice(item, localItem) {
   const jasdorPrice = firstNumber(item.jasdorPrice, item.jasdor_price);
   if (jasdorPrice) return jasdorPrice;
 
-  const outletCategory = String(window.kopiKenanganOutletState?.outletCategory || "").trim().toLowerCase();
   const livePromoPrice = firstNumber(item.salePrice, item.sale_price, item.price);
-  if (outletCategory.includes("mall") && livePromoPrice) return livePromoPrice;
-
   const apiPrice = livePromoPrice || firstNumber(item.orig_price, item.origPrice);
   if (!apiPrice) return localItem.price || 0;
 
+  const outletCategory = String(window.kopiKenanganOutletState?.outletCategory || "").trim().toLowerCase();
   const promoMarkup = outletCategory === "airport" ? 7000 : 3000;
   const adjustedPrice = Math.round(apiPrice / 2) + promoMarkup;
   const manualAdjustment = PRICE_ADJUSTMENTS[normalizeApiText(item.name)] || 0;
