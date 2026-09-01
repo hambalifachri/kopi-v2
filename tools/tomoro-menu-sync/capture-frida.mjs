@@ -29,11 +29,24 @@ const supabaseUrl = String(env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/i, ""
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const durationMs = Number(process.argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1] || 120) * 1000;
 const allOutlets = process.argv.includes("--all-outlets") || process.argv.includes("--all");
+const citySweep = process.argv.includes("--city-sweep") || process.argv.includes("--national");
 const explicitKeyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim();
 const keyword = explicitKeyword
   || env.TOMORO_DEFAULT_KEYWORD
   || "bogor";
 const maxScrolls = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--max-scrolls="))?.split("=")[1] || 80));
+const keywordList = (process.argv.find((arg) => arg.startsWith("--keywords="))?.slice("--keywords=".length)
+  || env.TOMORO_CITY_KEYWORDS
+  || [
+    "jakarta", "bogor", "depok", "tangerang", "bekasi", "bandung", "cimahi", "karawang", "cirebon", "tasikmalaya",
+    "semarang", "solo", "yogyakarta", "magelang", "purwokerto", "tegal", "surabaya", "sidoarjo", "malang", "gresik",
+    "kediri", "madiun", "jember", "bali", "denpasar", "badung", "medan", "binjai", "palembang", "lampung",
+    "pekanbaru", "batam", "padang", "jambi", "bengkulu", "aceh", "makassar", "manado", "balikpapan", "samarinda",
+    "banjarmasin", "pontianak", "mataram", "kupang", "ambon", "jayapura"
+  ].join(","))
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
 const noAuto = process.argv.includes("--manual");
 
 function fail(message) {
@@ -211,7 +224,7 @@ function slugStoreCode(name) {
     .slice(0, 96)}`;
 }
 
-function extractVisibleStoresFromUi(xml) {
+function extractVisibleStoresFromUi(xml, activeKeyword = keyword) {
   const nodes = String(xml || "").match(/<node\b[^>]*>/g) || [];
   const stores = [];
   for (let index = 0; index < nodes.length; index += 1) {
@@ -241,7 +254,7 @@ function extractVisibleStoresFromUi(xml) {
         description,
         status,
         capturedFrom: "android-ui",
-        keyword,
+        keyword: activeKeyword,
       },
       source: "tomoro-ui-sync",
       updated_at: new Date().toISOString(),
@@ -274,9 +287,9 @@ async function openStoreList() {
   return xml;
 }
 
-async function saveVisibleUiOutlets(label) {
+async function saveVisibleUiOutlets(label, activeKeyword = keyword) {
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 2500));
-  const visibleStores = extractVisibleStoresFromUi(dumpUi());
+  const visibleStores = extractVisibleStoresFromUi(dumpUi(), activeKeyword);
   if (visibleStores.length) {
     const saved = await upsertStores(visibleStores);
     writeFileSync(join(logDir, "last-ui-outlets.json"), JSON.stringify(saved, null, 2));
@@ -319,32 +332,60 @@ async function triggerAllOutletSweep() {
   console.log(`Sweep semua outlet selesai. Outlet unik terlihat: ${sweepSeenStoreCodes.size}`);
 }
 
+async function searchAndSaveKeyword(activeKeyword) {
+  let xml = await openStoreList();
+  if (!hasStoreList(xml)) {
+    console.log("Auto search belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
+    return [];
+  }
+  if (tapResource(xml, "/etSearchInput")) {
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
+  } else if (tapResource(xml, "/tvSearchInput")) {
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
+    xml = dumpUi();
+    tapResource(xml, "/etSearchInput");
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
+  } else {
+    console.log("Auto search belum menemukan kolom Search outlet.");
+    return [];
+  }
+  runAdb(["shell", "input", "keyevent", "123"]);
+  runAdb(["shell", "input", "keyevent", ...Array(60).fill("67")]);
+  runAdb(["shell", "input", "text", encodeAdbText(activeKeyword)]);
+  runAdb(["shell", "input", "keyevent", "66"]);
+  console.log(`Search outlet Tomoro dipicu: ${activeKeyword}`);
+  return saveVisibleUiOutlets(activeKeyword, activeKeyword);
+}
+
+async function triggerCitySweep() {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+  const xml = await openStoreList();
+  if (!hasStoreList(xml)) {
+    console.log("City sweep belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
+    return;
+  }
+  console.log(`Sweep outlet nasional Tomoro dimulai. Keyword: ${keywordList.length}`);
+  let emptyRounds = 0;
+  for (const cityKeyword of keywordList) {
+    const stores = await searchAndSaveKeyword(cityKeyword);
+    emptyRounds = stores.length ? 0 : emptyRounds + 1;
+    if (emptyRounds >= 8) console.log("Beberapa keyword terakhir kosong; tetap lanjut karena kota berikutnya bisa ada outlet.");
+  }
+  console.log(`Sweep outlet nasional selesai. Outlet unik UI tersimpan: ${uiOutlets}`);
+}
+
 async function triggerOutletSearch() {
+  if (citySweep) {
+    await triggerCitySweep();
+    return;
+  }
   if (allOutlets) {
     await triggerAllOutletSweep();
     return;
   }
 
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
-  let xml = await openStoreList();
-  if (!hasStoreList(xml)) {
-    console.log("Auto search belum bisa buka Store List. Buka Store List manual lalu jalankan capture lagi.");
-    return;
-  }
-  if (!tapResource(xml, "/tvSearchInput")) {
-    console.log("Auto search belum menemukan kolom Search outlet.");
-    return;
-  }
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
-  xml = dumpUi();
-  tapResource(xml, "/etSearchInput");
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 300));
-  runAdb(["shell", "input", "keyevent", "123"]);
-  runAdb(["shell", "input", "keyevent", ...Array(60).fill("67")]);
-  runAdb(["shell", "input", "text", encodeAdbText(keyword)]);
-  runAdb(["shell", "input", "keyevent", "66"]);
-  console.log(`Search outlet Tomoro dipicu: ${keyword}`);
-  await saveVisibleUiOutlets(keyword);
+  await searchAndSaveKeyword(keyword);
 }
 
 async function handlePayload(payload) {
@@ -432,11 +473,11 @@ child.stderr.on("data", (chunk) => {
   const text = chunk.trim();
   if (text) console.log(`[frida:err] ${text}`);
 });
-console.log(`Tomoro Frida capture aktif. PID ${pid}. ${allOutlets ? "Sweep outlet dari Store List." : "Buka/cari outlet/menu di app Tomoro."}`);
+console.log(`Tomoro Frida capture aktif. PID ${pid}. ${citySweep ? "Sweep outlet nasional per keyword." : allOutlets ? "Sweep outlet dari Store List." : "Buka/cari outlet/menu di app Tomoro."}`);
 const autoTask = noAuto
   ? Promise.resolve()
   : triggerOutletSearch().catch((error) => console.log(`Auto search gagal: ${error.message}`));
-if (allOutlets && !noAuto) {
+if ((allOutlets || citySweep) && !noAuto) {
   await autoTask;
 } else {
   await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));

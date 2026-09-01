@@ -57,7 +57,7 @@ namespace TomoroSyncDesktop
             main.Controls.Add(actionPanel);
 
             var inputPanel = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(0, 8, 0, 8) };
-            inputPanel.Controls.Add(new Label { Text = "KEYWORD OUTLET (KOSONG = SEMUA)", AutoSize = true, Location = new Point(0, 4), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
+            inputPanel.Controls.Add(new Label { Text = "KEYWORD OUTLET (KOSONG = NASIONAL)", AutoSize = true, Location = new Point(0, 4), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
             keywordBox = new TextBox { Text = "", Location = new Point(0, 27), Width = 220 };
             inputPanel.Controls.Add(keywordBox);
             inputPanel.Controls.Add(new Label { Text = "STORE CODE", AutoSize = true, Location = new Point(250, 4), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
@@ -96,7 +96,7 @@ namespace TomoroSyncDesktop
         private void StartCapture()
         {
             string keyword = keywordBox.Text.Trim();
-            string args = "--seconds=" + Decimal.ToInt32(secondsBox.Value) + (keyword.Length > 0 ? " --keyword=" + Quote(keyword) : " --all-outlets --max-scrolls=60");
+            string args = "--seconds=" + Decimal.ToInt32(secondsBox.Value) + (keyword.Length > 0 ? " --keyword=" + Quote(keyword) : " --city-sweep");
             StartNode("capture-frida.mjs", args, "Capture Tomoro via Frida");
         }
 
