@@ -8,6 +8,7 @@ const root = resolve(here, "..", "..");
 const configPath = join(root, ".env.tomoro-sync");
 const fallbackKopkenConfigPath = join(root, ".env.kopken-sync");
 const hookPath = join(here, "tomoro-frida-capture.js");
+const askpassPath = join(here, "vsphone-askpass.cmd");
 const logDir = join(here, "logs");
 mkdirSync(logDir, { recursive: true });
 
@@ -25,6 +26,8 @@ const env = { ...process.env, ...loadEnv(fallbackKopkenConfigPath), ...loadEnv(c
 const adb = env.ADB_PATH || "C:\\Users\\fachr\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe";
 const adbSerial = env.TOMORO_ADB_SERIAL || env.ADB_SERIAL || env.VSPHONE_ADB_TARGET || "localhost:65193";
 const frida = env.FRIDA_EXE || "C:\\Users\\fachr\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\Scripts\\frida.exe";
+const vsphoneSshCommand = env.TOMORO_VSPHONE_SSH_COMMAND || env.VSPHONE_SSH_COMMAND || "";
+const vsphoneConnectionKey = env.TOMORO_VSPHONE_CONNECTION_KEY || env.VSPHONE_CONNECTION_KEY || "";
 const supabaseUrl = String(env.SUPABASE_URL || "").replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
 const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const durationMs = Number(process.argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1] || 120) * 1000;
@@ -32,6 +35,7 @@ const allOutlets = process.argv.includes("--all-outlets") || process.argv.includ
 const citySweep = process.argv.includes("--city-sweep") || process.argv.includes("--national");
 const menuSweep = process.argv.includes("--menu-sweep") || process.argv.includes("--menus");
 const menuLimit = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--menu-limit="))?.split("=")[1] || 50));
+const setupOnly = process.argv.includes("--setup-only");
 const explicitKeyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim();
 const keyword = explicitKeyword
   || env.TOMORO_DEFAULT_KEYWORD
@@ -57,7 +61,52 @@ function runAdb(args, timeout = 10000) {
   return spawnSync(adb, ["-s", adbSerial, ...args], { encoding: "utf8", windowsHide: true, timeout });
 }
 
-function ensureFridaServer() {
+function adbDevicesText() {
+  return spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true, timeout: 10000 }).stdout || "";
+}
+
+function parseVsphoneSsh(command) {
+  const match = String(command || "").match(/ssh\s+.*?([^\s]+@[^\s]+)\s+-p\s+(\d+)\s+-L\s+([^\s]+)\s+-Nf/i);
+  if (!match) return null;
+  return { host: match[1], port: match[2], localForward: match[3], localPort: match[3].split(":")[0] };
+}
+
+async function ensureVsphoneTunnel() {
+  if (!vsphoneSshCommand || !vsphoneConnectionKey || adbDevicesText().includes(`${adbSerial}\tdevice`)) return;
+  const parsed = parseVsphoneSsh(vsphoneSshCommand);
+  if (!parsed) {
+    console.log("Format SSH VSPhone tidak dikenali, lanjut adb connect langsung.");
+    return;
+  }
+  if (!existsSync(askpassPath)) writeFileSync(askpassPath, "@echo off\r\necho %VSPHONE_CONNECTION_KEY%\r\n");
+  spawnSync(adb, ["disconnect", adbSerial], { encoding: "utf8", windowsHide: true, timeout: 5000 });
+  const cleanup = `$port='${parsed.localPort}'; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'ssh.exe' -and $_.CommandLine -match ('-L\\s+' + $port + ':') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`;
+  spawnSync("powershell.exe", ["-NoProfile", "-Command", cleanup], { encoding: "utf8", windowsHide: true, timeout: 10000 });
+  const tunnel = spawn("ssh", [
+    "-oHostKeyAlgorithms=+ssh-rsa",
+    "-o", "StrictHostKeyChecking=accept-new",
+    parsed.host,
+    "-p", parsed.port,
+    "-L", parsed.localForward,
+    "-N",
+  ], {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+    env: {
+      ...process.env,
+      VSPHONE_CONNECTION_KEY: vsphoneConnectionKey,
+      SSH_ASKPASS: askpassPath,
+      SSH_ASKPASS_REQUIRE: "force",
+      DISPLAY: "vsphone",
+    },
+  });
+  tunnel.unref();
+  console.log(`Tunnel VSPhone disiapkan: ${adbSerial}`);
+}
+
+async function ensureFridaServer() {
+  await ensureVsphoneTunnel();
   spawnSync(adb, ["connect", adbSerial], { encoding: "utf8", windowsHide: true });
   runAdb(["shell", "am", "force-stop", "tech.httptoolkit.android.v1"]);
   runAdb(["shell", "settings", "put", "global", "http_proxy", ":0"]);
@@ -524,10 +573,16 @@ async function handlePayload(payload) {
   return { outlets: 0, menus: 0 };
 }
 
-ensureFridaServer();
+await ensureFridaServer();
+if (setupOnly) {
+  const devices = adbDevicesText();
+  if (!devices.includes(`${adbSerial}\tdevice`)) fail(`VSPhone ADB belum terhubung: ${adbSerial}`);
+  console.log(`SETUP BERHASIL: VSPhone Tomoro tersambung (${adbSerial}) dan Frida siap.`);
+  process.exit(0);
+}
+
 runAdb(["shell", "am", "start", "-n", "com.tomoro.indonesia.android/com.tomoro.indonesia.module_main.SplashActivityDefault"]);
 await new Promise((resolvePromise, reject) => setTimeout(resolvePromise, 1500));
-
 const pidResult = runAdb(["shell", "pidof", "com.tomoro.indonesia.android"]);
 const pid = String(pidResult.stdout || "").trim().split(/\s+/)[0];
 if (!pid) fail("Proses Tomoro belum jalan.");

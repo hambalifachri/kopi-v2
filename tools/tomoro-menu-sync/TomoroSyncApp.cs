@@ -11,11 +11,15 @@ namespace TomoroSyncDesktop
     {
         private readonly string toolDir;
         private readonly string rootDir;
+        private readonly string envPath;
         private readonly string nodePath;
         private Process activeProcess;
         private TextBox logBox;
         private TextBox keywordBox;
         private TextBox storeBox;
+        private TextBox sshBox;
+        private TextBox adbBox;
+        private TextBox keyBox;
         private NumericUpDown secondsBox;
         private Label statusLabel;
         private Button stopButton;
@@ -24,9 +28,11 @@ namespace TomoroSyncDesktop
         {
             toolDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             rootDir = Path.GetFullPath(Path.Combine(toolDir, "..", ".."));
+            envPath = Path.Combine(rootDir, ".env.tomoro-sync");
             string bundledNode = @"C:\Users\fachr\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe";
             nodePath = File.Exists(bundledNode) ? bundledNode : @"C:\Program Files\nodejs\node.exe";
             BuildUi();
+            LoadConnectionSettings();
         }
 
         private void BuildUi()
@@ -69,6 +75,23 @@ namespace TomoroSyncDesktop
             inputPanel.Controls.Add(secondsBox);
             main.Controls.Add(inputPanel);
             inputPanel.BringToFront();
+
+            var connectionPanel = new Panel { Dock = DockStyle.Top, Height = 146, Padding = new Padding(0, 8, 0, 8) };
+            connectionPanel.Controls.Add(new Label { Text = "KONEKSI VSPHONE", AutoSize = true, Location = new Point(0, 4), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
+            sshBox = new TextBox { Location = new Point(0, 27), Width = 520, Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right };
+            connectionPanel.Controls.Add(sshBox);
+            connectionPanel.Controls.Add(new Label { Text = "ADB TARGET", AutoSize = true, Location = new Point(0, 63), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
+            adbBox = new TextBox { Text = "localhost:65193", Location = new Point(0, 86), Width = 180 };
+            connectionPanel.Controls.Add(adbBox);
+            connectionPanel.Controls.Add(new Label { Text = "CONNECTION KEY", AutoSize = true, Location = new Point(205, 63), Font = new Font("Segoe UI Semibold", 8F), ForeColor = Color.FromArgb(91, 75, 66) });
+            keyBox = new TextBox { Location = new Point(205, 86), Width = 315, UseSystemPasswordChar = true };
+            connectionPanel.Controls.Add(keyBox);
+            var testButton = MakeButton("Simpan & Tes VSPhone", Color.FromArgb(58, 116, 166), SaveAndTestConnection);
+            testButton.Location = new Point(545, 78);
+            testButton.Width = 190;
+            connectionPanel.Controls.Add(testButton);
+            main.Controls.Add(connectionPanel);
+            connectionPanel.BringToFront();
 
             logBox = new TextBox {
                 Dock = DockStyle.Fill,
@@ -113,6 +136,44 @@ namespace TomoroSyncDesktop
             string keyword = keywordBox.Text.Trim();
             string args = storeCode.Length > 0 ? "--store=" + Quote(storeCode) : "--keyword=" + Quote(keyword.Length > 0 ? keyword : "bogor");
             StartNode("sync.mjs", args, storeCode.Length > 0 ? "Sync menu " + storeCode : "Sync outlet " + keyword);
+        }
+
+        private void SaveAndTestConnection(object sender, EventArgs e)
+        {
+            if (String.IsNullOrWhiteSpace(adbBox.Text)) {
+                MessageBox.Show("Isi ADB target terlebih dahulu."); return;
+            }
+            string[] lines = File.Exists(envPath) ? File.ReadAllLines(envPath) : new string[0];
+            lines = ReplaceEnv(lines, "TOMORO_ADB_SERIAL", adbBox.Text.Trim());
+            lines = ReplaceEnv(lines, "TOMORO_VSPHONE_SSH_COMMAND", sshBox.Text.Trim());
+            lines = ReplaceEnv(lines, "TOMORO_VSPHONE_CONNECTION_KEY", keyBox.Text.Trim());
+            File.WriteAllLines(envPath, lines, new UTF8Encoding(false));
+            StartNode("capture-frida.mjs", "--setup-only", "Menguji koneksi VSPhone Tomoro");
+        }
+
+        private void LoadConnectionSettings()
+        {
+            if (!File.Exists(envPath)) return;
+            sshBox.Text = ReadEnv("TOMORO_VSPHONE_SSH_COMMAND");
+            adbBox.Text = ReadEnv("TOMORO_ADB_SERIAL");
+            keyBox.Text = ReadEnv("TOMORO_VSPHONE_CONNECTION_KEY");
+            if (String.IsNullOrWhiteSpace(adbBox.Text)) adbBox.Text = ReadEnv("VSPHONE_ADB_TARGET");
+            if (String.IsNullOrWhiteSpace(adbBox.Text)) adbBox.Text = "localhost:65193";
+        }
+
+        private string ReadEnv(string name)
+        {
+            foreach (string line in File.ReadAllLines(envPath)) if (line.StartsWith(name + "=")) return line.Substring(name.Length + 1);
+            return "";
+        }
+
+        private string[] ReplaceEnv(string[] lines, string name, string value)
+        {
+            for (int i = 0; i < lines.Length; i++) if (lines[i].StartsWith(name + "=")) { lines[i] = name + "=" + value; return lines; }
+            var result = new string[lines.Length + 1];
+            Array.Copy(lines, result, lines.Length);
+            result[result.Length - 1] = name + "=" + value;
+            return result;
         }
 
         private void StartNode(string scriptName, string arguments, string label)
