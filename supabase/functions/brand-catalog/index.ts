@@ -303,6 +303,8 @@ Deno.serve(async (request) => {
     if (action === "tomoro-menu") {
       if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
       try {
+        const cached = await getCachedTomoroMenu(outletCode).catch(() => null);
+        if (cached) return json({ ...cached, source: "tomoro-cache" });
         const query = new URLSearchParams({ storeCode: outletCode, mainMenuType: "1" });
         const data = await tomoroOfficial(`/portal/app/basic/menu/getMenuList?${query}`);
         return json({ ...data, source: "tomoro-official" });

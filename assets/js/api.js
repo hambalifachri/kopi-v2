@@ -1125,6 +1125,13 @@ function buildTomoroUiCapturedMenu(payload) {
   const cloneGroups = typeof cloneOptionGroups === "function"
     ? cloneOptionGroups
     : (groups) => groups.map((group) => ({ ...group, options: (group.options || []).map((option) => ({ ...option })) }));
+  const imageFor = (productName, product) => {
+    if (product.imageUrl || product.image) return product.imageUrl || product.image;
+    const slug = typeof slugifyAssetName === "function"
+      ? slugifyAssetName(productName)
+      : String(productName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return `assets/menu/tomoro-${slug}.jpg`;
+  };
   const seen = new Set();
   return products.flatMap((product) => {
     const name = product.productName || product.menuName || product.goodsName || product.name;
@@ -1139,7 +1146,7 @@ function buildTomoroUiCapturedMenu(payload) {
       name,
       oldPrice: firstNumber(product.originPrice, product.originalPrice, product.price, product.salePrice) || price,
       price,
-      image: product.imageUrl || product.image || undefined,
+      image: imageFor(name, product),
       options: cloneGroups(optionGroups),
       liveOutletMenu: true,
     }];
