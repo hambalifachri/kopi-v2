@@ -1042,6 +1042,10 @@ function foreSellingPrice(officialPrice) {
   return Math.round((officialPrice * 0.75 + 2250) / 250) * 250;
 }
 
+function foreSupportsLargeSize(group) {
+  return !["fore-literan", "fore-deli"].includes(group);
+}
+
 function foreDefaultLiveOptions(officialRegular, officialLarge = 0) {
   const template = BRANDS_DATA.find((brand) => brand.id === "fore")?.defaultOptions || [];
   return template.map((group) => ({
@@ -1071,7 +1075,11 @@ function buildForeLiveMenu(payload) {
     const officialRegular = firstNumber(storeItem.regular_price, liveItem.regular_price);
     if (!officialRegular) return [];
     const isLiterItem = group === "fore-literan";
+    const supportsLarge = foreSupportsLargeSize(group);
     const sellingPrice = isLiterItem ? Math.max(0, officialRegular - 7000) : foreSellingPrice(officialRegular);
+    const sellingLargePrice = supportsLarge
+      ? firstNumber(storeItem.large_price, liveItem.large_price) || sellingPrice + 7000
+      : 0;
 
     return [{
       id: `fore-live-${normalizeApiText(liveItem.product_code)}`,
@@ -1080,8 +1088,9 @@ function buildForeLiveMenu(payload) {
       name: liveItem.name,
       oldPrice: officialRegular,
       price: sellingPrice,
+      largePrice: sellingLargePrice || undefined,
       image: liveItem.image_url || undefined,
-      options: isLiterItem ? [] : foreDefaultLiveOptions(sellingPrice),
+      options: isLiterItem ? [] : foreDefaultLiveOptions(sellingPrice, sellingLargePrice),
       liveOutletMenu: true,
     }];
   });
