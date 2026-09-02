@@ -272,6 +272,23 @@ function parseRupiah(value) {
   return digits ? Number(digits) : 0;
 }
 
+function normalizeMenuName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isTomoroDrinkMenuName(value) {
+  const name = normalizeMenuName(value);
+  if (!name || /master-s-o-e|master-soe|s-o-e|\bsoe\b/.test(name)) return false;
+  if (/sticker|keychain|e-money|emoney|merch|merchandise|tumbler|totebag|bag|voucher|bundle/.test(name)) return false;
+  if (/food|rice|sandwich|toast|croissant|donut|cake|bun|bread|pastry|muffin|chicken|beef|sausage|cheese-roll/.test(name)) return false;
+  return /americano|espresso|cappuccino|caffe|coffee|kopi|latte|macchiato|pistachio|aren|caramel|coconut|spanish|oat|matcha|tea|yakult|lychee|lemon|peach|strawberry|grapefruit|refresh|soda|chocolate|cocoa|milk|hojicha|frappe|smoothie/.test(name);
+}
+
 function encodeAdbText(value) {
   return String(value).replace(/\s/g, "%s").replace(/([()])/g, "\\$&")
     .replace(/'/g, "\\'").replace(/[^\w%@.,'\\()\-/]/g, "");
@@ -429,7 +446,7 @@ function extractVisibleMenuProductsFromUi(xml) {
     }
 
     const price = parseRupiah(priceText);
-    if (!price) continue;
+    if (!price || !isTomoroDrinkMenuName(text)) continue;
     products.push({
       productName: text,
       name: text,

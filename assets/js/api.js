@@ -1119,8 +1119,16 @@ function tomoroUiMenuGroup(product) {
   return "signature";
 }
 
+function isTomoroDrinkMenu(product) {
+  const name = normalizedLiveName(product.productName || product.menuName || product.goodsName || product.name);
+  if (!name || /master-s-o-e|master-soe|s-o-e|\\bsoe\\b/.test(name)) return false;
+  if (/sticker|keychain|e-money|emoney|merch|merchandise|tumbler|cup|totebag|bag|voucher|bundle/.test(name)) return false;
+  if (/food|rice|sandwich|toast|croissant|donut|cake|bun|bread|pastry|muffin|chicken|beef|sausage|cheese roll/.test(name)) return false;
+  return /americano|espresso|cappuccino|caffe|coffee|kopi|latte|macchiato|pistachio|aren|caramel|coconut|spanish|oat|matcha|tea|yakult|lychee|lemon|peach|strawberry|grapefruit|refresh|soda|chocolate|cocoa|milk|hojicha|frappe|smoothie/.test(name);
+}
+
 function buildTomoroUiCapturedMenu(payload) {
-  const products = collectTomoroProducts(payload);
+  const products = collectTomoroProducts(payload).filter(isTomoroDrinkMenu);
   const optionGroups = BRANDS_DATA.find((brand) => brand.id === "tomoro")?.defaultOptions || [];
   const cloneGroups = typeof cloneOptionGroups === "function"
     ? cloneOptionGroups
