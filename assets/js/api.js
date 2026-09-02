@@ -1109,7 +1109,48 @@ function collectTomoroProducts(value, products = []) {
   return products;
 }
 
+function tomoroUiMenuGroup(product) {
+  const name = normalizedLiveName(product.productName || product.menuName || product.goodsName || product.name);
+  if (/matcha/.test(name)) return "Matcha-Series";
+  if (/americano|espresso|cappuccino|caffe|coffee|kopi|soe|breve/.test(name)) return "classic-coffee";
+  if (/latte|macchiato|pistachio|aren|caramel|coconut|spanish|oat/.test(name)) return "flavored-latte";
+  if (/tea|yakult|lychee|lemon|peach|strawberry|grapefruit|refresh|soda/.test(name)) return "refreshing-series";
+  if (/chocolate|cocoa|milk|hojicha/.test(name)) return "non-coffee";
+  return "signature";
+}
+
+function buildTomoroUiCapturedMenu(payload) {
+  const products = collectTomoroProducts(payload);
+  const optionGroups = BRANDS_DATA.find((brand) => brand.id === "tomoro")?.defaultOptions || [];
+  const cloneGroups = typeof cloneOptionGroups === "function"
+    ? cloneOptionGroups
+    : (groups) => groups.map((group) => ({ ...group, options: (group.options || []).map((option) => ({ ...option })) }));
+  const seen = new Set();
+  return products.flatMap((product) => {
+    const name = product.productName || product.menuName || product.goodsName || product.name;
+    const price = firstNumber(product.salePrice, product.price, product.originPrice, product.originalPrice);
+    const key = normalizedLiveName(name);
+    if (!name || !price || seen.has(key)) return [];
+    seen.add(key);
+    return [{
+      id: `tomoro-live-${normalizeApiText(name)}`,
+      brand: "tomoro",
+      group: tomoroUiMenuGroup(product),
+      name,
+      oldPrice: firstNumber(product.originPrice, product.originalPrice, product.price, product.salePrice) || price,
+      price,
+      image: product.imageUrl || product.image || undefined,
+      options: cloneGroups(optionGroups),
+      liveOutletMenu: true,
+    }];
+  });
+}
+
 function buildTomoroLiveMenu(payload) {
+  if (payload?.source === "tomoro-ui-menu" || payload?.data?.products?.some?.((product) => product?.capturedFrom === "android-ui-menu")) {
+    const captured = buildTomoroUiCapturedMenu(payload);
+    if (captured.length >= 3) return captured;
+  }
   cacheOriginalLiveBrandMenus();
   const originals = originalLiveBrandMenus?.tomoro || [];
   const liveByName = new Map(collectTomoroProducts(payload).map((item) => [
