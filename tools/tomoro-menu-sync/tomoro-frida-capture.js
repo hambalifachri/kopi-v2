@@ -23,7 +23,7 @@ Java.perform(function () {
             status: response.T(),
           });
         }
-        if (url.indexOf(API_HOST) >= 0 && /getStoreList\/v3|getMenuList/.test(url)) {
+        if (url.indexOf(API_HOST) >= 0 && /getStoreList\/v3|getMenuList|menu|product|goods|catalog/i.test(url)) {
           sendJson({
             kind: "response",
             method: request.n(),

@@ -35,6 +35,7 @@ const allOutlets = process.argv.includes("--all-outlets") || process.argv.includ
 const citySweep = process.argv.includes("--city-sweep") || process.argv.includes("--national");
 const menuSweep = process.argv.includes("--menu-sweep") || process.argv.includes("--menus");
 const menuLimit = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--menu-limit="))?.split("=")[1] || 50));
+const menuMaxScrolls = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--menu-max-scrolls="))?.split("=")[1] || 30));
 const setupOnly = process.argv.includes("--setup-only");
 const explicitKeyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim();
 const keyword = explicitKeyword
@@ -227,7 +228,7 @@ async function upsertMenu(storeCode, menu, outlet = {}) {
 }
 
 async function fetchCachedTomoroOutlets(limit = menuLimit) {
-  const response = await fetch(`${supabaseUrl}/rest/v1/tomoro_outlets_catalog?select=store_code,store_name,store_address,city,raw_store,menu_updated_at&order=menu_updated_at.asc.nullsfirst,updated_at.desc&limit=${limit}`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/tomoro_outlets_catalog?select=store_code,store_name,store_address,city,raw_store,menu_updated_at&menu=is.null&limit=500`, {
     headers: {
       apikey: supabaseKey,
       Authorization: `Bearer ${supabaseKey}`,
@@ -235,11 +236,40 @@ async function fetchCachedTomoroOutlets(limit = menuLimit) {
   });
   if (!response.ok) throw new Error(`Gagal ambil daftar outlet Tomoro dari Supabase: ${await response.text()}`);
   const rows = await response.json();
-  return Array.isArray(rows) ? rows.filter((row) => textValue(row.store_name)) : [];
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => textValue(row.store_name))
+    .sort((a, b) => {
+      const aOpen = textValue(a.raw_store?.status).toLowerCase() === "open" ? 0 : 1;
+      const bOpen = textValue(b.raw_store?.status).toLowerCase() === "open" ? 0 : 1;
+      return aOpen - bOpen || textValue(a.store_name).localeCompare(textValue(b.store_name), "id-ID");
+    })
+    .slice(0, limit);
 }
 
 function storeCodeFromUrl(url) {
-  try { return new URL(url).searchParams.get("storeCode") || ""; } catch { return ""; }
+  try {
+    const params = new URL(url).searchParams;
+    return params.get("storeCode") || params.get("store_code") || params.get("store") || params.get("storeId") || "";
+  } catch { return ""; }
+}
+
+function countTomoroProducts(value) {
+  if (Array.isArray(value)) return value.reduce((total, entry) => total + countTomoroProducts(entry), 0);
+  if (!value || typeof value !== "object") return 0;
+  const name = value.productName || value.menuName || value.goodsName || value.name || value.spuName;
+  const price = value.price || value.salePrice || value.originPrice || value.originalPrice || value.discountPrice;
+  let count = name && price ? 1 : 0;
+  for (const entry of Object.values(value)) count += countTomoroProducts(entry);
+  return count;
+}
+
+function looksLikeTomoroMenu(url, body) {
+  return /getMenuList|menu|product|goods|catalog/i.test(url) && countTomoroProducts(body) >= 3;
+}
+
+function parseRupiah(value) {
+  const digits = String(value || "").replace(/[^\d]/g, "");
+  return digits ? Number(digits) : 0;
 }
 
 function encodeAdbText(value) {
@@ -299,6 +329,24 @@ function tapText(xml, exactText) {
   return tapBounds(bounds);
 }
 
+function tapTextContains(xml, needle) {
+  const target = textValue(needle).toLocaleLowerCase("id-ID");
+  const bounds = findNodeBounds(xml, ({ text }) => textValue(text).toLocaleLowerCase("id-ID").includes(target));
+  return tapBounds(bounds);
+}
+
+function tapStoreName(xml, outletName) {
+  const target = textValue(outletName).toLocaleLowerCase("id-ID");
+  const bounds = findNodeBounds(xml, ({ resourceId, text }) =>
+    resourceId.endsWith("/tvStoreName") && textValue(text).toLocaleLowerCase("id-ID") === target);
+  if (bounds) return tapBounds(bounds);
+  const fuzzyBounds = findNodeBounds(xml, ({ resourceId, text }) => {
+    const value = textValue(text).toLocaleLowerCase("id-ID");
+    return resourceId.endsWith("/tvStoreName") && (value.includes(target) || target.includes(value));
+  });
+  return tapBounds(fuzzyBounds);
+}
+
 function hasStoreList(xml) {
   return Boolean(findNodeBounds(xml, ({ text, resourceId }) =>
     text === "Store List" || resourceId.endsWith("/tvSearchInput")));
@@ -306,7 +354,8 @@ function hasStoreList(xml) {
 
 function hasMenuScreen(xml) {
   return Boolean(findNodeBounds(xml, ({ resourceId, text }) =>
-    resourceId.endsWith("/tvStoreName") || textValue(text).toLocaleLowerCase("id-ID") === "menu"));
+    resourceId.endsWith("/rightMenu") || resourceId.endsWith("/right_dish_item") || resourceId.endsWith("/rvProduct") || resourceId.endsWith("/rvMenu") || resourceId.endsWith("/rvCategory")
+    || textValue(text).toLocaleLowerCase("id-ID") === "menu"));
 }
 
 function slugStoreCode(name) {
@@ -356,6 +405,79 @@ function extractVisibleStoresFromUi(xml, activeKeyword = keyword) {
     });
   }
   return Array.from(new Map(stores.filter((store) => store.store_code !== "ui-").map((store) => [store.store_code, store])).values());
+}
+
+function extractVisibleMenuProductsFromUi(xml) {
+  const nodes = String(xml || "").match(/<node\b[^>]*>/g) || [];
+  const products = [];
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    const resourceId = decodeXml(node.match(/\bresource-id="([^"]*)"/)?.[1]);
+    const text = decodeXml(node.match(/\btext="([^"]*)"/)?.[1]);
+    if (!resourceId.endsWith("/tvName") || !text || text === "Home") continue;
+
+    let priceText = "";
+    for (let lookahead = index + 1; lookahead < Math.min(index + 8, nodes.length); lookahead += 1) {
+      const nextNode = nodes[lookahead];
+      const nextResourceId = decodeXml(nextNode.match(/\bresource-id="([^"]*)"/)?.[1]);
+      const nextText = decodeXml(nextNode.match(/\btext="([^"]*)"/)?.[1]);
+      if (nextResourceId.endsWith("/tvName")) break;
+      if (nextResourceId.endsWith("/tvPrice") && /^Rp\s*/i.test(nextText)) {
+        priceText = nextText;
+        break;
+      }
+    }
+
+    const price = parseRupiah(priceText);
+    if (!price) continue;
+    products.push({
+      productName: text,
+      name: text,
+      price,
+      salePrice: price,
+      originPrice: price,
+      priceText,
+      capturedFrom: "android-ui-menu",
+    });
+  }
+  return Array.from(new Map(products.map((product) => [product.productName.toLocaleLowerCase("id-ID"), product])).values());
+}
+
+async function saveMenuFromUi(outlet) {
+  const uiStoreCode = textValue(outlet?.store_code);
+  if (!uiStoreCode) return 0;
+  const productsByName = new Map();
+  let staleRounds = 0;
+
+  for (let round = 1; round <= menuMaxScrolls && staleRounds < 4; round += 1) {
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 900));
+    const products = extractVisibleMenuProductsFromUi(dumpUi());
+    let fresh = 0;
+    for (const product of products) {
+      const key = product.productName.toLocaleLowerCase("id-ID");
+      if (!productsByName.has(key)) {
+        productsByName.set(key, product);
+        fresh += 1;
+      }
+    }
+    console.log(`Menu UI Tomoro terbaca (${textValue(outlet.store_name)} scroll ${round}): baru ${fresh}, total ${productsByName.size}`);
+    staleRounds = fresh === 0 ? staleRounds + 1 : 0;
+    runAdb(["shell", "input", "swipe", "780", "1700", "780", "760", "650"]);
+  }
+
+  const products = [...productsByName.values()];
+  if (!products.length) return 0;
+  await patchMenu(uiStoreCode, {
+    source: "tomoro-ui-menu",
+    capturedAt: new Date().toISOString(),
+    storeCode: uiStoreCode,
+    storeName: textValue(outlet.store_name),
+    data: { products },
+  });
+  writeFileSync(join(logDir, `last-ui-menu-${uiStoreCode}.json`), JSON.stringify(products, null, 2));
+  menus += 1;
+  console.log(`Menu Tomoro dari UI tersimpan: ${uiStoreCode} (${products.length} produk)`);
+  return products.length;
 }
 
 async function waitForUi(predicate, timeoutMs = 4000) {
@@ -455,23 +577,30 @@ async function searchAndSaveKeyword(activeKeyword) {
 async function openOutletMenu(outlet) {
   const outletName = textValue(outlet.store_name || outlet.storeName);
   if (!outletName) return false;
+  if (textValue(outlet.raw_store?.status).toLowerCase() === "closed") {
+    console.log(`Lewati outlet closed: ${outletName}`);
+    return false;
+  }
   await searchAndSaveKeyword(outletName);
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 800));
   let xml = dumpUi();
-  if (!tapText(xml, outletName)) {
+  if (!tapStoreName(xml, outletName)) {
     console.log(`Outlet tidak terlihat setelah search: ${outletName}`);
     return false;
   }
   pendingMenuOutlet = outlet;
   console.log(`Outlet Tomoro dipilih untuk menu: ${outletName}`);
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
   xml = dumpUi();
-  if (!tapResource(xml, "/ivBeginOrder")) {
-    tapText(xml, "Start Order");
+  if (!tapResource(xml, "/ivBeginOrder") && !tapText(xml, "Start Order") && !tapTextContains(xml, "Start")) {
+    console.log(`Tombol Start Order tidak terlihat: ${outletName}`);
+    return false;
   }
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 4500));
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 7000));
   xml = dumpUi();
-  return hasMenuScreen(xml);
+  const opened = hasMenuScreen(xml);
+  if (opened) await saveMenuFromUi(outlet);
+  return opened;
 }
 
 async function triggerMenuSweep() {
@@ -560,14 +689,15 @@ async function handlePayload(payload) {
     console.log(`Outlet Tomoro tersimpan: ${saved.length}`);
     return { outlets: saved.length, menus: 0 };
   }
-  if (/getMenuList/.test(payload.url)) {
+  if (looksLikeTomoroMenu(payload.url, body)) {
     const storeCode = storeCodeFromUrl(payload.url);
-    if (!storeCode) return { outlets: 0, menus: 0 };
-    await upsertMenu(storeCode, body, pendingMenuOutlet || {});
     const uiStoreCode = textValue(pendingMenuOutlet?.store_code);
+    if (storeCode) await upsertMenu(storeCode, body, pendingMenuOutlet || {});
+    if (!storeCode && !uiStoreCode) return { outlets: 0, menus: 0 };
     if (uiStoreCode && uiStoreCode !== storeCode) await patchMenu(uiStoreCode, body);
-    writeFileSync(join(logDir, `last-frida-menu-${storeCode}.json`), JSON.stringify(body, null, 2));
-    console.log(`Menu Tomoro tersimpan: ${storeCode}${uiStoreCode && uiStoreCode !== storeCode ? ` + ${uiStoreCode}` : ""}`);
+    const logCode = storeCode || uiStoreCode;
+    writeFileSync(join(logDir, `last-frida-menu-${logCode}.json`), JSON.stringify(body, null, 2));
+    console.log(`Menu Tomoro tersimpan: ${storeCode || "(tanpa storeCode)"}${uiStoreCode && uiStoreCode !== storeCode ? ` + ${uiStoreCode}` : ""} (${countTomoroProducts(body)} produk terdeteksi)`);
     return { outlets: 0, menus: 1 };
   }
   return { outlets: 0, menus: 0 };
