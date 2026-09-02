@@ -22,8 +22,11 @@ node tools/tomoro-menu-sync/sync.mjs --store=ID_STORE_TOMORO
 node tools/tomoro-menu-sync/capture-frida.mjs --seconds=180 --city-sweep
 node tools/tomoro-menu-sync/capture-frida.mjs --seconds=180 --all-outlets --max-scrolls=60
 node tools/tomoro-menu-sync/capture-frida.mjs --seconds=90 --keyword=bogor
+node tools/tomoro-menu-sync/capture-frida.mjs --menu-sweep --menu-limit=50
 ```
 
 Gunakan `--city-sweep` untuk mengambil outlet nasional dengan mencari daftar kota otomatis dari `tomoro-city-keywords.txt`. Di aplikasi Windows, kosongkan keyword lalu klik `Capture Frida` untuk mode ini. Gunakan `--all-outlets` untuk mengambil outlet sekitar lokasi yang muncul di Store List sambil auto-scroll. Tambahkan `--max-scrolls=` untuk membatasi jumlah scroll. Gunakan `--keyword=` kalau ingin mencari kota/outlet tertentu, dan `--store=` untuk refresh menu satu outlet.
+
+Untuk menu, klik `Capture Menu` di aplikasi Windows atau jalankan `--menu-sweep`. Mode ini membaca outlet Tomoro yang sudah tersimpan di Supabase, mencari outlet satu per satu di app Tomoro, menekan `Start Order`, lalu Frida menyimpan response menu ke row outlet UI dan `storeCode` resmi yang tertangkap.
 
 Kalau request langsung kena `Tomoro HTTP 405`, gunakan `capture-frida.mjs`. Tomoro dapat meminta jaringan `NOT_VPN`, sehingga traffic tidak selalu terlihat di HTTP Toolkit. Capture Frida otomatis mematikan HTTP Toolkit VPN/proxy dulu, membuka Store List, lalu menyimpan outlet dari response OkHttp atau fallback UI Android. Tambahkan `--manual` kalau ingin mencari outlet sendiri tanpa auto tap.

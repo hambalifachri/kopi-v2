@@ -30,6 +30,8 @@ const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
 const durationMs = Number(process.argv.find((arg) => arg.startsWith("--seconds="))?.split("=")[1] || 120) * 1000;
 const allOutlets = process.argv.includes("--all-outlets") || process.argv.includes("--all");
 const citySweep = process.argv.includes("--city-sweep") || process.argv.includes("--national");
+const menuSweep = process.argv.includes("--menu-sweep") || process.argv.includes("--menus");
+const menuLimit = Math.max(1, Number(process.argv.find((arg) => arg.startsWith("--menu-limit="))?.split("=")[1] || 50));
 const explicitKeyword = process.argv.find((arg) => arg.startsWith("--keyword="))?.slice("--keyword=".length).trim();
 const keyword = explicitKeyword
   || env.TOMORO_DEFAULT_KEYWORD
@@ -149,6 +151,44 @@ async function patchMenu(storeCode, menu) {
   return response.json();
 }
 
+async function upsertMenu(storeCode, menu, outlet = {}) {
+  if (!storeCode) return [];
+  const response = await fetch(`${supabaseUrl}/rest/v1/tomoro_outlets_catalog?on_conflict=store_code`, {
+    method: "POST",
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=representation",
+    },
+    body: JSON.stringify({
+      store_code: storeCode,
+      store_name: textValue(outlet.store_name || outlet.storeName || storeCode),
+      store_address: textValue(outlet.store_address || outlet.storeAddress),
+      city: textValue(outlet.city),
+      raw_store: outlet.raw_store || outlet,
+      menu,
+      source: "tomoro-frida-sync",
+      menu_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!response.ok) throw new Error(`Supabase menolak upsert menu Tomoro: ${await response.text()}`);
+  return response.json();
+}
+
+async function fetchCachedTomoroOutlets(limit = menuLimit) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/tomoro_outlets_catalog?select=store_code,store_name,store_address,city,raw_store,menu_updated_at&order=menu_updated_at.asc.nullsfirst,updated_at.desc&limit=${limit}`, {
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+    },
+  });
+  if (!response.ok) throw new Error(`Gagal ambil daftar outlet Tomoro dari Supabase: ${await response.text()}`);
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows.filter((row) => textValue(row.store_name)) : [];
+}
+
 function storeCodeFromUrl(url) {
   try { return new URL(url).searchParams.get("storeCode") || ""; } catch { return ""; }
 }
@@ -204,9 +244,20 @@ function tapResource(xml, idSuffix) {
   return tapBounds(bounds);
 }
 
+function tapText(xml, exactText) {
+  const target = textValue(exactText).toLocaleLowerCase("id-ID");
+  const bounds = findNodeBounds(xml, ({ text }) => textValue(text).toLocaleLowerCase("id-ID") === target);
+  return tapBounds(bounds);
+}
+
 function hasStoreList(xml) {
   return Boolean(findNodeBounds(xml, ({ text, resourceId }) =>
     text === "Store List" || resourceId.endsWith("/tvSearchInput")));
+}
+
+function hasMenuScreen(xml) {
+  return Boolean(findNodeBounds(xml, ({ resourceId, text }) =>
+    resourceId.endsWith("/tvStoreName") || textValue(text).toLocaleLowerCase("id-ID") === "menu"));
 }
 
 function slugStoreCode(name) {
@@ -352,6 +403,51 @@ async function searchAndSaveKeyword(activeKeyword) {
   return saveVisibleUiOutlets(activeKeyword, activeKeyword);
 }
 
+async function openOutletMenu(outlet) {
+  const outletName = textValue(outlet.store_name || outlet.storeName);
+  if (!outletName) return false;
+  await searchAndSaveKeyword(outletName);
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 800));
+  let xml = dumpUi();
+  if (!tapText(xml, outletName)) {
+    console.log(`Outlet tidak terlihat setelah search: ${outletName}`);
+    return false;
+  }
+  pendingMenuOutlet = outlet;
+  console.log(`Outlet Tomoro dipilih untuk menu: ${outletName}`);
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
+  xml = dumpUi();
+  if (!tapResource(xml, "/ivBeginOrder")) {
+    tapText(xml, "Start Order");
+  }
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 4500));
+  xml = dumpUi();
+  return hasMenuScreen(xml);
+}
+
+async function triggerMenuSweep() {
+  await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
+  const outletsToProcess = await fetchCachedTomoroOutlets(menuLimit);
+  if (!outletsToProcess.length) {
+    console.log("Belum ada outlet Tomoro di Supabase. Jalankan capture outlet dulu.");
+    return;
+  }
+  console.log(`Sweep menu Tomoro dimulai. Target outlet: ${outletsToProcess.length}`);
+  for (const outlet of outletsToProcess) {
+    const outletName = textValue(outlet.store_name);
+    try {
+      const opened = await openOutletMenu(outlet);
+      if (!opened) console.log(`Menu belum terbuka: ${outletName}`);
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 2500));
+      runAdb(["shell", "input", "keyevent", "111"]);
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 1000));
+    } catch (error) {
+      console.log(`Gagal proses menu ${outletName}: ${error.message}`);
+    }
+  }
+  console.log("Sweep menu Tomoro selesai.");
+}
+
 async function triggerCitySweep() {
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 1500));
   const xml = await openStoreList();
@@ -370,6 +466,10 @@ async function triggerCitySweep() {
 }
 
 async function triggerOutletSearch() {
+  if (menuSweep) {
+    await triggerMenuSweep();
+    return;
+  }
   if (citySweep) {
     await triggerCitySweep();
     return;
@@ -414,9 +514,11 @@ async function handlePayload(payload) {
   if (/getMenuList/.test(payload.url)) {
     const storeCode = storeCodeFromUrl(payload.url);
     if (!storeCode) return { outlets: 0, menus: 0 };
-    await patchMenu(storeCode, body);
+    await upsertMenu(storeCode, body, pendingMenuOutlet || {});
+    const uiStoreCode = textValue(pendingMenuOutlet?.store_code);
+    if (uiStoreCode && uiStoreCode !== storeCode) await patchMenu(uiStoreCode, body);
     writeFileSync(join(logDir, `last-frida-menu-${storeCode}.json`), JSON.stringify(body, null, 2));
-    console.log(`Menu Tomoro tersimpan: ${storeCode}`);
+    console.log(`Menu Tomoro tersimpan: ${storeCode}${uiStoreCode && uiStoreCode !== storeCode ? ` + ${uiStoreCode}` : ""}`);
     return { outlets: 0, menus: 1 };
   }
   return { outlets: 0, menus: 0 };
@@ -441,6 +543,7 @@ let menus = 0;
 let uiOutlets = 0;
 const uiStoreCodes = new Set();
 const sweepSeenStoreCodes = new Set();
+let pendingMenuOutlet = null;
 let buffer = "";
 
 child.stdout.setEncoding("utf8");
@@ -468,11 +571,11 @@ child.stderr.on("data", (chunk) => {
   const text = chunk.trim();
   if (text) console.log(`[frida:err] ${text}`);
 });
-console.log(`Tomoro Frida capture aktif. PID ${pid}. ${citySweep ? "Sweep outlet nasional per keyword." : allOutlets ? "Sweep outlet dari Store List." : "Buka/cari outlet/menu di app Tomoro."}`);
+console.log(`Tomoro Frida capture aktif. PID ${pid}. ${menuSweep ? "Sweep menu dari outlet Supabase." : citySweep ? "Sweep outlet nasional per keyword." : allOutlets ? "Sweep outlet dari Store List." : "Buka/cari outlet/menu di app Tomoro."}`);
 const autoTask = noAuto
   ? Promise.resolve()
   : triggerOutletSearch().catch((error) => console.log(`Auto search gagal: ${error.message}`));
-if ((allOutlets || citySweep) && !noAuto) {
+if ((allOutlets || citySweep || menuSweep) && !noAuto) {
   await autoTask;
 } else {
   await new Promise((resolvePromise) => setTimeout(resolvePromise, durationMs));
