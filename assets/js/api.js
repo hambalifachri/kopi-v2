@@ -1148,7 +1148,6 @@ function buildTomoroUiCapturedMenu(payload) {
   const cloneGroups = typeof cloneOptionGroups === "function"
     ? cloneOptionGroups
     : (groups) => groups.map((group) => ({ ...group, options: (group.options || []).map((option) => ({ ...option })) }));
-  const localImageFor = (localItem) => localItem?.image || (localItem?.id ? `assets/menu/${localItem.id}.jpg` : "");
   const imageFor = (productName, product) => {
     if (product.imageUrl || product.image) return product.imageUrl || product.image;
     const slug = typeof slugifyAssetName === "function"
@@ -1162,7 +1161,7 @@ function buildTomoroUiCapturedMenu(payload) {
     const key = normalizedLiveName(name);
     const localItem = localByName.get(key);
     const price = localItem?.price || getTomoroCapturedPrice(product);
-    const oldPrice = localItem?.oldPrice || getTomoroCapturedOldPrice(product) || price;
+    const oldPrice = getTomoroCapturedOldPrice(product) || localItem?.oldPrice || price;
     if (!name || !price || seen.has(key)) return [];
     seen.add(key);
     return [{
@@ -1172,7 +1171,7 @@ function buildTomoroUiCapturedMenu(payload) {
       name,
       oldPrice,
       price,
-      image: product.imageUrl || product.image || localImageFor(localItem) || imageFor(name, product),
+      image: imageFor(name, product),
       options: cloneGroups(localItem?.options || optionGroups),
       liveOutletMenu: true,
     }];
@@ -1180,10 +1179,8 @@ function buildTomoroUiCapturedMenu(payload) {
 }
 
 function buildTomoroLiveMenu(payload) {
-  if (payload?.source === "tomoro-ui-menu" || payload?.data?.products?.some?.((product) => product?.capturedFrom === "android-ui-menu")) {
-    const captured = buildTomoroUiCapturedMenu(payload);
-    if (captured.length >= 3) return captured;
-  }
+  const captured = buildTomoroUiCapturedMenu(payload);
+  if (captured.length >= 3) return captured;
   cacheOriginalLiveBrandMenus();
   const originals = originalLiveBrandMenus?.tomoro || [];
   const liveByName = new Map(collectTomoroProducts(payload).map((item) => [
@@ -1195,7 +1192,7 @@ function buildTomoroLiveMenu(payload) {
     if (!liveItem || liveItem.isSoldOut === true || liveItem.soldOut === true) return [];
     return [{
       ...localItem,
-      oldPrice: localItem.oldPrice,
+      oldPrice: getTomoroCapturedOldPrice(liveItem) || localItem.oldPrice,
       price: localItem.price,
       image: liveItem.imageUrl || liveItem.image || localItem.image,
       liveOutletMenu: true,
