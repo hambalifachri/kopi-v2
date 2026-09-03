@@ -1221,6 +1221,15 @@ function buildTomoroLiveMenu(payload) {
 }
 
 async function loadLiveBrandMenu(brandId, outletCode) {
+  if (brandId === "tomoro") {
+    restoreLiveBrandMenu(brandId);
+    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "local" });
+    if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
+      setLiveBrandHint("Menu Tomoro lokal ditampilkan untuk outlet terpilih.");
+    }
+    if (typeof renderMenu === "function") renderMenu();
+    return;
+  }
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
