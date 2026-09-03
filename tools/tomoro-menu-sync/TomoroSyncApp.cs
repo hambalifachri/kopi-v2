@@ -163,17 +163,17 @@ namespace TomoroSyncDesktop
 
         private string ReadEnv(string name)
         {
-            foreach (string line in File.ReadAllLines(envPath)) if (line.StartsWith(name + "=")) return line.Substring(name.Length + 1);
-            return "";
+            string value = "";
+            foreach (string line in File.ReadAllLines(envPath)) if (line.StartsWith(name + "=")) value = line.Substring(name.Length + 1);
+            return value;
         }
 
         private string[] ReplaceEnv(string[] lines, string name, string value)
         {
-            for (int i = 0; i < lines.Length; i++) if (lines[i].StartsWith(name + "=")) { lines[i] = name + "=" + value; return lines; }
-            var result = new string[lines.Length + 1];
-            Array.Copy(lines, result, lines.Length);
-            result[result.Length - 1] = name + "=" + value;
-            return result;
+            var kept = new System.Collections.Generic.List<string>();
+            foreach (string line in lines) if (!line.StartsWith(name + "=")) kept.Add(line);
+            kept.Add(name + "=" + value);
+            return kept.ToArray();
         }
 
         private void StartNode(string scriptName, string arguments, string label)
