@@ -1135,6 +1135,7 @@ function getLocalTomoroMenuByName() {
 function isTomoroDrinkMenu(product) {
   const name = normalizedLiveName(product.productName || product.menuName || product.goodsName || product.name);
   if (!name || /master-s-o-e|master-soe|s-o-e|\\bsoe\\b/.test(name)) return false;
+  if (/literan|seliter|\\b1\\s*l\\b|\\b1l\\b|\\bliter\\b/.test(name)) return false;
   if (/sticker|keychain|e-money|emoney|merch|merchandise|tumbler|cup|totebag|bag|voucher|bundle/.test(name)) return false;
   if (/food|rice|sandwich|toast|croissant|donut|cake|bun|bread|pastry|muffin|chicken|beef|sausage|cheese roll/.test(name)) return false;
   return /americano|espresso|cappuccino|caffe|coffee|kopi|latte|macchiato|pistachio|aren|caramel|coconut|spanish|oat|matcha|tea|yakult|lychee|lemon|peach|strawberry|grapefruit|refresh|soda|chocolate|cocoa|milk|hojicha|frappe|smoothie/.test(name);
@@ -1147,6 +1148,7 @@ function buildTomoroUiCapturedMenu(payload) {
   const cloneGroups = typeof cloneOptionGroups === "function"
     ? cloneOptionGroups
     : (groups) => groups.map((group) => ({ ...group, options: (group.options || []).map((option) => ({ ...option })) }));
+  const localImageFor = (localItem) => localItem?.image || (localItem?.id ? `assets/menu/${localItem.id}.jpg` : "");
   const imageFor = (productName, product) => {
     if (product.imageUrl || product.image) return product.imageUrl || product.image;
     const slug = typeof slugifyAssetName === "function"
@@ -1170,7 +1172,7 @@ function buildTomoroUiCapturedMenu(payload) {
       name,
       oldPrice,
       price,
-      image: product.imageUrl || product.image || localItem?.image || imageFor(name, product),
+      image: product.imageUrl || product.image || localImageFor(localItem) || imageFor(name, product),
       options: cloneGroups(localItem?.options || optionGroups),
       liveOutletMenu: true,
     }];
