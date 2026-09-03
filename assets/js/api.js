@@ -1132,10 +1132,28 @@ function getLocalTomoroMenuByName() {
   return new Map((originalLiveBrandMenus?.tomoro || []).map((item) => [normalizedLiveName(item.name), item]));
 }
 
+function isTomoroLiterMenu(product) {
+  const rawText = [
+    product?.productName,
+    product?.menuName,
+    product?.goodsName,
+    product?.name,
+    product?.categoryName,
+    product?.category,
+    product?.groupName,
+    product?.group,
+    product?.menuGroupName,
+    product?.menu_group_name,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const normalizedText = normalizedLiveName(rawText);
+  return /(^|[^a-z0-9])(1\s*l|1l|1\s*lt|1lt|1\s*liter|one\s*liter|1000\s*ml|1000ml|literan|seliter|liter)([^a-z0-9]|$)/i.test(rawText)
+    || /(^|-)(1-l|1l|1-lt|1lt|1-liter|one-liter|1000-ml|1000ml|literan|seliter|liter)(-|$)/i.test(normalizedText);
+}
+
 function isTomoroDrinkMenu(product) {
   const name = normalizedLiveName(product.productName || product.menuName || product.goodsName || product.name);
   if (!name || /master-s-o-e|master-soe|s-o-e|\bsoe\b/.test(name)) return false;
-  if (/literan|seliter|\b1\s*l\b|\b1l\b|\bliter\b/.test(name)) return false;
+  if (isTomoroLiterMenu(product)) return false;
   if (/sticker|keychain|e-money|emoney|merch|merchandise|tumbler|cup|totebag|bag|voucher|bundle/.test(name)) return false;
   if (/food|rice|sandwich|toast|croissant|donut|cake|bun|bread|pastry|muffin|chicken|beef|sausage|cheese roll/.test(name)) return false;
   return /americano|espresso|cappuccino|caffe|coffee|kopi|latte|macchiato|pistachio|aren|caramel|coconut|spanish|oat|matcha|tea|yakult|lychee|lemon|peach|strawberry|grapefruit|refresh|soda|chocolate|cocoa|milk|hojicha|frappe|smoothie/.test(name);
