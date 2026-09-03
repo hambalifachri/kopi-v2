@@ -46,7 +46,7 @@ if (devices.some((device) => !device.ssh || !device.key || !device.adb)) {
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
 async function reconnectDevice(device) {
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     const current = spawnSync(adb, ["devices"], { encoding: "utf8", windowsHide: true }).stdout || "";
     if (current.includes(`${device.adb}\tdevice`)) return true;
     spawnSync(adb, ["disconnect", device.adb], { encoding: "utf8", windowsHide: true, timeout: 5000 });
@@ -146,7 +146,16 @@ function tapUiText(device, hierarchy, label) {
   return true;
 }
 
+function hasHttpToolkitSystemCertificate(device) {
+  const result = adbResult(device, ["shell", "su", "-c", "test -s /system/etc/security/cacerts/0db75fbd.1"]);
+  return result.status === 0;
+}
+
 async function acceptHttpToolkitCertificate(device) {
+  if (hasHttpToolkitSystemCertificate(device)) {
+    console.log(`[${device.name}] Sertifikat HTTP Toolkit sudah trusted di system store; skip install user certificate.`);
+    return;
+  }
   for (let attempt = 0; attempt < 8; attempt++) {
     const hierarchy = readDeviceUi(device, "kopken-htk-certificate");
     if (/text="Connected"|USER TRUST ENABLED/i.test(hierarchy)) return;
@@ -226,7 +235,7 @@ async function activateHttpToolkit(device) {
   const intentData = Buffer.from(JSON.stringify(setup), "utf8").toString("base64")
     .replaceAll("+", "-").replaceAll("/", "_");
   spawnSync(adb, ["-s", device.adb, "reverse", "tcp:8000", "tcp:8000"], { encoding: "utf8", windowsHide: true });
-  spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-n", "tech.httptoolkit.android.v1/tech.httptoolkit.android.MainActivity"], {
+  spawnSync(adb, ["-s", device.adb, "shell", "am", "start", "-n", "tech.httptoolkit.android.v1/tech.httptoolkit.android.main.MainActivity"], {
     encoding: "utf8", windowsHide: true, timeout: 8000,
   });
   await sleep(300);
@@ -250,13 +259,27 @@ async function activateHttpToolkit(device) {
     encoding: "utf8", windowsHide: true,
   });
   let vpnActive = false;
-  for (let attempt = 0; attempt < 3 && !vpnActive; attempt++) {
-    await reconnectDevice(device);
+  for (let attempt = 0; attempt < 8 && !vpnActive; attempt++) {
+    const connected = await reconnectDevice(device);
+    if (!connected) {
+      await sleep(1200);
+      continue;
+    }
     const connectivity = spawnSync(adb, ["-s", device.adb, "shell", "dumpsys", "connectivity"], {
       encoding: "utf8", windowsHide: true, timeout: 8000,
     }).stdout || "";
     vpnActive = /type:\s*VPN/i.test(connectivity);
-    if (!vpnActive) await sleep(1000);
+    if (!vpnActive) {
+      const dumpPath = "/sdcard/kopken-htk-status.xml";
+      spawnSync(adb, ["-s", device.adb, "shell", "uiautomator", "dump", dumpPath], {
+        encoding: "utf8", windowsHide: true, timeout: 8000,
+      });
+      const hierarchy = spawnSync(adb, ["-s", device.adb, "shell", "cat", dumpPath], {
+        encoding: "utf8", windowsHide: true, timeout: 5000,
+      }).stdout || "";
+      vpnActive = /text="Connected"|text="Disconnect"/i.test(hierarchy);
+    }
+    if (!vpnActive) await sleep(1200);
   }
   if (!vpnActive) {
     const dumpPath = "/sdcard/kopken-htk-status.xml";
@@ -309,6 +332,19 @@ function stopInterception(device) {
   });
 }
 
+function clearHttpProxySettings(device) {
+  const commands = [
+    ["settings", "put", "global", "http_proxy", ":0"],
+    ["settings", "delete", "global", "global_http_proxy_host"],
+    ["settings", "delete", "global", "global_http_proxy_port"],
+    ["settings", "delete", "global", "global_http_proxy_exclusion_list"],
+    ["settings", "delete", "global", "http_proxy"],
+  ];
+  for (const command of commands) {
+    spawnSync(adb, ["-s", device.adb, "shell", ...command], { encoding: "utf8", windowsHide: true, timeout: 5000 });
+  }
+}
+
 function internetReady(device) {
   const result = spawnSync(adb, ["-s", device.adb, "shell", "ping", "-c", "1", "-W", "3", "1.1.1.1"], {
     encoding: "utf8", windowsHide: true, timeout: 6000,
@@ -319,6 +355,7 @@ function internetReady(device) {
 async function restoreInternet(device) {
   await reconnectDevice(device);
   stopInterception(device);
+  clearHttpProxySettings(device);
   await sleep(1500);
   await reconnectDevice(device);
   let ready = false;
