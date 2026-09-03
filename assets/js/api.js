@@ -1119,6 +1119,16 @@ function tomoroUiMenuGroup(product) {
   return "signature";
 }
 
+function getTomoroOfficialPrice(product) {
+  return firstNumber(product.originPrice, product.originalPrice, product.origPrice, product.orig_price, product.price, product.salePrice, product.sale_price);
+}
+
+function getTomoroPromoPrice(product) {
+  const officialPrice = getTomoroOfficialPrice(product);
+  if (!officialPrice) return 0;
+  return Math.round(officialPrice / 2) + 3000;
+}
+
 function isTomoroDrinkMenu(product) {
   const name = normalizedLiveName(product.productName || product.menuName || product.goodsName || product.name);
   if (!name || /master-s-o-e|master-soe|s-o-e|\\bsoe\\b/.test(name)) return false;
@@ -1143,7 +1153,8 @@ function buildTomoroUiCapturedMenu(payload) {
   const seen = new Set();
   return products.flatMap((product) => {
     const name = product.productName || product.menuName || product.goodsName || product.name;
-    const price = firstNumber(product.salePrice, product.price, product.originPrice, product.originalPrice);
+    const officialPrice = getTomoroOfficialPrice(product);
+    const price = getTomoroPromoPrice(product);
     const key = normalizedLiveName(name);
     if (!name || !price || seen.has(key)) return [];
     seen.add(key);
@@ -1152,7 +1163,7 @@ function buildTomoroUiCapturedMenu(payload) {
       brand: "tomoro",
       group: tomoroUiMenuGroup(product),
       name,
-      oldPrice: firstNumber(product.originPrice, product.originalPrice, product.price, product.salePrice) || price,
+      oldPrice: officialPrice || price,
       price,
       image: imageFor(name, product),
       options: cloneGroups(optionGroups),
@@ -1175,9 +1186,12 @@ function buildTomoroLiveMenu(payload) {
   const matched = originals.flatMap((localItem) => {
     const liveItem = liveByName.get(normalizedLiveName(localItem.name));
     if (!liveItem || liveItem.isSoldOut === true || liveItem.soldOut === true) return [];
+    const officialPrice = getTomoroOfficialPrice(liveItem) || localItem.oldPrice || localItem.price;
+    const promoPrice = getTomoroPromoPrice(liveItem) || localItem.price;
     return [{
       ...localItem,
-      oldPrice: firstNumber(liveItem.price, liveItem.salePrice, liveItem.originPrice, liveItem.originalPrice) || localItem.oldPrice,
+      oldPrice: officialPrice,
+      price: promoPrice,
       image: liveItem.imageUrl || liveItem.image || localItem.image,
       liveOutletMenu: true,
     }];
