@@ -1287,14 +1287,24 @@ button {
 }
 
 .checkout-sticky-summary {
-  position: sticky;
-  top: -18px;
-  z-index: 4;
+  position: relative;
   display: grid;
   gap: 8px;
   padding: 10px 0 12px;
   border-bottom: 1px solid #e6e1dd;
   background: var(--white);
+}
+
+.modal-checkout .checkout-lines {
+  max-height: 240px;
+  max-height: min(240px, 32dvh);
+  overflow-y: auto;
+  padding-right: 6px;
+  overflow-wrap: anywhere;
+}
+
+.modal-checkout {
+  min-width: 0;
 }
 
 .takeaway-option[hidden] {
