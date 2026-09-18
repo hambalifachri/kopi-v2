@@ -80,6 +80,7 @@ const KOPI_KENANGAN_EXCLUDED_API_GROUPS = new Set([
 ]);
 
 const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
+  /\bair\s+mineral\b/i,
   /\bseliter\b/i,
   /\bliteran\b/i,
   /\btiramisu\b/i,
