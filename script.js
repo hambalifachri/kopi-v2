@@ -326,8 +326,8 @@ const TAKEAWAY_PLASTIC_FEE = 1000;
 const WIFI_PASSWORDS = [
   "TemanKenangan#01", "SelaluSeru@02", "WorkFromKenangan+03", "SahabatSetia=4", "PaduanPas!05",
   "AndalanMantan#06", "NyantaiNgopi@07", "KopiPenutupSore08", "SegarnyaKopi=09", "AsliAsik!10",
-  "KenanganIndah#11", "KopiJodohSejati@12", "HangatnyaKopi+13", "PagiSemangat=14", "SusuGrassJelly!15",
-  "AdamAyam#16", "FriendChip@17", "CoklatKlasik+18", "SaudiSpicy=19", "ChiMateNikmat!20",
+  "KenanganIndah#11", "KopiJodohSejati@12", "HangatnyaKopi+13", "PagiSemangat=14", "NgopiDuluGaes!15",
+  "KopiPenyelamat#16", "RasaKangen@17", "SecangkirRindu+18", "SaudiSpicy=19", "ChiMateNikmat!20",
   "ColorpopBubble#21", "TwinsTumbler@22", "CuteCapybara+23", "BaliKintamani=24", "JuwaraBeans!25",
   "SelfRewardDulu#26", "WorkLifeNgopi@27", "SetegukEspresso+28", "JajanKenangan=29", "SehidupSehati!30",
   "KopiFavoritmu#31",
