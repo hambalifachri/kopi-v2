@@ -1019,6 +1019,7 @@ function normalizedLiveName(value) {
 }
 
 const FORE_LIVE_CATEGORY_GROUPS = new Map([
+  ["the-unexpected-twist", "the-unexpected-twist"],
   ["taste-of-our-journey", "sunny-burst-series"],
   ["favorite-choice", "fore-signature"],
   ["fore-signature", "fore-signature"],

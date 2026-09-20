@@ -112,6 +112,7 @@ const BRANDS_DATA = [
     description: "Template menu Fore dengan opsi espresso dan dairy.",
     accent: "#1d8f5f",
     categories: [
+      { id: "the-unexpected-twist", title: "The Unexpected Twist" },
       { id: "sunny-burst-series", title: "Sunny Burst Series" },
       { id: "fore-signature", title: "Fore Signature" },
       { id: "fore-literan", title: "FOREveryone 1L" },
@@ -1661,6 +1662,24 @@ const MENU_ITEMS_DATA = [
   // Foto otomatis dicari dengan format: fore-nama-menu.jpg
   // Contoh: assets/menu/fore-pandan-latte.jpg
   // ==========================================
+  {
+    id: "fore-salted-spanish-latte",
+    brand: "fore",
+    group: "the-unexpected-twist",
+    name: "Salted Spanish Latte",
+    oldPrice: 27000,
+    price: 22500,
+    image: "https://static.fore.coffee/product/Salted%20Spanish%20Latte_Iced_acf3d0a409dea32f.jpg",
+  },
+  {
+    id: "fore-crunchy-cereal-latte",
+    brand: "fore",
+    group: "the-unexpected-twist",
+    name: "Crunchy Cereal Latte",
+    oldPrice: 31000,
+    price: 25500,
+    image: "https://static.fore.coffee/product/Crunchy%20Cereal%20Latte_Iced_2e0973cadc2ef0a0.jpg",
+  },
   {
     id: "fore-orange-cream-toffee-latte",
     brand: "fore",
