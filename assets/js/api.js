@@ -454,6 +454,13 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
   const finalGroup = apiGroup || localItem.group || "food";
   const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;
   const image = item.image || item.img || localItem.image || null;
+  const regularPrice = getApiProductPrice(item, localItem);
+  const apiLargePrice = getApiProductLargePrice(item, localItem);
+  // Produk minuman baru kadang belum mengirim data Large dari API.
+  const fallbackLargePrice = finalGroup === "baru" && Number(item.type_code) === 4005
+    ? regularPrice + 7000
+    : undefined;
+  const largePrice = apiLargePrice || fallbackLargePrice;
 
   return {
     ...localItem,
@@ -463,10 +470,10 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
     group: finalGroup,
     name: itemName,
     desc: item.description || localItem.desc,
-    price: getApiProductPrice(item, localItem),
+    price: regularPrice,
     oldPrice: getApiProductOldPrice(item, localItem),
-    largePrice: getApiProductLargePrice(item, localItem),
-    oldLargePrice: getApiProductLargeOldPrice(item, localItem),
+    largePrice,
+    oldLargePrice: getApiProductLargeOldPrice(item, localItem) || (fallbackLargePrice ? item.orig_price + 7000 : undefined),
     image,
     isNew: localItem.isNew === true || finalGroup === "baru" || item.isNew === true,
     isSoldOut,
