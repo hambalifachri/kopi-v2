@@ -940,7 +940,26 @@ function getItemOptionGroups(item) {
 
   // Jika di menu-data.js kita memasukkan kustomisasi "options" pada bundle, gunakan itu!
   const itemOptions = Array.isArray(item.options) ? cloneOptionGroups(item.options) : null;
-  if (itemOptions) return itemOptions.filter(keepOptionGroup);
+  if (itemOptions) {
+    const filteredOptions = itemOptions.filter(keepOptionGroup);
+    const isKenangan = item.brand === "kopi-kenangan";
+    const largePrice = getMenuPriceValue(item, "largePrice", "largeprice", "large_price");
+    const hasSizeGroup = filteredOptions.some((group) => group.key === "size");
+
+    // API/menu lama kadang membawa options tanpa grup ukuran, meski Large tersedia.
+    if (isKenangan && largePrice && !hasSizeGroup && !item.noLarge) {
+      const regularPrice = getMenuPriceValue(item, "price") || 0;
+      filteredOptions.unshift({
+        key: "size",
+        label: "Size",
+        options: [
+          ...(item.noRegular ? [] : [{ value: "Regular", label: "Regular", price: regularPrice }]),
+          { value: "Large", label: "Large", price: largePrice },
+        ],
+      });
+    }
+    return filteredOptions;
+  }
 
   // Jika tidak ada options khusus, gunakan settingan bawaan brand
   const baseOptions = item.brand === "kopi-kenangan"

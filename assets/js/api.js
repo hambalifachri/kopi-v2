@@ -1,7 +1,7 @@
 // Tambahkan ini di bagian awal script Anda
 window.addEventListener('load', function() {
     const lastVersion = localStorage.getItem('app_version');
-    const currentVersion = '20260715'; // Samakan dengan versi file di atas
+    const currentVersion = '20260921'; // Samakan dengan versi file di atas
 
     if (lastVersion !== currentVersion) {
         localStorage.clear(); // Hapus sesi lama yang rusak
