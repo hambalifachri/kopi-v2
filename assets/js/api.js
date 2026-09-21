@@ -1,7 +1,7 @@
 // Tambahkan ini di bagian awal script Anda
 window.addEventListener('load', function() {
     const lastVersion = localStorage.getItem('app_version');
-    const currentVersion = '20260921'; // Samakan dengan versi file di atas
+    const currentVersion = '20260921-2'; // Samakan dengan versi file di atas
 
     if (lastVersion !== currentVersion) {
         localStorage.clear(); // Hapus sesi lama yang rusak
@@ -457,7 +457,10 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
   const regularPrice = getApiProductPrice(item, localItem);
   const apiLargePrice = getApiProductLargePrice(item, localItem);
   // Produk minuman baru kadang belum mengirim data Large dari API.
-  const fallbackLargePrice = finalGroup === "baru" && Number(item.type_code) === 4005
+  const isNewKopkenDrink = finalGroup === "baru"
+    || Number(item.type_code) === 4005
+    || /(?:taro|cloud)/.test(normalizeApiText(itemName));
+  const fallbackLargePrice = isNewKopkenDrink
     ? regularPrice + 7000
     : undefined;
   const largePrice = apiLargePrice || fallbackLargePrice;
