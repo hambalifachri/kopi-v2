@@ -268,6 +268,29 @@ function getApiProductOldPrice(item, localItem) {
   return firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price) || localItem.oldPrice;
 }
 
+function getApiProductLargePrice(item, localItem) {
+  return firstNumber(
+    item.large_price,
+    item.largePrice,
+    item.large_sale_price,
+    item.largeSalePrice,
+    localItem.largePrice,
+  );
+}
+
+function getApiProductLargeOldPrice(item, localItem) {
+  return firstNumber(
+    item.large_orig_price,
+    item.largeOrigPrice,
+    item.large_old_price,
+    item.largeOldPrice,
+    item.large_price,
+    item.largePrice,
+    localItem.oldLargePrice,
+    localItem.largePrice,
+  );
+}
+
 function isLocalPromoMenuItem(item) {
   const groups = Array.isArray(item?.group) ? item.group : [item?.group].filter(Boolean);
   return groups.some((group) => normalizeApiText(group).includes("promo")) || Boolean(item?.bundleImages?.length);
@@ -442,6 +465,8 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
     desc: item.description || localItem.desc,
     price: getApiProductPrice(item, localItem),
     oldPrice: getApiProductOldPrice(item, localItem),
+    largePrice: getApiProductLargePrice(item, localItem),
+    oldLargePrice: getApiProductLargeOldPrice(item, localItem),
     image,
     isNew: localItem.isNew === true || finalGroup === "baru" || item.isNew === true,
     isSoldOut,
