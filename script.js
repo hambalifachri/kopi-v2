@@ -1564,11 +1564,26 @@ function normalizeFileName(fileName) {
   return `bukti-transfer.${ext}`;
 }
 
+async function optimizePaymentProof(file) {
+  if (!file?.type?.startsWith("image/") || file.type === "image/gif") return file;
+  const bitmap = await createImageBitmap(file);
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.78));
+  return blob ? new File([blob], normalizeFileName(file.name).replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file;
+}
+
 async function uploadPaymentProof(file, orderId) {
   const client = getSupabaseClient();
   const config = getSupabaseConfig();
-  const filePath = `${orderId}/${Date.now()}-${normalizeFileName(file.name)}`;
-  const { data, error } = await client.storage.from(config.paymentProofBucket).upload(filePath, file, { cacheControl: "3600", contentType: file.type || "image/jpeg" });
+  const uploadFile = await optimizePaymentProof(file);
+  const filePath = `${orderId}/${Date.now()}-${normalizeFileName(uploadFile.name)}`;
+  const { data, error } = await client.storage.from(config.paymentProofBucket).upload(filePath, uploadFile, { cacheControl: "3600", contentType: uploadFile.type || "image/jpeg" });
   if (error) throw error;
   return client.storage.from(config.paymentProofBucket).getPublicUrl(data.path).data.publicUrl;
 }
