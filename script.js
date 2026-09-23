@@ -2,8 +2,8 @@
 // KONEKSI DINAMIS SUPABASE (MINIMAL ORDER)
 // ==========================================
 // URL sudah dibersihkan (tanpa /rest/v1/)
-const MY_SUPABASE_URL = "https://bpkpydfvevlktyeapunf.supabase.co"; 
-const MY_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwa3B5ZGZ2ZXZsa3R5ZWFwdW5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1ODc2NTQsImV4cCI6MjA5NTE2MzY1NH0.GTnmA5rAfRwH_tDchpxtXXM6TmRpFaK0yOW5jRyVhY4";
+const MY_SUPABASE_URL = "https://omkboytvivjxoobyhumc.supabase.co";
+const MY_SUPABASE_ANON_KEY = "sb_publishable_T83cBlF_eaawT4v9xfsXKQ__bmro8-2";
 
 // Variabel bawaan
 let kopkenMinimumEnabled = false;
@@ -325,9 +325,9 @@ const PICKUP_INTERVAL_MINUTES = 15;
 const TAKEAWAY_PLASTIC_FEE = 1000;
 const WIFI_PASSWORDS = [
   "TemanKenangan#01", "SelaluSeru@02", "WorkFromKenangan+03", "SahabatSetia=4", "PaduanPas!05",
-  "AndalanMantan#06", "NyantaiNgopi@07", "KopiPenutupSore08", "SegarnyaKopi=09", "AsliAsik!10",
-  "KenanganIndah#11", "KopiJodohSejati@12", "HangatnyaKopi+13", "PagiSemangat=14", "NgopiDuluGaes!15",
-  "KopiPenyelamat#16", "RasaKangen@17", "SecangkirRindu+18", "SaudiSpicy=19", "ChiMateNikmat!20",
+  "AndalanMantan#06", "NyantaiNgopi@07", "KenanganNyaman+08", "SepenuhHati=09", "AsliAsik!10",
+  "KopiKenanganMantan#11", "CafeMaltLatte@12", "SparksAmericano+13", "KenanganFrappe=14", "SusuGrassJelly!15",
+  "AdamAyam#16", "FriendChip@17", "CoklatKlasik+18", "SaudiSpicy=19", "ChiMateNikmat!20",
   "ColorpopBubble#21", "TwinsTumbler@22", "CuteCapybara+23", "BaliKintamani=24", "JuwaraBeans!25",
   "SelfRewardDulu#26", "WorkLifeNgopi@27", "SetegukEspresso+28", "JajanKenangan=29", "SehidupSehati!30",
   "KopiFavoritmu#31",
