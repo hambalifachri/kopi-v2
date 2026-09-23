@@ -2899,7 +2899,10 @@ orderForm.addEventListener("submit", async (event) => {
     const links = buildWhatsappLinks(String(formData.get("adminPhone")).replace(/\D/g, ""), message);
 
     if (savedOrder.proof.uploadError || savedOrder.saveError) {
-      alert("Penyimpanan otomatis sedang bermasalah. Bukti order tetap ditampilkan; kirim bukti pembayaran manual ke admin bila diperlukan.");
+      console.warn("Penyimpanan otomatis bermasalah; alur order dilanjutkan.", {
+        proofError: savedOrder.proof.uploadError || "",
+        saveError: savedOrder.saveError || "",
+      });
     }
 
     // 1. Bersihkan keranjang
