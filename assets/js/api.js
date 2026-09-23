@@ -175,7 +175,8 @@ function getOutletWifiPassword(outlet) {
 }
 
 function getOutletDisplayName(outlet) {
-  return outlet?.name || outlet?.outletName || outlet?.title || "";
+  const name = outlet?.name || outlet?.outletName || outlet?.title || "";
+  return String(name).replace(/^kopi\s+kenangan\s*-\s*/i, "").trim();
 }
 
 function getOutletCode(outlet) {
