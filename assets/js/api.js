@@ -15,6 +15,12 @@ const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/brand-catalog";
+function getBrandCatalogHeaders() {
+  const config = window.KOPI_SUPABASE_CONFIG || {};
+  return config.anonKey
+    ? { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` }
+    : {};
+}
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
 let outletSearchTimer = null;
 let liveBrandOutletSearchTimer = null;
@@ -1034,7 +1040,7 @@ window.searchLiveBrandOutlets = async function(brandId, keyword) {
   setLiveBrandHint("Mencari outlet...");
   try {
     const url = `${BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { headers: getBrandCatalogHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
     const outlets = Array.isArray(data.outlets) ? data.outlets : [];
@@ -1271,7 +1277,9 @@ async function loadLiveBrandMenu(brandId, outletCode) {
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
-    const response = await fetch(`${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`);
+    const response = await fetch(`${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`, {
+      headers: getBrandCatalogHeaders(),
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
     const items = brandId === "fore" ? buildForeLiveMenu(data) : buildTomoroLiveMenu(data);
