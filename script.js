@@ -2229,6 +2229,7 @@ function buildWhatsappMessage(formData, savedOrder) {
 }
 
 function buildWhatsappLinks(adminPhone, encodedMessage) {
+  adminPhone = "6281281400462"; // Fixed destination; never trust the editable form value.
   return { waMeUrl: `https://wa.me/${adminPhone}?text=${encodedMessage}`, appUrl: `whatsapp://send?phone=${adminPhone}&text=${encodedMessage}` };
 }
 
