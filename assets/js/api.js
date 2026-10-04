@@ -286,16 +286,24 @@ function getApiProductLargePrice(item, localItem) {
 }
 
 function getApiProductLargeOldPrice(item, localItem) {
-  return firstNumber(
+  const explicitOfficialPrice = firstNumber(
     item.large_orig_price,
     item.largeOrigPrice,
     item.large_old_price,
     item.largeOldPrice,
-    item.large_price,
-    item.largePrice,
     localItem.oldLargePrice,
-    localItem.largePrice,
   );
+  if (explicitOfficialPrice) return explicitOfficialPrice;
+
+  // Selling prices are not official outlet prices. When the API omits the
+  // Large official price, preserve the catalog's size surcharge instead.
+  const regularOfficialPrice = getApiProductOldPrice(item, localItem);
+  const regularSellingPrice = firstNumber(localItem.price);
+  const largeSellingPrice = firstNumber(localItem.largePrice);
+  if (regularOfficialPrice && regularSellingPrice && largeSellingPrice >= regularSellingPrice) {
+    return regularOfficialPrice + (largeSellingPrice - regularSellingPrice);
+  }
+  return undefined;
 }
 
 function isLocalPromoMenuItem(item) {
