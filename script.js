@@ -1939,8 +1939,8 @@ function formatProofForWA(savedOrder) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 61000;
-const KOPKEN_BATCH_MAX_TOTAL = 72000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 63000;
+const KOPKEN_BATCH_MAX_TOTAL = 71000;
 
 function findValidKopkenBatchPartition(items, batchCount, maximumTotal) {
   const sortedItems = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
@@ -2122,11 +2122,14 @@ function findBestKopkenBatch(items, maximumTotal) {
 }
 
 function buildKopkenOrderBatches(items) {
+  if (items.some((item) => !Number.isFinite(item.batchPrice) || item.batchPrice <= 0 || item.batchPrice > KOPKEN_BATCH_MAX_TOTAL)) {
+    throw new Error("Harga asli satu item harus lebih dari Rp0 dan maksimal Rp71.000. Sesuaikan pilihan menu sebelum mengirim pesanan.");
+  }
   let remaining = [...items];
   const batches = [];
 
   while (remaining.length) {
-    // Selalu ambil kombinasi terbaik Rp50-61 ribu lebih dulu, baru gunakan toleransi Rp72 ribu.
+    // Selalu ambil kombinasi terbaik Rp50-63 ribu lebih dulu, baru gunakan toleransi Rp71 ribu.
     const preferred = findBestKopkenBatch(remaining, KOPKEN_BATCH_PREFERRED_MAX_TOTAL)
       || findBestKopkenBatch(remaining, KOPKEN_BATCH_MAX_TOTAL);
 
@@ -2174,7 +2177,7 @@ function buildWhatsappMessage(formData, savedOrder) {
       }
     });
 
-    // Utamakan Rp50-61 ribu; gunakan toleransi sampai Rp72 ribu hanya jika diperlukan.
+    // Utamakan Rp50-63 ribu; gunakan toleransi sampai Rp71 ribu hanya jika diperlukan.
     const buckets = buildKopkenOrderBatches(flattenedItems);
 
     orderLinesText = buckets.map((bucket, index) => {
