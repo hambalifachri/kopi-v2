@@ -895,7 +895,7 @@ function getKenanganOptionGroups(item) {
         { value: "Tanpa Topping", label: "Tanpa Topping" },
         { value: "Espresso Shot Kenangan Blend", label: "Espresso Shot Kenangan Blend", priceDelta: 6000 },
         { value: "Espresso Shot Juwara Beans", label: "Espresso Shot Juwara Beans", priceDelta: 6000 },
-        { value: "Golden Boba", label: "Golden Boba", priceDelta: 6000 },
+        { value: "Golden Boba", label: "Golden Boba (Habis)", priceDelta: 6000, disabled: true },
         { value: "Grass Jelly", label: "Grass Jelly", priceDelta: 6000 },
         { value: "Oreo", label: "Oreo", priceDelta: 6000 },
         { value: "Whipped Cream Chocolate", label: "Whipped Cream Chocolate", priceDelta: 6000 },
@@ -1641,6 +1641,9 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
+  if ([...cart.values()].some((item) => String(item.options?.topping || "").toLowerCase() === "golden boba")) {
+    throw new Error("Golden Boba sedang habis. Hapus atau ganti topping tersebut sebelum melanjutkan.");
+  }
   const customerName = String(formData.get("customerName") || "").trim();
   if (!customerName || customerName.length > 16) throw new Error("Nama pemesan wajib diisi, maksimal 16 karakter.");
   const entries = [...cart.values()];
