@@ -680,7 +680,7 @@ function getKopkenPremiumOutletOfficialSurcharge(item) {
   return usesPremiumPricing ? 3000 : 0;
 }
 
-function getOfficialItemPrice(item) {
+function getOfficialItemPrice(item, excludeVoucherExtras = false) {
   const sourceItem = menuItems.find((menuItem) => menuItem.id === item.id) || item;
   if (item.dynamicOutletBundle) {
     const bundleItem = item.bundleOptionGroups
@@ -725,6 +725,7 @@ function getOfficialItemPrice(item) {
   }
 
   getItemOptionGroups(sourceItem).forEach((group) => {
+    if (excludeVoucherExtras && /^(toppings?|addons?)$/.test(String(group.key).toLowerCase().replace(/[^a-z]/g, ""))) return;
     const selectedOption = group.options.find((option) => option.value === item.options?.[group.key]);
     if (typeof selectedOption?.priceDelta === "number") officialPrice += selectedOption.priceDelta;
   });
@@ -1596,6 +1597,7 @@ function serializeStoredOrderItem(item, qty = item.qty) {
     name: item.name,
     price: item.price,
     officialPrice: getOfficialItemPrice(item),
+    voucherEligiblePrice: getOfficialItemPrice(item, true),
     qty,
     options: item.options,
     note: item.note || "",
@@ -1618,7 +1620,7 @@ function buildStoredOrderBatches(entries) {
   const flattenedItems = entries.flatMap((item) => Array.from({ length: item.qty }, () => ({
     ...item,
     qty: 1,
-    batchPrice: getOfficialItemPrice(item),
+    batchPrice: getOfficialItemPrice(item, true),
   })));
 
   return buildKopkenOrderBatches(flattenedItems).map((bucket, index) => {
@@ -1630,7 +1632,8 @@ function buildStoredOrderBatches(entries) {
     });
     return {
       number: index + 1,
-      officialTotal: bucket.reduce((sum, item) => sum + item.batchPrice, 0),
+      officialTotal: bucket.reduce((sum, item) => sum + getOfficialItemPrice(item), 0),
+      voucherEligibleTotal: bucket.reduce((sum, item) => sum + item.batchPrice, 0),
       sellingTotal: bucket.reduce((sum, item) => sum + item.price, 0),
       items: sortOrderItemsByCatalog(groupedItems, "kopi-kenangan"),
     };
@@ -2170,7 +2173,7 @@ function buildWhatsappMessage(formData, savedOrder) {
     // Flatten item dengan menyertakan harga resmi (batchPrice)
     let flattenedItems = [];
     entries.forEach(item => {
-      const baseBatch = getOfficialItemPrice(item);
+      const baseBatch = getOfficialItemPrice(item, true);
       
       for (let i = 0; i < item.qty; i++) {
         flattenedItems.push({ ...item, qty: 1, batchPrice: baseBatch });
@@ -2192,9 +2195,10 @@ function buildWhatsappMessage(formData, savedOrder) {
         return formatOrderItemForWA(item, i);
       }).join("\n\n");
 
-      const totalAsliBatch = bucket.reduce((sum, it) => sum + it.batchPrice, 0);
+      const totalAsliBatch = bucket.reduce((sum, it) => sum + getOfficialItemPrice(it), 0);
+      const voucherEligibleTotal = bucket.reduce((sum, it) => sum + it.batchPrice, 0);
       const totalBayarBatch = bucket.reduce((sum, it) => sum + it.price, 0);
-      return `📦 *Order Batch ${index + 1}*\n${lines}\n\n_*Total Batch ${index + 1}: (~${rupiah.format(totalAsliBatch)}~ *${rupiah.format(totalBayarBatch)}*)*_`;
+      return `📦 *Order Batch ${index + 1}*\n${lines}\n\n_*Total Batch ${index + 1}: (~${rupiah.format(totalAsliBatch)}~ *${rupiah.format(totalBayarBatch)}*)*_\nDasar Voucher Batch ${index + 1}: ${rupiah.format(voucherEligibleTotal)} (tanpa topping/addon)`;
     }).join("\n\n-----------------------------------\n\n");
     
   } else {
