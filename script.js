@@ -1641,6 +1641,8 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
+  const customerName = String(formData.get("customerName") || "").trim();
+  if (!customerName || customerName.length > 16) throw new Error("Nama pemesan wajib diisi, maksimal 16 karakter.");
   const entries = [...cart.values()];
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
   const takeawayPlastic = getCartBrandId() === "kopi-kenangan" && formData.get("takeawayPlastic") === "yes";
@@ -2132,9 +2134,8 @@ function buildKopkenOrderBatches(items) {
   const batches = [];
 
   while (remaining.length) {
-    // Selalu ambil kombinasi terbaik Rp50-63 ribu lebih dulu, baru gunakan toleransi Rp71 ribu.
-    const preferred = findBestKopkenBatch(remaining, KOPKEN_BATCH_PREFERRED_MAX_TOTAL)
-      || findBestKopkenBatch(remaining, KOPKEN_BATCH_MAX_TOTAL);
+    // Susun berdasarkan kapasitas batch, tanpa mengejar jenis voucher.
+    const preferred = findBestKopkenBatch(remaining, KOPKEN_BATCH_MAX_TOTAL);
 
     if (preferred) {
       const selected = new Set(preferred.indexes);
@@ -2180,7 +2181,7 @@ function buildWhatsappMessage(formData, savedOrder) {
       }
     });
 
-    // Utamakan Rp50-63 ribu; gunakan toleransi sampai Rp71 ribu hanya jika diperlukan.
+    // Gabungkan sampai Rp71 ribu tanpa mengejar jenis voucher.
     const buckets = buildKopkenOrderBatches(flattenedItems);
 
     orderLinesText = buckets.map((bucket, index) => {
