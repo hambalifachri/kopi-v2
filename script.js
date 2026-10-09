@@ -2148,8 +2148,8 @@ function buildKopkenOrderBatches(items) {
   if (items.some((item) => !Number.isFinite(item.batchPrice) || item.batchPrice <= 0 || item.batchPrice > KOPKEN_BATCH_MAX_TOTAL)) {
     throw new Error("Harga asli satu item harus lebih dari Rp0 dan maksimal Rp71.000. Sesuaikan pilihan menu sebelum mengirim pesanan.");
   }
-  // Dasar batch sudah mengecualikan topping/addon. Rp63.000 masuk tanpa minimum.
-  const preferredMaximum = KOPKEN_BATCH_PREFERRED_MAX_TOTAL - 1;
+  // Dasar batch sudah mengecualikan topping/addon. Rp63.000 masih masuk voucher minimum Rp50.000.
+  const preferredMaximum = KOPKEN_BATCH_PREFERRED_MAX_TOTAL;
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
   if (total <= KOPKEN_BATCH_MAX_TOTAL) return items.length ? [[...items]] : [];
   if (items.length <= 40) {
