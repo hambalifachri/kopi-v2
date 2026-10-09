@@ -933,7 +933,19 @@ function cloneOptionGroups(groups) {
   }));
 }
 
+function isCrumbleRegularOnly(item) {
+  return String(item.name || "").trim().replace(/\s+/g, " ").toLowerCase() === "butterscotch sea salt crumble";
+}
+
 function getItemOptionGroups(item) {
+  const groups = getUnrestrictedItemOptionGroups(item);
+  if (!isCrumbleRegularOnly(item)) return groups;
+  return groups.map(group => group.key === "size"
+    ? { ...group, options: group.options.filter(option => String(option.value).toLowerCase() !== "large") }
+    : group).filter(group => group.options.length);
+}
+
+function getUnrestrictedItemOptionGroups(item) {
   // Pastikan menu makanan langsung masuk keranjang, tapi Bundle tetap memunculkan pop-up
   if (isFoodItem(item)) return [];
   const omittedOptionKeys = new Set(Array.isArray(item.omitOptionKeys) ? item.omitOptionKeys : []);
@@ -1641,6 +1653,9 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
+  if (cart.some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
+    throw new Error("Butterscotch Sea Salt Crumble hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.");
+  }
   if ([...cart.values()].some((item) => String(item.options?.topping || "").toLowerCase() === "golden boba")) {
     throw new Error("Golden Boba sedang habis. Hapus atau ganti topping tersebut sebelum melanjutkan.");
   }
