@@ -1653,7 +1653,7 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
-  if (cart.some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
+  if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
     throw new Error("Butterscotch Sea Salt Crumble hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.");
   }
   if ([...cart.values()].some((item) => String(item.options?.topping || "").toLowerCase() === "golden boba")) {
