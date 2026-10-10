@@ -2979,7 +2979,11 @@ orderForm.addEventListener("submit", async (event) => {
     renderOrderReceipt(savedOrder, savedOrder.contactMethod === "whatsapp" ? links.waMeUrl : "");
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
-    alert("Gagal menyiapkan pesan WhatsApp. Coba refresh halaman lalu kirim ulang.");
+    const reason = String(error?.message || "");
+    const knownValidation = ["Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
+    alert(knownValidation.some(prefix => reason.startsWith(prefix))
+      ? reason
+      : "Gagal menyiapkan order. Kirim tangkapan layar beserta menu, ukuran, dan topping ke admin. Jangan ulang pembayaran.");
   }
   finally { submitButton.disabled = false; }
 });
