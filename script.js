@@ -7,6 +7,7 @@ const MY_SUPABASE_ANON_KEY = "sb_publishable_T83cBlF_eaawT4v9xfsXKQ__bmro8-2";
 
 // Variabel bawaan
 let kopkenMinimumEnabled = false;
+let kopkenMax3ItemsEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
 let allStoresClosed = false;
 let globalStoreClosedMessage = "Maaf, semua toko sedang tutup sementara. Silakan kembali lagi nanti.";
@@ -52,6 +53,11 @@ async function fetchStoreSettings() {
 
     if (data && data.length > 0) {
       const settings = data[0];
+      const maxItemsSetting = await storeSettingsClient.from('app_settings')
+        .select('kopken_max_3_items_enabled').limit(1);
+      if (!maxItemsSetting.error && maxItemsSetting.data?.length) {
+        kopkenMax3ItemsEnabled = maxItemsSetting.data[0].kopken_max_3_items_enabled === true;
+      }
       const previousClosedState = allStoresClosed;
       kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
       allStoresClosed = settings.all_stores_closed === true;
@@ -1653,6 +1659,9 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
+  await fetchStoreSettings();
+  const limitError = checkKopkenItemLimit(getCartBrandId());
+  if (limitError) throw new Error(limitError);
   if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
     throw new Error("Butterscotch Sea Salt Crumble hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.");
   }
@@ -1867,10 +1876,20 @@ function selectItemForOptions(id) {
   setModalStage("customize");
 }
 
+function checkKopkenItemLimit(brand, addedQuantity = 0) {
+  if (!kopkenMax3ItemsEnabled || brand !== "kopi-kenangan") return "";
+  const quantity = [...cart.values()].filter(item => item.brand === "kopi-kenangan")
+    .reduce((total, item) => total + Number(item.qty), 0);
+  return quantity + Number(addedQuantity) > 3
+    ? "Pesanan Kopi Kenangan maksimal 3 barang. Kurangi jumlah di keranjang sebelum melanjutkan." : "";
+}
+
 function addItem(id, note = "", quantity = 1) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
   if (!canAddBrandToCart(item)) return;
+  const limitError = checkKopkenItemLimit(item.brand, quantity);
+  if (limitError) { alert(limitError); return; }
 
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
   const itemNote = supportsItemNotes(item) ? String(note || "").trim() : "";
@@ -1894,6 +1913,8 @@ function addItem(id, note = "", quantity = 1) {
 function updateQuantity(cartKey, direction) {
   const current = cart.get(cartKey);
   if (!current) return;
+  const limitError = direction === "increase" ? checkKopkenItemLimit(current.brand, 1) : "";
+  if (limitError) { alert(limitError); return; }
   const nextQty = direction === "increase" ? current.qty + 1 : current.qty - 1;
   if (nextQty <= 0) cart.delete(cartKey);
   else cart.set(cartKey, { ...current, qty: nextQty });
@@ -2980,7 +3001,7 @@ orderForm.addEventListener("submit", async (event) => {
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
     const reason = String(error?.message || "");
-    const knownValidation = ["Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
+    const knownValidation = ["Pesanan Kopi Kenangan maksimal 3 barang", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
     alert(knownValidation.some(prefix => reason.startsWith(prefix))
       ? reason
       : "Gagal menyiapkan order. Kirim tangkapan layar beserta menu, ukuran, dan topping ke admin. Jangan ulang pembayaran.");
