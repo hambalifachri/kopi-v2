@@ -1512,7 +1512,7 @@ function renderCart() {
   }
 
   const batchGuidance = getKopkenBatchGuidance();
-  if (batchGuidance.text) targetCartHtml += `<p class="cart-batch-guidance" role="status">${escapeHtml(batchGuidance.text)}</p>`;
+  if (batchGuidance.text) targetCartHtml += renderKopkenBatchGuidance(batchGuidance);
   if (modalCartItems) modalCartItems.innerHTML = targetCartHtml;
   if (mainCartItems) mainCartItems.innerHTML = targetCartHtml;
 
@@ -1883,6 +1883,29 @@ function checkKopkenItemLimit() {
   return "";
 }
 
+function renderKopkenBatchGuidance(guidance) {
+  if (!guidance.batches) return `<p role="status">${escapeHtml(guidance.error || guidance.text)}</p>`;
+  const rows = guidance.batches.map(batch => {
+    const qty = batch.items.reduce((sum, item) => sum + item.qty, 0);
+    const total = batch.voucherEligibleTotal;
+    const short = kopkenMinimumEnabled && total < kopkenMinimumOfficialTotal;
+    const over = kopkenMinimumEnabled && total > 63000;
+    const note = short
+      ? `Kurang ${rupiah.format(kopkenMinimumOfficialTotal - total)} untuk minimum. Tambah menu atau hapus barang pada batch ini.`
+      : over ? "Melebihi Rp63.000. Sesuaikan menu pada batch ini." : "Memenuhi aturan";
+    return `<div style="padding:10px 0;border-top:1px solid #eaded5">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:14px"><strong>Batch ${batch.number} · ${qty} barang</strong><strong>${rupiah.format(total)}</strong></div>
+      <p style="margin:5px 0 0;font-size:13px;line-height:1.5;color:${short || over ? '#a32921' : '#416449'}">${escapeHtml(note)}</p>
+    </div>`;
+  }).join("");
+  return `<section class="cart-batch-guidance" role="status" style="margin:18px 0;padding:14px 16px;background:#faf5f0;border:1px solid #eaded5;border-radius:12px">
+    <strong style="display:block;font-size:15px">Pembagian pesanan otomatis</strong>
+    <p style="margin:4px 0 10px;font-size:12px;line-height:1.5;color:#78665b">Dasar harga outlet, tanpa topping/addon.</p>
+    ${rows}
+    ${guidance.error ? '<p style="margin:8px 0 0;font-size:13px;font-weight:600;line-height:1.5">Sesuaikan keranjang untuk melanjutkan pembayaran. Batch akan disusun ulang otomatis.</p>' : ''}
+  </section>`;
+}
+
 function getKopkenBatchGuidance() {
   if (getCartBrandId() !== "kopi-kenangan" || !cart.size) return { text: "", error: "" };
   try {
@@ -1894,7 +1917,7 @@ function getKopkenBatchGuidance() {
       ? `Bagian ${batch.number} masih ${rupiah.format(batch.voucherEligibleTotal)}: tambah barang senilai minimal ${rupiah.format(minimum - batch.voucherEligibleTotal)} berdasarkan harga outlet, atau kurangi barang bagian tersebut.`
       : `Bagian ${batch.number} melebihi Rp63.000. Ganti pilihan menu agar dapat dibagi ke rentang minimum sampai Rp63.000.`);
     const error = details.length ? "Pesanan Kopi Kenangan belum bisa dilanjutkan. " + details.join(" ") + " Sistem akan menyusun ulang otomatis; penambahan tetap harus cocok dengan batas tiap bagian." : "";
-    return { text: "Pilih menu seperti biasa; pesanan dibagi otomatis. Harga dasar berikut tidak termasuk topping/addon. " + summaries.join("; ") + (error ? " " + error : ""), error };
+    return { text: "Pilih menu seperti biasa; pesanan dibagi otomatis. Harga dasar berikut tidak termasuk topping/addon. " + summaries.join("; ") + (error ? " " + error : ""), error, batches };
   } catch (error) {
     return { text: error.message, error: error.message };
   }
