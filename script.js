@@ -1876,22 +1876,33 @@ function selectItemForOptions(id) {
   setModalStage("customize");
 }
 
-function checkKopkenItemLimit(brand, addedQuantity = 0) {
+function checkKopkenItemLimit(brand, addedQuantity = 0, addedUnitPrice = 0) {
   if (!kopkenMax3ItemsEnabled || brand !== "kopi-kenangan") return "";
-  const quantity = [...cart.values()].filter(item => item.brand === "kopi-kenangan")
-    .reduce((total, item) => total + Number(item.qty), 0);
-  return quantity + Number(addedQuantity) > 3
-    ? "Pesanan Kopi Kenangan maksimal 3 barang. Kurangi jumlah di keranjang sebelum melanjutkan." : "";
+  const entries = [...cart.values()].filter(item => item.brand === "kopi-kenangan");
+  let quantity = entries.reduce((total, item) => total + Number(item.qty), 0);
+  let eligibleTotal = entries.reduce((total, item) => total + getOfficialItemPrice(item, true) * Number(item.qty), 0);
+  if (Number(addedQuantity) === 0) {
+    return quantity > 3 && eligibleTotal < 50000
+      ? "Pesanan Kopi Kenangan lebih dari 3 barang harus mencapai Rp50.000 tanpa topping/addon. Tambahkan barang atau kurangi menjadi maksimal 3 barang." : "";
+  }
+  // Check each unit so bulk quantities cannot bypass the threshold.
+  for (let i = 0; i < Number(addedQuantity); i++) {
+    if (quantity >= 3 && eligibleTotal >= 50000) {
+      return "Pesanan Kopi Kenangan sudah berisi minimal 3 barang dan mencapai Rp50.000 tanpa topping/addon. Tidak bisa menambah barang lagi.";
+    }
+    quantity += 1;
+    eligibleTotal += Number(addedUnitPrice);
+  }
+  return "";
 }
 
 function addItem(id, note = "", quantity = 1) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
   if (!canAddBrandToCart(item)) return;
-  const limitError = checkKopkenItemLimit(item.brand, quantity);
-  if (limitError) { alert(limitError); return; }
-
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
+  const limitError = checkKopkenItemLimit(item.brand, quantity, getOfficialItemPrice({ ...item, options }, true));
+  if (limitError) { alert(limitError); return; }
   const itemNote = supportsItemNotes(item) ? String(note || "").trim() : "";
   const calculatedPrice = calculateItemPrice(item, options); // Kalkulasi ulang harga
   const cartKey = `${id}|${JSON.stringify(options)}|${itemNote}`;
@@ -1913,7 +1924,7 @@ function addItem(id, note = "", quantity = 1) {
 function updateQuantity(cartKey, direction) {
   const current = cart.get(cartKey);
   if (!current) return;
-  const limitError = direction === "increase" ? checkKopkenItemLimit(current.brand, 1) : "";
+  const limitError = direction === "increase" ? checkKopkenItemLimit(current.brand, 1, getOfficialItemPrice(current, true)) : "";
   if (limitError) { alert(limitError); return; }
   const nextQty = direction === "increase" ? current.qty + 1 : current.qty - 1;
   if (nextQty <= 0) cart.delete(cartKey);
@@ -3001,7 +3012,7 @@ orderForm.addEventListener("submit", async (event) => {
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
     const reason = String(error?.message || "");
-    const knownValidation = ["Pesanan Kopi Kenangan maksimal 3 barang", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
+    const knownValidation = ["Pesanan Kopi Kenangan", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
     alert(knownValidation.some(prefix => reason.startsWith(prefix))
       ? reason
       : "Gagal menyiapkan order. Kirim tangkapan layar beserta menu, ukuran, dan topping ke admin. Jangan ulang pembayaran.");
