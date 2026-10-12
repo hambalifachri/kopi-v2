@@ -1511,6 +1511,8 @@ function renderCart() {
     </div>`;
   }
 
+  const batchGuidance = getKopkenBatchGuidance();
+  if (batchGuidance.text) targetCartHtml += `<p class="cart-batch-guidance" role="status">${escapeHtml(batchGuidance.text)}</p>`;
   if (modalCartItems) modalCartItems.innerHTML = targetCartHtml;
   if (mainCartItems) mainCartItems.innerHTML = targetCartHtml;
 
@@ -1660,7 +1662,7 @@ function buildStoredOrderBatches(entries) {
 
 async function createOrderRecord(formData) {
   await fetchStoreSettings();
-  const limitError = checkKopkenItemLimit(getCartBrandId());
+  const limitError = getKopkenBatchGuidance().error;
   if (limitError) throw new Error(limitError);
   if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
     throw new Error("Butterscotch Sea Salt Crumble hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.");
@@ -1876,24 +1878,26 @@ function selectItemForOptions(id) {
   setModalStage("customize");
 }
 
-function checkKopkenItemLimit(brand, addedQuantity = 0, addedUnitPrice = 0) {
-  if (!kopkenMax3ItemsEnabled || brand !== "kopi-kenangan") return "";
-  const entries = [...cart.values()].filter(item => item.brand === "kopi-kenangan");
-  let quantity = entries.reduce((total, item) => total + Number(item.qty), 0);
-  let eligibleTotal = entries.reduce((total, item) => total + getOfficialItemPrice(item, true) * Number(item.qty), 0);
-  if (Number(addedQuantity) === 0) {
-    return quantity > 3 && eligibleTotal < 50000
-      ? "Pesanan Kopi Kenangan lebih dari 3 barang harus mencapai Rp50.000 tanpa topping/addon. Tambahkan barang atau kurangi menjadi maksimal 3 barang." : "";
-  }
-  // Check each unit so bulk quantities cannot bypass the threshold.
-  for (let i = 0; i < Number(addedQuantity); i++) {
-    if (quantity >= 3 && eligibleTotal >= 50000) {
-      return "Pesanan Kopi Kenangan sudah berisi minimal 3 barang dan mencapai Rp50.000 tanpa topping/addon. Tidak bisa menambah barang lagi.";
-    }
-    quantity += 1;
-    eligibleTotal += Number(addedUnitPrice);
-  }
+function checkKopkenItemLimit() {
+  // Quantity limits apply to automatic batches, never to the entire cart.
   return "";
+}
+
+function getKopkenBatchGuidance() {
+  if (getCartBrandId() !== "kopi-kenangan" || !cart.size) return { text: "", error: "" };
+  try {
+    const batches = buildStoredOrderBatches([...cart.values()]);
+    const minimum = kopkenMinimumOfficialTotal;
+    const summaries = batches.map(batch => `Bagian ${batch.number}: ${batch.items.reduce((sum, item) => sum + item.qty, 0)} barang — ${rupiah.format(batch.voucherEligibleTotal)}`);
+    const invalid = kopkenMinimumEnabled ? batches.filter(batch => batch.voucherEligibleTotal < minimum || batch.voucherEligibleTotal > 63000) : [];
+    const details = invalid.map(batch => batch.voucherEligibleTotal < minimum
+      ? `Bagian ${batch.number} masih ${rupiah.format(batch.voucherEligibleTotal)}: tambah barang senilai minimal ${rupiah.format(minimum - batch.voucherEligibleTotal)} berdasarkan harga outlet, atau kurangi barang bagian tersebut.`
+      : `Bagian ${batch.number} melebihi Rp63.000. Ganti pilihan menu agar dapat dibagi ke rentang minimum sampai Rp63.000.`);
+    const error = details.length ? "Pesanan Kopi Kenangan belum bisa dilanjutkan. " + details.join(" ") + " Sistem akan menyusun ulang otomatis; penambahan tetap harus cocok dengan batas tiap bagian." : "";
+    return { text: "Pilih menu seperti biasa; pesanan dibagi otomatis. Harga dasar berikut tidak termasuk topping/addon. " + summaries.join("; ") + (error ? " " + error : ""), error };
+  } catch (error) {
+    return { text: error.message, error: error.message };
+  }
 }
 
 function addItem(id, note = "", quantity = 1) {
@@ -2176,10 +2180,56 @@ function findBestKopkenBatch(items, maximumTotal) {
   return total === undefined ? null : { total, indexes: sums.get(total) };
 }
 
+function buildRuleBasedKopkenBatches(items) {
+  const minimum = kopkenMinimumEnabled ? kopkenMinimumOfficialTotal : 50000;
+  const maximum = kopkenMinimumEnabled ? 63000 : 71000;
+  const sorted = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
+  const total = sorted.reduce((sum, item) => sum + item.batchPrice, 0);
+  function canAppend(bucket, sum, item) {
+    return sum + item.batchPrice <= maximum
+      && (!kopkenMax3ItemsEnabled || bucket.length < 3 || sum < minimum);
+  }
+  // First try a complete partition meeting the minimum in every batch.
+  // The shared budget keeps large carts responsive.
+  let budget = 50000;
+  if (sorted.length <= 40) {
+    for (let count = Math.floor(total / minimum); count >= Math.ceil(total / maximum) && count > 0 && budget > 0; count--) {
+      const buckets = Array.from({length: count}, () => []);
+      const totals = Array(count).fill(0);
+      const failed = new Set();
+      function assign(index) {
+        if (--budget < 0) return false;
+        if (index === sorted.length) return totals.every(value => value >= minimum);
+        const state = index + ':' + buckets.map((b,i) => `${totals[i]},${b.length}`).sort().join('|');
+        if (failed.has(state)) return false;
+        const seen = new Set();
+        for (let i = 0; i < count; i++) {
+          const signature = `${totals[i]},${buckets[i].length}`;
+          if (seen.has(signature) || !canAppend(buckets[i], totals[i], sorted[index])) continue;
+          seen.add(signature);
+          buckets[i].push(sorted[index]); totals[i] += sorted[index].batchPrice;
+          if (assign(index + 1)) return true;
+          totals[i] -= sorted[index].batchPrice; buckets[i].pop();
+        }
+        failed.add(state); return false;
+      }
+      if (assign(0)) return buckets;
+    }
+  }
+  // Keep all items visible even when no complete arrangement was found.
+  const buckets = [];
+  for (const item of sorted) {
+    const target = buckets.find(bucket => canAppend(bucket, bucket.reduce((sum, x) => sum + x.batchPrice, 0), item));
+    if (target) target.push(item); else buckets.push([item]);
+  }
+  return buckets;
+}
+
 function buildKopkenOrderBatches(items) {
   if (items.some((item) => !Number.isFinite(item.batchPrice) || item.batchPrice <= 0 || item.batchPrice > KOPKEN_BATCH_MAX_TOTAL)) {
     throw new Error("Harga asli satu item harus lebih dari Rp0 dan maksimal Rp71.000. Sesuaikan pilihan menu sebelum mengirim pesanan.");
   }
+  if (kopkenMinimumEnabled || kopkenMax3ItemsEnabled) return buildRuleBasedKopkenBatches(items);
   // Dasar batch sudah mengecualikan topping/addon. Rp63.000 masih masuk voucher minimum Rp50.000.
   const preferredMaximum = KOPKEN_BATCH_PREFERRED_MAX_TOTAL;
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
@@ -2933,7 +2983,8 @@ continueShoppingButton.addEventListener("click", () => closeOrderModal());
 // FIX: Memperbaiki aksi klik tombol "Selesai, Bayar QRIS" dengan pengecualian Bundling
 // GEMBOK REAL-TIME: Memperbaiki aksi klik tombol "Selesai, Bayar QRIS" saat testing lokal
 // Pada goCheckoutButton
-goCheckoutButton.addEventListener("click", () => { 
+goCheckoutButton.addEventListener("click", async () => {
+  await fetchStoreSettings(); 
   const cartBrandId = getCartBrandId();
   const store = checkStoreStatus(cartBrandId);
   
@@ -2954,12 +3005,9 @@ goCheckoutButton.addEventListener("click", () => {
     return;
   }
 
-  if (!requiresKopkenMinimum || !kopkenMinimumEnabled || officialCartTotal >= kopkenMinimumOfficialTotal) {
-    setModalStage("checkout"); 
-  } else {
-    const remaining = kopkenMinimumOfficialTotal - officialCartTotal;
-    alert(`Total harga normal menu kamu ${rupiah.format(officialCartTotal)}.\nMinimal order Kopi Kenangan adalah ${rupiah.format(kopkenMinimumOfficialTotal)} berdasarkan harga outlet.\nTambah menu minimal ${rupiah.format(remaining)} lagi ya.`);
-  }
+  const guidance = getKopkenBatchGuidance();
+  if (guidance.error) { renderCart(); alert(guidance.error); return; }
+  setModalStage("checkout");
 });
 
 backToCartButton.addEventListener("click", () => setModalStage("cart"));
