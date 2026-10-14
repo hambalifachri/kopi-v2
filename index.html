@@ -31,6 +31,7 @@
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#d94b3d" />
     <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="stylesheet" href="assets/css/order-queue.css?v=20261014-1" />
   </head> <!-- Ini tag penutup aslinya -->
   <body>
     <main class="poster-shell">
@@ -66,6 +67,7 @@
         <button class="brand-tab" type="button" data-brand="tomoro">Tomoro</button>
         <button class="brand-tab" type="button" data-brand="fore">Fore</button>
       </nav>
+      <div class="order-queue order-queue--main" data-order-queue role="status" aria-live="polite" hidden><strong data-queue-title></strong><p data-queue-detail></p></div>
       <section class="poster" aria-label="Price list jador kopi">
         <header class="poster-hero">
           <div class="brand-block">
@@ -334,6 +336,7 @@
               <p>Keranjang</p>
               <button class="clear-button" id="modalClearCart" type="button">Kosongkan</button>
             </div>
+              <div class="order-queue" data-order-queue role="status" aria-live="polite" hidden><strong data-queue-title></strong><p data-queue-detail></p></div>
             <div class="cart-items" id="modalCartItems"></div>
             <div class="totals">
               <div>
@@ -361,6 +364,7 @@
                 <button class="secondary-button compact-button" id="backToCart" type="button">Lihat Keranjang</button>
               </div>
               <div class="checkout-summary" id="checkoutSummary"></div>
+              <div class="order-queue" data-order-queue role="status" aria-live="polite" hidden><strong data-queue-title></strong><p data-queue-detail></p></div>
             </div>
             <div class="payment-panel modal-payment">
               <div class="panel-title">
@@ -595,6 +599,7 @@
     <script src="menu-data.js?v=20260825-1"></script>
     <script src="assets/js/api.js?v=20261005-large-price-1"></script>
     <script src="script.js?v=20261012-batch-cards"></script>
+    <script src="assets/js/order-queue.js?v=20261014-1"></script>
   </body>
 </html>
 

@@ -1,0 +1,18 @@
+.order-queue {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #e6cdb8;
+  border-radius: 12px;
+  background: #fff6ed;
+  color: #4d281c;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.order-queue[hidden] { display: none; }
+.order-queue strong { display: block; margin-bottom: 3px; font-size: 15px; }
+.order-queue p { margin: 0; font-weight: 400; }
+.order-queue--main { margin: 10px 16px; }
+@media (max-width: 480px) {
+  .order-queue { padding: 10px 12px; font-size: 13px; }
+  .order-queue strong { font-size: 14px; }
+}
