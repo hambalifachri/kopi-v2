@@ -1889,10 +1889,10 @@ function renderKopkenBatchGuidance(guidance) {
     const qty = batch.items.reduce((sum, item) => sum + item.qty, 0);
     const total = batch.voucherEligibleTotal;
     const short = kopkenMinimumEnabled && total < kopkenMinimumOfficialTotal;
-    const over = kopkenMinimumEnabled && total > 63000;
+    const over = kopkenMinimumEnabled && total > 65000;
     const note = short
       ? `Kurang ${rupiah.format(kopkenMinimumOfficialTotal - total)} untuk minimum. Tambah menu atau hapus barang pada batch ini.`
-      : over ? "Melebihi Rp63.000. Sesuaikan menu pada batch ini." : "Memenuhi aturan";
+      : over ? "Melebihi Rp65.000. Sesuaikan menu pada batch ini." : "Memenuhi aturan";
     return `<div style="padding:10px 0;border-top:1px solid #eaded5">
       <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:14px"><strong>Batch ${batch.number} · ${qty} barang</strong><strong>${rupiah.format(total)}</strong></div>
       <p style="margin:5px 0 0;font-size:13px;line-height:1.5;color:${short || over ? '#a32921' : '#416449'}">${escapeHtml(note)}</p>
@@ -1912,10 +1912,10 @@ function getKopkenBatchGuidance() {
     const batches = buildStoredOrderBatches([...cart.values()]);
     const minimum = kopkenMinimumOfficialTotal;
     const summaries = batches.map(batch => `Bagian ${batch.number}: ${batch.items.reduce((sum, item) => sum + item.qty, 0)} barang — ${rupiah.format(batch.voucherEligibleTotal)}`);
-    const invalid = kopkenMinimumEnabled ? batches.filter(batch => batch.voucherEligibleTotal < minimum || batch.voucherEligibleTotal > 63000) : [];
+    const invalid = kopkenMinimumEnabled ? batches.filter(batch => batch.voucherEligibleTotal < minimum || batch.voucherEligibleTotal > 65000) : [];
     const details = invalid.map(batch => batch.voucherEligibleTotal < minimum
       ? `Bagian ${batch.number} masih ${rupiah.format(batch.voucherEligibleTotal)}: tambah barang senilai minimal ${rupiah.format(minimum - batch.voucherEligibleTotal)} berdasarkan harga outlet, atau kurangi barang bagian tersebut.`
-      : `Bagian ${batch.number} melebihi Rp63.000. Ganti pilihan menu agar dapat dibagi ke rentang minimum sampai Rp63.000.`);
+      : `Bagian ${batch.number} melebihi Rp65.000. Ganti pilihan menu agar dapat dibagi ke rentang minimum sampai Rp65.000.`);
     const error = details.length ? "Pesanan Kopi Kenangan belum bisa dilanjutkan. " + details.join(" ") + " Sistem akan menyusun ulang otomatis; penambahan tetap harus cocok dengan batas tiap bagian." : "";
     return { text: "Pilih menu seperti biasa; pesanan dibagi otomatis. Harga dasar berikut tidak termasuk topping/addon. " + summaries.join("; ") + (error ? " " + error : ""), error, batches };
   } catch (error) {
@@ -2021,7 +2021,7 @@ function formatProofForWA(savedOrder) {
 }
 
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
-const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 63000;
+const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 65000;
 const KOPKEN_BATCH_MAX_TOTAL = 71000;
 
 function findValidKopkenBatchPartition(items, batchCount, maximumTotal) {
@@ -2205,7 +2205,7 @@ function findBestKopkenBatch(items, maximumTotal) {
 
 function buildRuleBasedKopkenBatches(items) {
   const minimum = kopkenMinimumEnabled ? kopkenMinimumOfficialTotal : 50000;
-  const maximum = kopkenMinimumEnabled ? 63000 : 71000;
+  const maximum = kopkenMinimumEnabled ? 65000 : 71000;
   const sorted = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
   const total = sorted.reduce((sum, item) => sum + item.batchPrice, 0);
   function canAppend(bucket, sum, item) {
@@ -2253,7 +2253,7 @@ function buildKopkenOrderBatches(items) {
     throw new Error("Harga asli satu item harus lebih dari Rp0 dan maksimal Rp71.000. Sesuaikan pilihan menu sebelum mengirim pesanan.");
   }
   if (kopkenMinimumEnabled || kopkenMax3ItemsEnabled) return buildRuleBasedKopkenBatches(items);
-  // Dasar batch sudah mengecualikan topping/addon. Rp63.000 masih masuk voucher minimum Rp50.000.
+  // Dasar batch sudah mengecualikan topping/addon. Rp65.000 masih masuk voucher minimum Rp50.000.
   const preferredMaximum = KOPKEN_BATCH_PREFERRED_MAX_TOTAL;
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
   if (total <= KOPKEN_BATCH_MAX_TOTAL) return items.length ? [[...items]] : [];
