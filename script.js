@@ -1662,6 +1662,10 @@ function buildStoredOrderBatches(entries) {
 
 async function createOrderRecord(formData) {
   await fetchStoreSettings();
+  if (getCartBrandId() === "kopi-kenangan") {
+    if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
+    await window.validateKopkenCartAvailability();
+  }
   const limitError = getKopkenBatchGuidance().error;
   if (limitError) throw new Error(limitError);
   if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
@@ -3007,6 +3011,17 @@ continueShoppingButton.addEventListener("click", () => closeOrderModal());
 // GEMBOK REAL-TIME: Memperbaiki aksi klik tombol "Selesai, Bayar QRIS" saat testing lokal
 // Pada goCheckoutButton
 goCheckoutButton.addEventListener("click", async () => {
+  if (goCheckoutButton.disabled) return;
+  goCheckoutButton.disabled = true;
+  try {
+    if (getCartBrandId() === "kopi-kenangan") {
+      if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
+      await window.validateKopkenCartAvailability();
+    }
+  } catch (error) {
+    alert(error.message || "Menu outlet belum dapat diperiksa.");
+    return;
+  } finally { goCheckoutButton.disabled = false; }
   await fetchStoreSettings(); 
   const cartBrandId = getCartBrandId();
   const store = checkStoreStatus(cartBrandId);

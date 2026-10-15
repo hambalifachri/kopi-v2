@@ -33,6 +33,8 @@ async function loadSupabaseKopkenMenu(outletCode) {
 
   const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,category,menu,updated_at&outlet_code=eq.${encodeURIComponent(outletCode)}&limit=1`;
   const response = await fetch(endpoint, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
     headers: {
       apikey: config.anonKey,
       Authorization: `Bearer ${config.anonKey}`,
@@ -55,7 +57,7 @@ async function loadSupabaseKopkenMenu(outletCode) {
     payload: hasFullMenu
       ? row.menu
       : {
-          mergeLocalMenu: true,
+          mergeLocalMenu: false,
           menu: row.menu.map((item, index) => ({
             ...item,
             id: item.id || item.product_code || `${outletCode}-${index}`,
@@ -751,6 +753,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     rawResponse = cachedOutlet.payload;
     outletCategory = cachedOutlet.category || outletCategory;
 
+    if (String(getKopiKenanganOutletState().outletCode) !== String(outletCode)) return;
     cacheOriginalKopiKenanganMenu();
     const localMenuByName = new Map(
       (originalKopiKenanganMenu || []).map((item) => [normalizeMenuName(item.name), item])
@@ -760,11 +763,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
     if (!dynamicItems.length) throw new Error("Menu outlet kosong");
     const dynamicBundles = buildDynamicKopiKenanganBundles(dynamicItems);
     const nonKopiKenanganItems = menuItems.filter((item) => item && item.brand !== "kopi-kenangan");
-    const localItemsToKeep = rawResponse?.mergeLocalMenu
-      ? (originalKopiKenanganMenu || []).map((item) => ({ ...item }))
-      : (originalKopiKenanganMenu || [])
-          .filter((item) => shouldKeepLocalKopiKenanganItem(item, dynamicItems))
-          .map((item) => ({ ...item }));
+    const localItemsToKeep = [];
 
     menuItems.length = 0;
     menuItems.push(...mergeDuplicateMenuItems([
@@ -785,8 +784,11 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   } catch (error) {
     console.error("Gagal memuat API Asli:", error);
-    restoreLocalKopiKenanganMenu();
-    setKopiKenanganOutletState({ menuLoaded: true, menuLoading: false, outletCode, source: "fallback" });
+    if (String(getKopiKenanganOutletState().outletCode) !== String(outletCode)) return;
+    const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
+    menuItems.length = 0;
+    menuItems.push(...otherBrands);
+    setKopiKenanganOutletState({ menuLoaded: false, menuLoading: false, outletCode, source: "unavailable" });
     if (typeof renderMenu === "function") renderMenu();
   }
 };
@@ -1353,4 +1355,52 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!["tomoro", "fore"].includes(brandId)) return;
     liveBrandOutletSearchTimer = window.setTimeout(() => window.searchLiveBrandOutlets(brandId, keyword), 300);
   });
+});
+
+// Recheck the selected outlet before QRIS and again before saving an order.
+window.validateKopkenCartAvailability = async function() {
+  if (typeof getCartBrandId !== "function" || getCartBrandId() !== "kopi-kenangan") return;
+  const outlet = getKopiKenanganOutletState();
+  const code = String(outlet.outletCode || "");
+  if (!code || !outlet.selected) throw new Error("Pilih outlet Kopi Kenangan dahulu sebelum melanjutkan.");
+  let latest;
+  try { latest = await loadSupabaseKopkenMenu(code); }
+  catch { throw new Error("Ketersediaan menu outlet belum bisa diperiksa. Periksa koneksi lalu coba lagi sebelum transfer."); }
+  if (String(getKopiKenanganOutletState().outletCode || "") !== code) {
+    throw new Error("Outlet berubah saat pemeriksaan. Periksa keranjang lalu lanjutkan kembali.");
+  }
+  cacheOriginalKopiKenanganMenu();
+  const locals = new Map((originalKopiKenanganMenu || []).map(item => [normalizeMenuName(item.name),item]));
+  const products = mergeDuplicateMenuItems(buildDynamicKopiKenanganItems(latest.payload,locals));
+  if (!products.length) throw new Error("Menu outlet belum tersedia. Pilih ulang outlet atau coba lagi sebelum transfer.");
+  const validItems = [...products,...buildDynamicKopiKenanganBundles(products)];
+  const missing = [];
+  for (const [key,item] of cart) {
+    const valid = validItems.some(product => String(product.id) === String(item.id)
+      && normalizeMenuName(product.name) === normalizeMenuName(item.name)
+      && !product.isSoldOut
+      && (!Array.isArray(product.outletCodes) || !product.outletCodes.length || product.outletCodes.includes(code)));
+    if (!valid) { missing.push(item.name); cart.delete(key); }
+  }
+  const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
+  menuItems.length = 0;
+  menuItems.push(...otherBrands,...validItems);
+  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:"supabase",outletCategory:latest.category || outlet.outletCategory});
+  if (typeof renderMenu === "function") renderMenu();
+  if (missing.length) {
+    saveCartToStorage();
+    renderCart();
+    throw new Error("Menu sudah tidak tersedia di outlet ini dan dikeluarkan dari keranjang: "
+      + [...new Set(missing)].join(", ") + ". Silakan pilih menu pengganti sebelum melanjutkan.");
+  }
+};
+
+// Refresh long-open tabs after the customer returns from another app.
+let kopkenLastFocusRefresh = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || typeof getKopiKenanganOutletState !== "function") return;
+  const state = getKopiKenanganOutletState();
+  if (!state.selected || !state.outletCode || state.menuLoading || Date.now()-kopkenLastFocusRefresh < 60000) return;
+  kopkenLastFocusRefresh = Date.now();
+  window.loadDynamicMenu(state.outletCode);
 });

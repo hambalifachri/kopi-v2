@@ -1,10 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v6';
+const CACHE_NAME = 'fachrindah-pwa-v7-menu-validation';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20260825-3'
+  './script.js?v=20261015-menu-validation',
+  './assets/js/api.js?v=20261015-menu-validation'
 ];
 
 // 1. Install & Simpan ke Memori
@@ -35,6 +36,13 @@ self.addEventListener('activate', event => {
 
 // 3. Trik Jitu: Selalu utamakan Internet, kalau Offline baru pakai Memori
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  // Menu, settings, sessions and orders must never fall back to stale API data.
+  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
+
   // Video memakai range request. Biarkan browser mengambil potongan video langsung
   // agar tombol play dan seek tetap lancar di ponsel.
   if (event.request.headers.has('range')) {
