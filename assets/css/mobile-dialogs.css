@@ -1,0 +1,39 @@
+/* Keep phone dialogs inside the visible area above browser controls and keyboards. */
+@media screen and (max-width: 760px) {
+  .order-modal,
+  .receipt-modal {
+    top: var(--dialog-viewport-top, 0px);
+    bottom: auto;
+    height: var(--dialog-viewport-height, 100dvh);
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+    place-items: center;
+    overflow: hidden;
+  }
+  .order-modal .modal-card,
+  .receipt-modal .receipt-dialog {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100%;
+    width: min(100%, 640px);
+    padding: 16px;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .modal-card > .modal-heading { flex: 0 0 auto; padding-right: 36px; }
+  .modal-card > .modal-stage {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  #modalCartStage:not([hidden]) { display: flex; flex-direction: column; overflow: hidden; }
+  #modalCartStage > .cart-items { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #modalCartStage > :not(.cart-items) { flex: 0 0 auto; }
+  .modal-next-actions { background: #fff; padding-top: 10px; border-top: 1px solid #eaded7; }
+  .modal-next-actions p { font-size: .78rem; }
+  .modal-choice-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .modal-choice-row > *, .receipt-actions > * { min-width: 0; min-height: 44px; padding: 10px 8px; white-space: normal; line-height: 1.3; text-align: center; }
+  #orderReceiptContent { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .receipt-actions { flex: 0 0 auto; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eaded7; background: #fff; }
+}
