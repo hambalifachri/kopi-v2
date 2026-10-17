@@ -6,7 +6,7 @@ const MY_SUPABASE_URL = "https://omkboytvivjxoobyhumc.supabase.co";
 const MY_SUPABASE_ANON_KEY = "sb_publishable_T83cBlF_eaawT4v9xfsXKQ__bmro8-2";
 
 // Variabel bawaan
-let kopkenMinimumEnabled = false;
+let kopkenMinimumEnabled = true;
 let kopkenMax3ItemsEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
 let allStoresClosed = false;
@@ -20,44 +20,29 @@ let jumatanEndTime = "13:00";
 let jumatanClosedMessage = "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali pukul 13:00 WIB.";
 let storeSettingsClient = null;
 
-async function fetchStoreSettings() {
+async function fetchStoreSettings(requireFresh = false) {
   try {
     // Pastikan library dari HTML sudah terbaca
-    if (!window.supabase) return; 
+    if (!window.supabase) throw new Error("Pemeriksaan aturan pesanan belum siap. Muat ulang halaman lalu coba lagi sebelum transfer."); 
     
     // Buat client khusus untuk membaca settingan
     if (!storeSettingsClient) {
-      storeSettingsClient = window.supabase.createClient(MY_SUPABASE_URL, MY_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+      storeSettingsClient = window.supabase.createClient(MY_SUPABASE_URL, MY_SUPABASE_ANON_KEY, { auth: { persistSession: false }, global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: "no-store", signal: AbortSignal.timeout(10000) }) } });
     }
     
-    // Ambil data dari tabel app_settings
-    let { data, error } = await storeSettingsClient
-      .from('app_settings')
-      .select('kopken_minimum_enabled, kopken_minimum_official_total, all_stores_closed, store_closed_message, kopken_store_closed, tomoro_store_closed, fore_store_closed, jumatan_closed_enabled, jumatan_start_time, jumatan_end_time, jumatan_closed_message')
-      .limit(1);
-
-    // Tetap baca aturan minimum lama selama migrasi kolom tutup toko belum dijalankan.
-    if (error) {
-      const fallback = await storeSettingsClient
-        .from('app_settings')
-        .select('kopken_minimum_enabled, kopken_minimum_official_total')
-        .limit(1);
-      data = fallback.data;
-      error = fallback.error;
+    // Read one settings snapshot. Missing optional columns use their defaults.
+    const { data, error } = await storeSettingsClient.from('app_settings').select('*').limit(1);
+    if (error || !Array.isArray(data) || !data.length) {
+      throw new Error("Aturan pesanan belum dapat diperiksa. Periksa koneksi lalu coba lagi sebelum transfer.");
     }
-
-    if (error) {
-       console.log("Abaikan jika tabel belum dibuat di Supabase:", error.message);
-       return; 
-    }
-
     if (data && data.length > 0) {
       const settings = data[0];
-      const maxItemsSetting = await storeSettingsClient.from('app_settings')
-        .select('kopken_max_3_items_enabled').limit(1);
-      if (!maxItemsSetting.error && maxItemsSetting.data?.length) {
-        kopkenMax3ItemsEnabled = maxItemsSetting.data[0].kopken_max_3_items_enabled === true;
+      if (typeof settings.kopken_minimum_enabled !== "boolean"
+          || !Number.isFinite(Number(settings.kopken_minimum_official_total))
+          || Number(settings.kopken_minimum_official_total) <= 0) {
+        throw new Error("Aturan pesanan belum valid. Hubungi admin sebelum transfer.");
       }
+      kopkenMax3ItemsEnabled = settings.kopken_max_3_items_enabled === true;
       const previousClosedState = allStoresClosed;
       kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
       allStoresClosed = settings.all_stores_closed === true;
@@ -78,8 +63,11 @@ async function fetchStoreSettings() {
       const kopkenMinOrder = kopkenMinimumEnabled ? "aktif" : "nonaktif";
       console.log("⚡ Aturan minimal order hari ini dari Supabase:", kopkenMinOrder);
     }
+    return true;
   } catch (error) {
-    console.warn("Gagal memuat aturan, menggunakan minimal bawaan (3).", error.message);
+    console.warn("Gagal memuat aturan pesanan:", error.message);
+    if (requireFresh) throw error;
+    return false;
   }
 }
 
@@ -1661,7 +1649,7 @@ function buildStoredOrderBatches(entries) {
 }
 
 async function createOrderRecord(formData) {
-  await fetchStoreSettings();
+  await fetchStoreSettings(true);
   if (getCartBrandId() === "kopi-kenangan") {
     if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
     await window.validateKopkenCartAvailability();
@@ -3014,6 +3002,7 @@ goCheckoutButton.addEventListener("click", async () => {
   if (goCheckoutButton.disabled) return;
   goCheckoutButton.disabled = true;
   try {
+    await fetchStoreSettings(true);
     if (getCartBrandId() === "kopi-kenangan") {
       if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
       await window.validateKopkenCartAvailability();
@@ -3067,6 +3056,9 @@ orderForm.addEventListener("submit", async (event) => {
     try {
       await saveOrderToSupabase(savedOrder);
     } catch (error) {
+      if (savedOrder.brand === "Kopi Kenangan") {
+        throw new Error("Pesanan belum berhasil disimpan. Keranjang tetap tersimpan. Periksa koneksi lalu coba lagi; jangan ulang pembayaran jika sudah transfer.");
+      }
       savedOrder.saveError = error?.message || "Gagal menyimpan order ke Supabase.";
       console.error("Gagal menyimpan order ke Supabase:", error);
     }
@@ -3098,7 +3090,7 @@ orderForm.addEventListener("submit", async (event) => {
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
     const reason = String(error?.message || "");
-    const knownValidation = ["Pesanan Kopi Kenangan", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
+    const knownValidation = ["Aturan pesanan", "Pemeriksaan aturan pesanan", "Pesanan belum berhasil disimpan", "Pesanan Kopi Kenangan", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
     alert(knownValidation.some(prefix => reason.startsWith(prefix))
       ? reason
       : "Gagal menyiapkan order. Kirim tangkapan layar beserta menu, ukuran, dan topping ke admin. Jangan ulang pembayaran.");
