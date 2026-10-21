@@ -52,6 +52,26 @@ input, select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px so
 .batch-item p { margin: 3px 0 0; color: #716963; font-size: .72rem; line-height: 1.45; }
 .order-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; border-top: 1px solid #e7e3df; background: #faf9f8; }
 .order-actions > * { min-height: 38px; padding: 8px 12px; border: 1px solid #cec7c1; border-radius: 8px; background: #fff; color: #292624; font-size: .78rem; font-weight: 800; text-decoration: none; cursor: pointer; }
+.outlet-dialog { width: min(520px, calc(100vw - 24px)); max-height: min(740px, calc(100vh - 32px)); padding: 0; border: 1px solid #d9d4cf; border-radius: 8px; color: #292624; box-shadow: 0 18px 52px #29262440; }
+.outlet-dialog::backdrop { background: #211d1bb3; }
+.outlet-form { display: grid; gap: 12px; padding: 20px; }
+.outlet-dialog-head, .outlet-dialog-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.outlet-dialog-head h2 { margin: 0; font-size: 1.12rem; }
+.outlet-dialog-head p, .outlet-form > p { margin: 0; font-size: .82rem; line-height: 1.45; }
+.outlet-dialog-head p { color: #716963; }
+.outlet-dialog-head button { min-width: 40px; padding-inline: 8px; font-size: 1.25rem; }
+.outlet-form label { font-size: .78rem; font-weight: 800; }
+.outlet-search-status { min-height: 18px; color: #716963; }
+.outlet-results { display: grid; max-height: 240px; overflow-y: auto; border-block: 1px solid #e7e3df; }
+.outlet-result { display: grid; gap: 3px; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid #eeeae6; background: #fff; text-align: left; cursor: pointer; }
+.outlet-result:last-child { border-bottom: 0; }
+.outlet-result:hover, .outlet-result:focus-visible { background: #f3f8f4; }
+.outlet-result[aria-selected="true"] { background: #eaf3ed; box-shadow: inset 3px 0 #2f6b4f; }
+.outlet-result strong { font-size: .82rem; }
+.outlet-result small { color: #716963; font-size: .71rem; line-height: 1.3; }
+.outlet-processing-note { padding: 10px; border-left: 3px solid #ad7126; background: #fff8ec; }
+.outlet-dialog-actions { justify-content: flex-end; }
+.outlet-dialog-actions button:disabled { opacity: .55; cursor: not-allowed; }
 .empty-orders { padding: 32px 20px; border: 1px solid #d9d4cf; background: #fff; text-align: center; color: #716963; }
 .orders-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .orders-pagination span { min-width: 110px; color: #716963; font-size: .8rem; font-weight: 800; text-align: center; }

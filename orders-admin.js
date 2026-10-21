@@ -15,6 +15,13 @@ const ordersPagination = document.querySelector("#ordersPagination");
 const ordersPageInfo = document.querySelector("#ordersPageInfo");
 const previousOrdersPage = document.querySelector("#previousOrdersPage");
 const nextOrdersPage = document.querySelector("#nextOrdersPage");
+const outletDialog = document.querySelector("#outletDialog");
+const outletForm = document.querySelector("#outletForm");
+const outletSearchInput = document.querySelector("#outletSearchInput");
+const outletSearchStatus = document.querySelector("#outletSearchStatus");
+const outletResults = document.querySelector("#outletResults");
+const outletSaveStatus = document.querySelector("#outletSaveStatus");
+const saveOutletEdit = document.querySelector("#saveOutletEdit");
 const ordersView = document.querySelector("#ordersView");
 const analyticsView = document.querySelector("#analyticsView");
 const analyticsMetrics = document.querySelector("#analyticsMetrics");
@@ -62,6 +69,12 @@ let ordersRefreshTimer = null;
 let currentOrdersPage = 1;
 let analyticsPeriod = "all";
 let scannedExpenses = [];
+let outletEditOrder = null;
+let selectedOutlet = null;
+let outletSearchTimer = null;
+let outletSearchRequest = 0;
+let outletSaving = false;
+let outletMatches = [];
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -812,9 +825,122 @@ function renderOrderCard(order) {
     <div class="batch-list">${batchHtml}</div>
     <div class="order-actions">
       <button type="button" data-copy-order="${escapeHtml(order.id)}">Salin Format Order</button>
+      ${getOrderBrand(order) === "Kopi Kenangan" && ["new", "processing"].includes(order.status)
+        ? `<button type="button" data-edit-outlet="${escapeHtml(order.id)}">Ubah Outlet</button>` : ""}
       ${order.payment_proof_url ? `<a href="${escapeHtml(order.payment_proof_url)}" target="_blank" rel="noopener">Lihat Bukti Bayar</a>` : ""}
     </div>
   </article>`;
+}
+
+function openOutletEditor(order) {
+  outletEditOrder = { id: order.id, address: order.customer_address, status: order.status, updatedAt: order.updated_at };
+  selectedOutlet = null;
+  outletMatches = [];
+  outletResults.replaceChildren();
+  outletSearchInput.value = "";
+  outletSearchStatus.textContent = "Ketik minimal 2 huruf untuk mencari outlet.";
+  outletSaveStatus.textContent = "";
+  saveOutletEdit.disabled = true;
+  document.querySelector("#outletOrderId").textContent = order.id;
+  document.querySelector("#currentOutletName").textContent = order.customer_address;
+  document.querySelector("#outletProcessingNote").hidden = order.status !== "processing";
+  outletDialog.showModal();
+  outletSearchInput.focus();
+}
+
+async function searchAdminOutlets(keyword) {
+  const request = ++outletSearchRequest;
+  const safeKeyword = keyword.replace(/[,%*()_\\]/g, " ").trim();
+  if (safeKeyword.length < 2) {
+    outletResults.replaceChildren();
+    outletSearchStatus.textContent = "Ketik minimal 2 huruf untuk mencari outlet.";
+    return;
+  }
+  outletSearchStatus.textContent = "Mencari outlet...";
+  const { data, error } = await client.from("kopken_outlets_catalog")
+    .select("outlet_code,outlet_name,outlet_address")
+    .ilike("outlet_name", `%${safeKeyword}%`)
+    .order("outlet_name", { ascending: true })
+    .limit(20);
+  if (request !== outletSearchRequest || !outletDialog.open) return;
+  outletResults.replaceChildren();
+  if (error) {
+    outletSearchStatus.textContent = `Pencarian gagal: ${error.message}`;
+    return;
+  }
+  outletMatches = data || [];
+  for (const outlet of outletMatches) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outlet-result";
+    button.dataset.outletCode = outlet.outlet_code;
+    button.setAttribute("role", "option");
+    button.setAttribute("aria-selected", "false");
+    const name = document.createElement("strong");
+    name.textContent = outlet.outlet_name;
+    const detail = document.createElement("small");
+    detail.textContent = [outlet.outlet_address, outlet.outlet_code].filter(Boolean).join(" · ");
+    button.append(name, detail);
+    outletResults.append(button);
+  }
+  outletSearchStatus.textContent = outletMatches.length
+    ? `${outletMatches.length} outlet ditemukan. Pilih satu outlet.`
+    : "Outlet tidak ditemukan.";
+}
+
+async function saveEditedOutlet(event) {
+  event.preventDefault();
+  if (!outletEditOrder || !selectedOutlet || outletSaving) return;
+  outletSaving = true;
+  saveOutletEdit.disabled = true;
+  outletSaveStatus.textContent = "Memeriksa dan menyimpan outlet...";
+  try {
+    const original = outletEditOrder;
+    const { data: catalogOutlet, error: catalogError } = await client.from("kopken_outlets_catalog")
+      .select("outlet_name,menu")
+      .eq("outlet_code", selectedOutlet.outlet_code)
+      .single();
+    if (catalogError || !catalogOutlet?.outlet_name || !catalogOutlet.menu?.data?.menu_groups?.length) {
+      throw new Error("Outlet atau menu belum tersedia di katalog. Pilih outlet lain.");
+    }
+    const { data: latest, error: readError } = await client.from(config.ordersTable)
+      .select("status,customer_address,updated_at")
+      .eq("id", original.id)
+      .single();
+    if (readError) throw readError;
+    if (latest.status !== original.status || latest.customer_address !== original.address || latest.updated_at !== original.updatedAt) {
+      throw new Error("Pesanan sudah berubah. Muat ulang halaman dan periksa kembali sebelum menyimpan.");
+    }
+    if (!["new", "processing"].includes(latest.status)) {
+      throw new Error("Outlet pesanan yang selesai atau dibatalkan tidak dapat diubah.");
+    }
+    const newName = catalogOutlet.outlet_name;
+    if (newName === original.address) throw new Error("Outlet yang dipilih sama dengan outlet saat ini.");
+    const warning = original.status === "processing"
+      ? "Pastikan batch di outlet lama belum dibayar. Perubahan ini tidak mengulang reservasi atau bot otomatis."
+      : "Harga dan ketersediaan menu dapat berbeda di outlet baru.";
+    if (!window.confirm(`Ubah outlet ${original.id}\n\n${original.address} -> ${newName}\n\n${warning}`)) {
+      outletSaveStatus.textContent = "Perubahan dibatalkan.";
+      return;
+    }
+    const { data: updated, error: updateError } = await client.from(config.ordersTable)
+      .update({ customer_address: newName, updated_at: new Date().toISOString() })
+      .eq("id", original.id)
+      .eq("status", original.status)
+      .eq("customer_address", original.address)
+      .eq("updated_at", original.updatedAt)
+      .select("id,customer_address");
+    if (updateError) throw updateError;
+    if (updated?.length !== 1) throw new Error("Pesanan berubah saat disimpan. Muat ulang dan periksa kembali.");
+    outletDialog.close();
+    await loadOrders();
+    ordersStatus.textContent = `Outlet ${original.id} berhasil diubah menjadi ${newName}.`;
+  } catch (error) {
+    outletSaveStatus.textContent = error.message || "Gagal menyimpan outlet.";
+  } finally {
+    outletSaving = false;
+    saveOutletEdit.disabled = !selectedOutlet;
+  }
 }
 
 function renderOrders() {
@@ -1177,6 +1303,12 @@ ordersList.addEventListener("change", async (event) => {
 });
 
 ordersList.addEventListener("click", async (event) => {
+  const editButton = event.target.closest("[data-edit-outlet]");
+  if (editButton) {
+    const order = orders.find((item) => item.id === editButton.dataset.editOutlet);
+    if (order) openOutletEditor(order);
+    return;
+  }
   const button = event.target.closest("[data-copy-order]");
   if (!button) return;
   const order = orders.find((item) => item.id === button.dataset.copyOrder);
@@ -1184,6 +1316,38 @@ ordersList.addEventListener("click", async (event) => {
   await navigator.clipboard.writeText(buildAdminOrderText(order));
   button.textContent = "Tersalin";
   window.setTimeout(() => { button.textContent = "Salin Format Order"; }, 1400);
+});
+
+outletSearchInput.addEventListener("input", () => {
+  selectedOutlet = null;
+  saveOutletEdit.disabled = true;
+  outletSaveStatus.textContent = "";
+  outletResults.replaceChildren();
+  window.clearTimeout(outletSearchTimer);
+  ++outletSearchRequest;
+  const keyword = outletSearchInput.value.trim();
+  outletSearchStatus.textContent = keyword.length < 2 ? "Ketik minimal 2 huruf untuk mencari outlet." : "Mencari outlet...";
+  if (keyword.length >= 2) outletSearchTimer = window.setTimeout(() => searchAdminOutlets(keyword), 250);
+});
+outletResults.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-outlet-code]");
+  if (!button) return;
+  selectedOutlet = outletMatches.find((outlet) => outlet.outlet_code === button.dataset.outletCode) || null;
+  outletResults.querySelectorAll(".outlet-result").forEach((result) => {
+    result.setAttribute("aria-selected", String(result === button));
+  });
+  saveOutletEdit.disabled = !selectedOutlet || selectedOutlet.outlet_name === outletEditOrder?.address;
+  outletSearchStatus.textContent = selectedOutlet ? `Dipilih: ${selectedOutlet.outlet_name}` : "Pilih satu outlet.";
+});
+outletForm.addEventListener("submit", saveEditedOutlet);
+document.querySelector("#cancelOutletEdit").addEventListener("click", () => outletDialog.close());
+document.querySelector("#closeOutletDialog").addEventListener("click", () => outletDialog.close());
+outletDialog.addEventListener("close", () => {
+  window.clearTimeout(outletSearchTimer);
+  ++outletSearchRequest;
+  outletEditOrder = null;
+  selectedOutlet = null;
+  outletMatches = [];
 });
 
 orderSearch.addEventListener("input", () => { currentOrdersPage = 1; renderOrders(); });

@@ -141,6 +141,29 @@
     </section>
   </main>
 
+  <dialog id="outletDialog" class="outlet-dialog" aria-labelledby="outletDialogTitle">
+    <form id="outletForm" class="outlet-form">
+      <div class="outlet-dialog-head">
+        <div>
+          <h2 id="outletDialogTitle">Ubah Outlet</h2>
+          <p id="outletOrderId"></p>
+        </div>
+        <button id="closeOutletDialog" class="quiet-button" type="button" aria-label="Tutup">&times;</button>
+      </div>
+      <p>Outlet saat ini: <strong id="currentOutletName"></strong></p>
+      <label for="outletSearchInput">Cari outlet Kopi Kenangan</label>
+      <input id="outletSearchInput" type="search" autocomplete="off" placeholder="Nama gerai atau kota" required />
+      <p id="outletSearchStatus" class="outlet-search-status" role="status"></p>
+      <div id="outletResults" class="outlet-results" role="listbox" aria-label="Hasil pencarian outlet"></div>
+      <p id="outletProcessingNote" class="outlet-processing-note" hidden>Order sudah Diproses. Periksa batch yang sudah dibayar dan reservasi di Database Akun sebelum mencoba ulang bot. Mengubah outlet tidak mengulang batch otomatis.</p>
+      <p id="outletSaveStatus" class="form-status" role="status"></p>
+      <div class="outlet-dialog-actions">
+        <button id="cancelOutletEdit" class="quiet-button" type="button">Batal</button>
+        <button id="saveOutletEdit" class="primary-button" type="submit" disabled>Simpan Outlet</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="supabase-config.js"></script>
