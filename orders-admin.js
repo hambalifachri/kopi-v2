@@ -825,6 +825,7 @@ function renderOrderCard(order) {
     <div class="batch-list">${batchHtml}</div>
     <div class="order-actions">
       <button type="button" data-copy-order="${escapeHtml(order.id)}">Salin Format Order</button>
+      <button type="button" data-print-order="${escapeHtml(order.id)}">Cetak PDF</button>
       ${getOrderBrand(order) === "Kopi Kenangan" && ["new", "processing"].includes(order.status)
         ? `<button type="button" data-edit-outlet="${escapeHtml(order.id)}">Ubah Outlet</button>` : ""}
       ${order.payment_proof_url ? `<a href="${escapeHtml(order.payment_proof_url)}" target="_blank" rel="noopener">Lihat Bukti Bayar</a>` : ""}
@@ -1303,6 +1304,17 @@ ordersList.addEventListener("change", async (event) => {
 });
 
 ordersList.addEventListener("click", async (event) => {
+  const printButton = event.target.closest("[data-print-order]");
+  if (printButton) {
+    const order = orders.find((item) => item.id === printButton.dataset.printOrder);
+    if (!order) return;
+    try {
+      window.KopiOrderReceipt.printOrder(order, getOrderBatches(order));
+    } catch (error) {
+      ordersStatus.textContent = error.message || "Nota belum dapat dibuka. Coba lagi.";
+    }
+    return;
+  }
   const editButton = event.target.closest("[data-edit-outlet]");
   if (editButton) {
     const order = orders.find((item) => item.id === editButton.dataset.editOutlet);
