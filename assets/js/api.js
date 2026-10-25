@@ -486,6 +486,7 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
     ...localItem,
     ...overrideItem,
     id: getApiProductId(item),
+    outletCodes: [],
     brand: "kopi-kenangan",
     group: finalGroup,
     name: itemName,

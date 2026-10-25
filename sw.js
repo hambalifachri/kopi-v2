@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v7-menu-validation';
+const CACHE_NAME = 'fachrindah-pwa-v8-dynamic-outlet';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261015-menu-validation',
-  './assets/js/api.js?v=20261015-menu-validation'
+  './script.js?v=20261017-strict-batches',
+  './assets/js/api.js?v=20261025-dynamic-outlet'
 ];
 
 // 1. Install & Simpan ke Memori
