@@ -96,6 +96,7 @@ const KOPI_KENANGAN_EXCLUDED_NAME_PATTERNS = [
 ];
 
 const KOPI_KENANGAN_API_MENU_OVERRIDES = {
+  "og-thai-tea": { noSugar: true },
   "oatside-kopi-kenangan-mantan": {
     largePrice: 20000,
     oldLargePrice: 28000,

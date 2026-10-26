@@ -932,7 +932,12 @@ function isCrumbleRegularOnly(item) {
 }
 
 function getItemOptionGroups(item) {
-  const groups = getUnrestrictedItemOptionGroups(item);
+  let groups = getUnrestrictedItemOptionGroups(item);
+  if (item.brand === "kopi-kenangan" && String(item.name || "").trim().replace(/\s+/g, " ").toLowerCase() === "og thai tea") {
+    groups = groups.map(group => group.key === "sugar"
+      ? { ...group, options: group.options.filter(option => String(option.value).toLowerCase() !== "no sugar") }
+      : group);
+  }
   if (!isCrumbleRegularOnly(item)) return groups;
   return groups.map(group => group.key === "size"
     ? { ...group, options: group.options.filter(option => String(option.value).toLowerCase() !== "large") }
