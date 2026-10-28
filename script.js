@@ -546,7 +546,7 @@ function updateBrandHero() {
 function getActiveMenuItems() {
   return menuItems.filter((item) => {
     if (item.brand !== activeBrandId) return false;
-    if (activeBrandId === "kopi-kenangan" && /(tiramisu|toffee)/i.test(String(item.name || ""))) return false;
+    if (activeBrandId === "kopi-kenangan" && /(tiramisu|toffee|\bcreamy[\s-]+caramel[\s-]+latte\b)/i.test(String(item.name || ""))) return false;
     if (Array.isArray(item.outletCodes) && item.outletCodes.length > 0) {
       const outletCode = String(getKopiKenanganOutletState().outletCode || "");
       if (!item.outletCodes.includes(outletCode)) return false;

@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v9-og-thai-sugar';
+const CACHE_NAME = 'fachrindah-pwa-v10-hide-creamy-caramel';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261026-og-thai-sugar',
-  './assets/js/api.js?v=20261026-og-thai-sugar'
+  './script.js?v=20261028-hide-creamy-caramel',
+  './assets/js/api.js?v=20261028-hide-creamy-caramel'
 ];
 
 // 1. Install & Simpan ke Memori
