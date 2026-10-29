@@ -3039,6 +3039,10 @@ goCheckoutButton.addEventListener("click", async () => {
 
   const guidance = getKopkenBatchGuidance();
   if (guidance.error) { renderCart(); alert(guidance.error); return; }
+  if (cartBrandId === "kopi-kenangan") {
+    if (typeof window.confirmKopkenQueue !== "function") { alert("Muat ulang halaman untuk memeriksa antrean pesanan."); return; }
+    if (!await window.confirmKopkenQueue()) return;
+  }
   setModalStage("checkout");
 });
 
@@ -3057,6 +3061,10 @@ orderForm.addEventListener("submit", async (event) => {
   const submitButton = orderForm.querySelector('button[type="submit"]');
   submitButton.disabled = true;
   try {
+    if (getCartBrandId() === "kopi-kenangan") {
+      if (typeof window.confirmKopkenQueue !== "function") throw new Error("Muat ulang halaman untuk memeriksa antrean pesanan.");
+      if (!await window.confirmKopkenQueue()) return;
+    }
     const savedOrder = await createOrderRecord(formData);
     try {
       await saveOrderToSupabase(savedOrder);

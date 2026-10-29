@@ -1,11 +1,12 @@
-const CACHE_NAME = 'fachrindah-pwa-v10-hide-creamy-caramel';
+const CACHE_NAME = 'fachrindah-pwa-v11-queue-confirm';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261028-hide-creamy-caramel',
-  './assets/js/api.js?v=20261028-hide-creamy-caramel'
+  './script.js?v=20261029-queue-confirm',
+  './assets/js/api.js?v=20261028-hide-creamy-caramel',
+  './assets/js/order-queue.js?v=20261029-queue-confirm'
 ];
 
 // 1. Install & Simpan ke Memori
