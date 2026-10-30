@@ -1229,7 +1229,8 @@ function sortMenuItems(items) {
   if (activeSortMode === "price-desc") {
     return sorted.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
   }
-  return sorted.sort((a, b) => (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0));
+  return sorted.sort((a, b) => (window.menuSalesScore?.(b) || 0) - (window.menuSalesScore?.(a) || 0)
+    || (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0));
 }
 
 function syncMenuControls(activeItems) {
@@ -1437,11 +1438,12 @@ function renderMenu(query = "") {
   let htmlOutput = bannerHtml;
   const foundItems = new Set();
 
-  const bestSellers = sortMenuItems(modeItems.filter((item) => {
-    if (!item.isBestSeller) return false;
+  const rankedItems = typeof window.rankedBestSellers === "function"
+    ? window.rankedBestSellers(modeItems) : modeItems.filter(item => item.isBestSeller);
+  const bestSellers = rankedItems.filter((item) => {
     if (!normalizedQuery) return true;
     return normalizeText(item.name).includes(normalizedQuery);
-  }));
+  });
 
   if (bestSellers.length > 0) {
     bestSellers.forEach((item) => foundItems.add(item.id));
