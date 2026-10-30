@@ -1454,17 +1454,18 @@ function renderMenu(query = "") {
     </section>`;
   }
 
+  const categoryItems = new Set();
   htmlOutput += visibleCategories.map((category) => {
     const categoryMatches = normalizeText(category.title).includes(normalizedQuery);
     const items = sortMenuItems(modeItems.filter((item) => {
-      if (foundItems.has(item.id)) return false;
+      if (categoryItems.has(item.id)) return false;
       if (!getItemGroups(item).includes(category.id)) return false;
       if (!normalizedQuery) return true;
       return categoryMatches || normalizeText(item.name).includes(normalizedQuery);
     }));
 
     if (items.length === 0) return "";
-    items.forEach((item) => foundItems.add(item.id));
+    items.forEach((item) => { foundItems.add(item.id); categoryItems.add(item.id); });
 
     return `<section class="catalog-section" id="${category.id}">
       <h2>${escapeHtml(category.title)}</h2>

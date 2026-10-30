@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v12-sales-best-sellers';
+const CACHE_NAME = 'fachrindah-pwa-v13-best-seller-categories';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261030-sales-best-sellers',
+  './script.js?v=20261030-best-seller-categories',
   './assets/js/api.js?v=20261028-hide-creamy-caramel',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
