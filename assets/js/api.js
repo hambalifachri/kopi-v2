@@ -12,7 +12,7 @@ window.addEventListener('load', function() {
 
 // Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
-const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
+const KOPKEN_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog";
 const TEMP_KOPKEN_MENU_API = "https://kopken.bintanggitar.tech/api/menu";
 const TEMP_KOPKEN_OUTLETS_API = "https://www.bintanggstore.web.id/outlet.json";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
@@ -930,20 +930,23 @@ window.searchOutlets = async function(keyword) {
     let liveResponse;
 
     try {
-      liveResponse = await fetch(`${CF_API_BASE}/outlets?keyword=${encodeURIComponent(keyword)}&page=1`);
+      liveResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
+        headers: getBrandCatalogHeaders(),
+        signal: AbortSignal.timeout(10000),
+      });
       if (liveResponse.ok) {
         const liveData = await liveResponse.json();
         outlets = Array.isArray(liveData.outlets) ? liveData.outlets : [];
       }
     } catch (liveError) {
-      console.warn("Status outlet realtime tidak tersedia, memakai katalog Supabase:", liveError);
+      console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", liveError);
     }
 
     if (!outlets.length) {
       const config = window.KOPI_SUPABASE_CONFIG || {};
       const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
       if (!config.url || !config.anonKey || !safeKeyword) {
-        throw new Error(`API outlet realtime gagal${liveResponse ? ` (HTTP ${liveResponse.status})` : ""}`);
+        throw new Error(`API katalog outlet gagal${liveResponse ? ` (HTTP ${liveResponse.status})` : ""}`);
       }
       const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
       const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
