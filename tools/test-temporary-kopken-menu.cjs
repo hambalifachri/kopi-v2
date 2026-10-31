@@ -25,11 +25,12 @@ const context = {
   fetch: async url => {
     if (url.includes("/rest/v1/")) return response([synced]);
     if (url.includes("temporary-kopken-outlet-ids")) return response({ "KK.CBN.RKTLN": 4061 });
+    if (url.includes("outlet.json")) return response([{ code: "JKT.CRPALMERAH", is_open: false, open_status: "CLOSED" }]);
     if (failLive) throw new Error("API unavailable");
     return response(live);
   },
 };
-vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback, buildDynamicKopiKenanganItems, buildDynamicKopiKenanganBundles };`, context);
+vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback, buildDynamicKopiKenanganItems, buildDynamicKopiKenanganBundles, isOutletOutsideOrderingHours, isApiOutletClosed, renderOutletResults };`, context);
 
 (async () => {
   const result = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
@@ -47,5 +48,18 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   const fallback = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
   assert.equal(fallback.source, "supabase");
   assert.equal(fallback.payload.data.menu_groups[0].menu_products[0].name, "Wahyu Sapi Toast");
+  const palmerah = { open_time: "07:00:00", order_close_time: "21:30:00" };
+  assert.equal(context.testApi.isOutletOutsideOrderingHours(palmerah, new Date("2026-10-31T15:00:00Z")), true);
+  assert.equal(context.testApi.isOutletOutsideOrderingHours(palmerah, new Date("2026-10-31T07:00:00Z")), false);
+  assert.equal(context.testApi.isApiOutletClosed({ is_open: false, open_status: "CLOSED" }), true);
+  assert.equal(context.testApi.isApiOutletClosed({ is_open: true, open_status: "OPEN" }), false);
+  const results = { children: [], appendChild(child) { this.children.push(child); } };
+  context.document.getElementById = id => id === "outletResults" ? results : null;
+  context.document.createElement = tag => ({ tag, children: [], appendChild(child) { this.children.push(child); }, addEventListener() {} });
+  context.testApi.renderOutletResults([{ code: "JKT.CRPALMERAH", name: "Dapur Kitchen Palmerah", isOpen: false, openStatus: "TUTUP" }]);
+  assert.equal(results.children[0].disabled, true, "Closed outlets cannot be selected");
+  context.getCartBrandId = () => "kopi-kenangan";
+  context.getKopiKenanganOutletState = () => ({ selected: true, outletCode: "JKT.CRPALMERAH" });
+  await assert.rejects(context.window.validateKopkenCartAvailability(), /sedang tutup/);
   console.log("Temporary Kopken menu and Supabase fallback passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

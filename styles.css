@@ -3464,6 +3464,38 @@ body.tutorial-open {
   background: #f3f8f5;
 }
 
+.outlet-result .outlet-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.outlet-result-heading strong {
+  min-width: 0;
+}
+
+.outlet-result .outlet-schedule-status {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 4px;
+  color: #94511b;
+  background: #fff0cf;
+  font-size: 0.62rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.outlet-result-heading .outlet-closed-status {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 4px;
+  color: #9a352a;
+  background: #fbe4e0;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
 .outlet-result-closed,
 .outlet-result-closed:disabled {
   cursor: not-allowed;

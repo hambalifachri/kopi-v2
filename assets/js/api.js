@@ -14,6 +14,7 @@ window.addEventListener('load', function() {
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const CF_API_BASE = "https://api-kopken.novelveno65.workers.dev"; // URL Cloudflare Anda
 const TEMP_KOPKEN_MENU_API = "https://kopken.bintanggitar.tech/api/menu";
+const TEMP_KOPKEN_OUTLETS_API = "https://www.bintanggstore.web.id/outlet.json";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/brand-catalog";
 function getBrandCatalogHeaders() {
@@ -24,6 +25,8 @@ function getBrandCatalogHeaders() {
 }
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
 let outletSearchTimer = null;
+let outletSearchRequestId = 0;
+let temporaryOutletHoursPromise = null;
 let liveBrandOutletSearchTimer = null;
 let originalKopiKenanganMenu = null;
 let originalLiveBrandMenus = null;
@@ -697,6 +700,40 @@ function renderOutletNotFound() {
   outletResults.hidden = false;
 }
 
+function loadTemporaryOutletHours() {
+  if (!temporaryOutletHoursPromise) {
+    temporaryOutletHoursPromise = fetch(TEMP_KOPKEN_OUTLETS_API, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    }).then(async response => {
+      if (!response.ok) throw new Error(`Jadwal outlet HTTP ${response.status}`);
+      const rows = await response.json();
+      if (!Array.isArray(rows)) throw new Error("Format jadwal outlet tidak sesuai");
+      return new Map(rows.filter(row => row?.code).map(row => [String(row.code), row]));
+    }).catch(error => {
+      temporaryOutletHoursPromise = null;
+      throw error;
+    });
+  }
+  return temporaryOutletHoursPromise;
+}
+
+function isOutletOutsideOrderingHours(outlet, now = new Date()) {
+  const open = String(outlet?.open_time || "").slice(0, 5);
+  const close = String(outlet?.order_close_time || "").slice(0, 5);
+  if (!/^\d{2}:\d{2}$/.test(open) || !/^\d{2}:\d{2}$/.test(close) || open === close) return false;
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(now);
+  return open < close ? time < open || time >= close : time >= close && time < open;
+}
+
+function isApiOutletClosed(outlet) {
+  return outlet?.is_open === false
+    || String(outlet?.open_status || "").toUpperCase() === "CLOSED"
+    || String(outlet?.status_label || "").toUpperCase() === "CLOSED";
+}
+
 function renderOutletResults(outlets, keyword = "") {
   const outletResults = document.getElementById("outletResults");
   if (!outletResults) return;
@@ -715,24 +752,31 @@ function renderOutletResults(outlets, keyword = "") {
       const name = getOutletDisplayName(outlet);
       const code = getOutletCode(outlet);
       const address = outlet.address || outlet.city || outlet.area || "";
-      const isClosed = outlet.isOpen === false;
+      const isApiClosed = outlet.isOpen === false;
+      const scheduleClosed = outlet.scheduleClosed === true;
+      const isClosed = isApiClosed || scheduleClosed;
       const button = document.createElement("button");
       button.type = "button";
       button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
       button.disabled = isClosed;
       const nameElement = document.createElement("strong");
       nameElement.textContent = name;
-      button.appendChild(nameElement);
+      const heading = document.createElement("span");
+      heading.className = "outlet-result-heading";
+      heading.appendChild(nameElement);
+      if (isClosed) {
+        const statusElement = document.createElement("span");
+        statusElement.className = scheduleClosed && !isApiClosed ? "outlet-schedule-status" : "outlet-closed-status";
+        statusElement.textContent = scheduleClosed && !isApiClosed
+          ? "JADWAL TUTUP"
+          : outlet.openStatus || "Outlet sedang tutup";
+        heading.appendChild(statusElement);
+      }
+      button.appendChild(heading);
       if (address) {
         const addressElement = document.createElement("span");
         addressElement.textContent = address;
         button.appendChild(addressElement);
-      }
-      if (isClosed) {
-        const statusElement = document.createElement("span");
-        statusElement.className = "outlet-closed-status";
-        statusElement.textContent = outlet.openStatus || "Outlet sedang tutup";
-        button.appendChild(statusElement);
       }
       button.addEventListener("click", () => {
         const selectedOutlet = { ...outlet, name, code };
@@ -877,6 +921,8 @@ window.handleKopiKenanganData = function(data) {
 
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
+  const requestId = ++outletSearchRequestId;
+  const hoursPromise = loadTemporaryOutletHours().catch(() => null);
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
@@ -916,11 +962,25 @@ window.searchOutlets = async function(keyword) {
       }));
     }
 
+    if (requestId !== outletSearchRequestId) return;
     renderOutletResults(outlets, keyword);
+    hoursPromise.then(hours => {
+      if (!hours || requestId !== outletSearchRequestId) return;
+      const results = document.getElementById("outletResults");
+      const input = document.getElementById("outletSearch");
+      if (!results || results.hidden || String(input?.value || "").trim() !== keyword) return;
+      renderOutletResults(outlets.map(outlet => ({
+        ...outlet,
+        isOpen: isApiOutletClosed(hours.get(getOutletCode(outlet))) ? false : outlet.isOpen,
+        openStatus: isApiOutletClosed(hours.get(getOutletCode(outlet))) ? "TUTUP" : outlet.openStatus,
+        scheduleClosed: isOutletOutsideOrderingHours(hours.get(getOutletCode(outlet))),
+      })), keyword);
+    });
     if (outletHint) outletHint.textContent = outlets.length
       ? `${outlets.length} outlet ditemukan.`
       : "Outlet tidak ditemukan. Periksa kembali nama kota atau gerainya.";
   } catch (error) {
+    if (requestId !== outletSearchRequestId) return;
     clearOutletResults();
     if (outletHint) outletHint.textContent = "Pencarian outlet sedang bermasalah. Coba lagi beberapa saat.";
   }
@@ -1424,6 +1484,10 @@ window.validateKopkenCartAvailability = async function() {
   const outlet = getKopiKenanganOutletState();
   const code = String(outlet.outletCode || "");
   if (!code || !outlet.selected) throw new Error("Pilih outlet Kopi Kenangan dahulu sebelum melanjutkan.");
+  const outletStatus = await loadTemporaryOutletHours().then(hours => hours.get(code)).catch(() => null);
+  if (outletStatus && (isApiOutletClosed(outletStatus) || isOutletOutsideOrderingHours(outletStatus))) {
+    throw new Error("Outlet Kopi Kenangan ini sedang tutup. Pilih outlet lain sebelum melanjutkan.");
+  }
   let latest;
   try { latest = await loadKopkenMenuWithFallback(code); }
   catch { throw new Error("Ketersediaan menu outlet belum bisa diperiksa. Periksa koneksi lalu coba lagi sebelum transfer."); }
