@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v14-temporary-menu';
+const CACHE_NAME = 'fachrindah-pwa-v15-temporary-menu';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
   './script.js?v=20261031-temporary-menu',
-  './assets/js/api.js?v=20261031-temporary-menu',
+  './assets/js/api.js?v=20261031-temporary-menu-2',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',

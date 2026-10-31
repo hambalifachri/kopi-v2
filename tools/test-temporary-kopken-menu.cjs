@@ -37,7 +37,8 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   const items = context.testApi.buildDynamicKopiKenanganItems(result.payload, new Map());
   assert.equal(items.length, 2, "Exclude third-party promotional bundles");
   assert.equal(items[0].id, "9341610000", "Keep synced product identity");
-  assert.equal(items[0].oldPrice, 20000, "Use official price, not third-party selling price");
+  assert.equal(items[0].oldPrice, 19000, "Keep synced prices when size details are unavailable");
+  assert.equal(items[1].oldPrice, 24000, "Use official price for preview-only products");
   assert.equal(items[0].syncPending, false);
   assert.equal(items[1].syncPending, true);
   assert.equal(context.testApi.buildDynamicKopiKenanganBundles(items).length, 0);
