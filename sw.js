@@ -1,11 +1,12 @@
-const CACHE_NAME = 'fachrindah-pwa-v13-best-seller-categories';
+const CACHE_NAME = 'fachrindah-pwa-v14-temporary-menu';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261030-best-seller-categories',
-  './assets/js/api.js?v=20261028-hide-creamy-caramel',
+  './script.js?v=20261031-temporary-menu',
+  './assets/js/api.js?v=20261031-temporary-menu',
+  './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030'
@@ -41,7 +42,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   // Menu, settings, sessions and orders must never fall back to stale API data.
-  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)) {
+  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)
+    || url.hostname === 'kopken.bintanggitar.tech') {
     event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }

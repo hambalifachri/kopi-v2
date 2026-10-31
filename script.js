@@ -1102,7 +1102,7 @@ function menuCard(item) {
   // Pengecekan status toko sekarang MENGGUNAKAN brand item tersebut
   const store = checkStoreStatus(item.brand);
   
-  let currentlySoldOut = item.isSoldOut === true || store.closed;
+  let currentlySoldOut = item.isSoldOut === true || item.syncPending === true || store.closed;
   let unlockMessage = "";
 
   if (store.closed) {
@@ -1119,7 +1119,7 @@ function menuCard(item) {
     }
   }
 
-  const soldOutClass = currentlySoldOut ? "sold-out" : "";
+  const soldOutClass = item.syncPending ? "sync-pending" : (currentlySoldOut ? "sold-out" : "");
   const bestSellerClass = item.isBestSeller ? "best-seller" : "";
   const brandClass = item.brand ? `brand-${item.brand}` : "";
   const itemBrand = getBrandById(item.brand);
@@ -1129,7 +1129,7 @@ function menuCard(item) {
   const displayOldPrice = Number(item.oldPrice || 0) + getKopkenPremiumOutletOfficialSurcharge(item);
   const resellerBadge = isResellerEligible(item) ? `<span class="reseller-price-badge">Reseller hemat ${rupiah.format(RESELLER_DISCOUNT)}</span>` : "";
   
-  const buttonText = store.closed ? "Tutup" : (currentlySoldOut ? "Habis" : "Tambah");
+  const buttonText = store.closed ? "Tutup" : (item.syncPending ? "Menunggu sync" : (currentlySoldOut ? "Habis" : "Tambah"));
   const buttonHtml = currentlySoldOut 
     ? `<button class="add-button" type="button" disabled>${buttonText}</button>`
     : `<button class="add-button" type="button" data-id="${item.id}">Tambah</button>`;
@@ -1845,6 +1845,7 @@ function syncIceOptions() {
 function selectItemForOptions(id) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
+  if (item.syncPending) return;
   if (isResellerActive() && isPromoItem(item)) {
     alert("Bundle tidak tersedia untuk akun reseller.");
     return;
@@ -1926,6 +1927,7 @@ function getKopkenBatchGuidance() {
 function addItem(id, note = "", quantity = 1) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
+  if (item.syncPending) return;
   if (!canAddBrandToCart(item)) return;
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
   const limitError = checkKopkenItemLimit(item.brand, quantity, getOfficialItemPrice({ ...item, options }, true));
