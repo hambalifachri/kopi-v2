@@ -734,6 +734,24 @@ function isApiOutletClosed(outlet) {
     || String(outlet?.status_label || "").toUpperCase() === "CLOSED";
 }
 
+function matchesTemporaryOutlet(outlet, keyword) {
+  const searchText = `${outlet?.name || ""} ${outlet?.address || ""}`.toLocaleLowerCase("id");
+  return String(keyword || "").toLocaleLowerCase("id").split(/\s+/).filter(Boolean)
+    .every(token => searchText.includes(token));
+}
+
+function fromTemporaryOutlet(outlet) {
+  return {
+    code: outlet.code,
+    name: outlet.name,
+    address: outlet.address || "",
+    category: outlet.category || "",
+    isOpen: isApiOutletClosed(outlet) ? false : null,
+    openStatus: isApiOutletClosed(outlet) ? "TUTUP" : "",
+    scheduleClosed: isOutletOutsideOrderingHours(outlet),
+  };
+}
+
 function renderOutletResults(outlets, keyword = "") {
   const outletResults = document.getElementById("outletResults");
   if (!outletResults) return;
@@ -922,31 +940,42 @@ window.handleKopiKenanganData = function(data) {
 window.searchOutlets = async function(keyword) {
   const outletHint = document.getElementById("outletSearchHint");
   const requestId = ++outletSearchRequestId;
-  const hoursPromise = loadTemporaryOutletHours().catch(() => null);
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
     let outlets = [];
-    let liveResponse;
+    const temporaryOutlets = await loadTemporaryOutletHours().catch(() => null);
+    if (temporaryOutlets) {
+      outlets = [...temporaryOutlets.values()]
+        .filter(outlet => matchesTemporaryOutlet(outlet, keyword))
+        .slice(0, 20)
+        .map(fromTemporaryOutlet);
+    }
 
-    try {
-      liveResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
-        headers: getBrandCatalogHeaders(),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (liveResponse.ok) {
-        const liveData = await liveResponse.json();
-        outlets = Array.isArray(liveData.outlets) ? liveData.outlets : [];
+    if (!outlets.length) {
+      try {
+        const catalogResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
+          headers: getBrandCatalogHeaders(),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (catalogResponse.ok) {
+          const catalogData = await catalogResponse.json();
+          outlets = Array.isArray(catalogData.outlets) ? catalogData.outlets : [];
+          outlets = outlets.map(outlet => {
+            const temporary = temporaryOutlets?.get(getOutletCode(outlet));
+            return temporary ? { ...outlet, ...fromTemporaryOutlet(temporary) } : outlet;
+          });
+        }
+      } catch (catalogError) {
+        console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", catalogError);
       }
-    } catch (liveError) {
-      console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", liveError);
     }
 
     if (!outlets.length) {
       const config = window.KOPI_SUPABASE_CONFIG || {};
       const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
       if (!config.url || !config.anonKey || !safeKeyword) {
-        throw new Error(`API katalog outlet gagal${liveResponse ? ` (HTTP ${liveResponse.status})` : ""}`);
+        throw new Error("API katalog outlet gagal");
       }
       const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
       const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
@@ -962,23 +991,14 @@ window.searchOutlets = async function(keyword) {
         category: row.category,
         isOpen: null,
         openStatus: "Status buka belum dapat diperbarui",
-      }));
+      })).map(outlet => {
+        const temporary = temporaryOutlets?.get(getOutletCode(outlet));
+        return temporary ? { ...outlet, ...fromTemporaryOutlet(temporary) } : outlet;
+      });
     }
 
     if (requestId !== outletSearchRequestId) return;
     renderOutletResults(outlets, keyword);
-    hoursPromise.then(hours => {
-      if (!hours || requestId !== outletSearchRequestId) return;
-      const results = document.getElementById("outletResults");
-      const input = document.getElementById("outletSearch");
-      if (!results || results.hidden || String(input?.value || "").trim() !== keyword) return;
-      renderOutletResults(outlets.map(outlet => ({
-        ...outlet,
-        isOpen: isApiOutletClosed(hours.get(getOutletCode(outlet))) ? false : outlet.isOpen,
-        openStatus: isApiOutletClosed(hours.get(getOutletCode(outlet))) ? "TUTUP" : outlet.openStatus,
-        scheduleClosed: isOutletOutsideOrderingHours(hours.get(getOutletCode(outlet))),
-      })), keyword);
-    });
     if (outletHint) outletHint.textContent = outlets.length
       ? `${outlets.length} outlet ditemukan.`
       : "Outlet tidak ditemukan. Periksa kembali nama kota atau gerainya.";

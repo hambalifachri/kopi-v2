@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v17-own-outlet-api';
+const CACHE_NAME = 'fachrindah-pwa-v18-bintang-primary-outlets';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261031-outlet-schedule',
   './menu-data.js?v=20260825-1',
   './script.js?v=20261031-temporary-menu',
-  './assets/js/api.js?v=20261031-own-outlet-api',
+  './assets/js/api.js?v=20261031-bintang-primary-outlets',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',

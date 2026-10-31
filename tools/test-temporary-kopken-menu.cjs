@@ -16,6 +16,8 @@ const live = { success: true, storeCode: "KK.CBN.RKTLN", categories: [
   { categoryName: "Paket Kombo Bintang Store", items: [{ id: "bintang_combo_1", name: "Paket", originalPrice: 50000 }] },
 ] };
 let failLive = false;
+let failOutlets = false;
+let ownSearches = 0;
 const response = data => ({ ok: true, json: async () => data });
 const context = {
   window: { addEventListener() {}, kopiKenanganOutletState: {}, KOPI_SUPABASE_CONFIG: { url: "https://example.supabase.co", anonKey: "test" } },
@@ -24,9 +26,15 @@ const context = {
   console,
   fetch: async url => {
     if (url.includes("/rest/v1/")) return response([synced]);
-    if (url.includes("functions/v1/kopken-catalog")) return response({ outlets: [{ code: "JKT.CRPALMERAH", name: "Dapur Kitchen Palmerah" }] });
+    if (url.includes("functions/v1/kopken-catalog")) {
+      ownSearches++;
+      return response({ outlets: [{ code: "JKT.CRPALMERAH", name: "Dapur Kitchen Palmerah" }] });
+    }
     if (url.includes("temporary-kopken-outlet-ids")) return response({ "KK.CBN.RKTLN": 4061 });
-    if (url.includes("outlet.json")) return response([{ code: "JKT.CRPALMERAH", is_open: false, open_status: "CLOSED" }]);
+    if (url.includes("outlet.json")) {
+      if (failOutlets) throw new Error("Outlet list unavailable");
+      return response([{ code: "JKT.CRPALMERAH", name: "Dapur Kitchen Palmerah", address: "Palmerah", is_open: false, open_status: "CLOSED" }]);
+    }
     if (failLive) throw new Error("API unavailable");
     return response(live);
   },
@@ -62,10 +70,15 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   context.testApi.renderOutletResults([{ code: "JKT.CRPALMERAH", name: "Dapur Kitchen Palmerah", isOpen: false, openStatus: "TUTUP" }]);
   assert.equal(results.children[0].disabled, true, "Closed outlets cannot be selected");
   await context.window.searchOutlets("Palmerah");
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(results.children[0].disabled, true, "Own catalog search must apply the closed API status");
+  assert.equal(results.children[0].disabled, true, "Bintang outlet status must close the outlet");
+  assert.equal(ownSearches, 0, "Bintang outlet list must be the primary source");
   context.getCartBrandId = () => "kopi-kenangan";
   context.getKopiKenanganOutletState = () => ({ selected: true, outletCode: "JKT.CRPALMERAH" });
   await assert.rejects(context.window.validateKopkenCartAvailability(), /sedang tutup/);
+  failOutlets = true;
+  vm.runInNewContext("temporaryOutletHoursPromise = null", context);
+  await context.window.searchOutlets("Palmerah");
+  assert.equal(ownSearches, 1, "Own Supabase API must be used when Bintang fails");
+  assert.equal(results.children[0].disabled, false, "Fallback without a status must not claim the outlet is closed");
   console.log("Temporary Kopken menu and Supabase fallback passed.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
