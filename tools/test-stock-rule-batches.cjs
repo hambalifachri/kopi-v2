@@ -1,0 +1,28 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const source=fs.readFileSync('script.js','utf8');
+const start=source.indexOf('function buildRuleBasedKopkenBatches(');
+const end=source.indexOf('function buildKopkenOrderBatches(',start);
+const ctx={kopkenMinimumEnabled:true,kopkenMinimumOfficialTotal:50000,kopkenMax3ItemsEnabled:true};
+vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
+const batches=values=>ctx.buildRuleBasedKopkenBatches(values.map(batchPrice=>({batchPrice})));
+const totals=result=>Array.from(result,b=>b.reduce((sum,item)=>sum+item.batchPrice,0));
+assert.deepEqual(totals(batches([15000,15000,15000])),[45000]); // Remains visibly incomplete; checkout rejects it.
+const cheap=batches([15000,15000,15000,10000]);
+assert.deepEqual(totals(cheap),[55000]);assert.equal(cheap[0].length,4);
+assert.deepEqual(totals(batches([10000,10000,10000,10000,10000,10000])),[50000,10000]);
+assert.deepEqual(totals(batches([20000,20000,20000,20000,20000,20000])),[60000,60000]);
+assert.deepEqual(totals(batches([30000,25000,10000])),[65000]);
+const over=batches([30000,26000,10000]);assert(over.every(b=>b.reduce((s,i)=>s+i.batchPrice,0)<=65000));
+const guidanceStart=source.indexOf('function getKopkenBatchGuidance(');
+const guidanceEnd=source.indexOf('function addItem(',guidanceStart);
+Object.assign(ctx,{getCartBrandId:()=> 'kopi-kenangan',cart:new Map([['x',{}]]),rupiah:new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0})});
+vm.runInContext(source.slice(guidanceStart,guidanceEnd),ctx);
+ctx.buildStoredOrderBatches=()=>[{number:1,items:[{qty:3}],voucherEligibleTotal:45000}];
+assert(ctx.getKopkenBatchGuidance().error);
+ctx.buildStoredOrderBatches=()=>[{number:1,items:[{qty:4}],voucherEligibleTotal:55000}];
+assert.equal(ctx.getKopkenBatchGuidance().error,'');
+ctx.buildStoredOrderBatches=()=>[{number:1,items:[{qty:3}],voucherEligibleTotal:66000}];
+assert(ctx.getKopkenBatchGuidance().error);
+console.log('Batch range 50–65k, cheap-item exception, stop adding after minimum, multiple batches, invalid checkout: OK.');

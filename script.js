@@ -1903,7 +1903,7 @@ function renderKopkenBatchGuidance(guidance) {
   }).join("");
   return `<section class="cart-batch-guidance" role="status" style="margin:18px 0;padding:14px 16px;background:#faf5f0;border:1px solid #eaded5;border-radius:12px">
     <strong style="display:block;font-size:15px">Pembagian pesanan otomatis</strong>
-    <p style="margin:4px 0 10px;font-size:12px;line-height:1.5;color:#78665b">Dasar harga outlet, tanpa topping/addon.</p>
+    <p style="margin:4px 0 10px;font-size:12px;line-height:1.5;color:#78665b">Dasar harga outlet, tanpa topping/addon.${kopkenMinimumEnabled ? ` Setiap batch wajib ${rupiah.format(kopkenMinimumOfficialTotal)}–Rp65.000.` : ""}${kopkenMax3ItemsEnabled ? " Batas 3 barang per batch. Jika 3 barang belum mencapai minimum, boleh tambah sampai minimum tercapai; barang selanjutnya masuk batch baru." : ""}</p>
     ${rows}
     ${guidance.error ? '<p style="margin:8px 0 0;font-size:13px;font-weight:600;line-height:1.5">Sesuaikan keranjang untuk melanjutkan pembayaran. Batch akan disusun ulang otomatis.</p>' : ''}
   </section>`;
