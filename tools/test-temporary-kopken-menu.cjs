@@ -53,6 +53,15 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   assert.equal(items[1].syncPending, true);
   assert.equal(context.testApi.buildDynamicKopiKenanganBundles(items).length, 0);
 
+  const originalSyncedProducts = synced.menu.data.menu_groups[0].menu_products;
+  synced.menu.data.menu_groups[0].menu_products = Array.from({ length: 20 }, (_, index) => ({
+    id: index + 1,
+    product_code: `product-${index + 1}`,
+    name: `Coffee ${index + 1}`,
+    brand: "Kopi Kenangan",
+    price: 19000,
+    orig_price: 19000,
+  }));
   live.cached = true;
   const originalCategories = live.categories;
   live.categories = [{ categoryName: "Menu Lengkap", items: originalCategories[0].items }];
@@ -60,6 +69,9 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   assert.equal(degraded.source, "supabase", "Partial third-party cache must not hide synced products");
   live.categories = originalCategories;
   live.cached = false;
+  const incompleteDirect = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
+  assert.equal(incompleteDirect.source, "supabase", "Incomplete direct API data must also fall back");
+  synced.menu.data.menu_groups[0].menu_products = originalSyncedProducts;
 
   failLive = true;
   const fallback = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
