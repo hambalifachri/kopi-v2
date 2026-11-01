@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v22-proof-simple';
+const CACHE_NAME = 'fachrindah-pwa-v23-tomoro-bintang-menu';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261031-outlet-schedule',
   './menu-data.js?v=20260825-1',
   './script.js?v=20261101-proof-simple',
-  './assets/js/api.js?v=20261101-meruya-menu-completeness',
+  './assets/js/api.js?v=20261101-tomoro-bintang-menu',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',

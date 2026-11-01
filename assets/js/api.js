@@ -15,6 +15,7 @@ const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const KOPKEN_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog";
 const TEMP_KOPKEN_MENU_API = "https://kopken.bintanggitar.tech/api/menu";
 const TEMP_KOPKEN_OUTLETS_API = "https://www.bintanggstore.web.id/outlet.json";
+const TEMP_TOMORO_API_BASE = "https://kopken.bintanggitar.tech/api/tomoro";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/brand-catalog";
 function getBrandCatalogHeaders() {
@@ -1167,13 +1168,14 @@ function renderLiveBrandOutletResults(brandId, outlets) {
     return;
   }
 
+  const closed = (outlet) => brandId === "tomoro" ? outlet?.isOpen === false : outlet?.is_open === false;
   [...outlets]
-    .sort((first, second) => Number(first?.is_open === false) - Number(second?.is_open === false))
+    .sort((first, second) => Number(closed(first)) - Number(closed(second)))
     .forEach((outlet) => {
       const name = liveBrandOutletName(brandId, outlet);
       const code = liveBrandOutletCode(brandId, outlet);
       if (!name || !code) return;
-      const isClosed = brandId === "fore" && outlet?.is_open === false;
+      const isClosed = closed(outlet);
       const button = document.createElement("button");
       button.type = "button";
       button.className = `outlet-result${isClosed ? " outlet-result-closed" : ""}`;
@@ -1202,6 +1204,24 @@ window.searchLiveBrandOutlets = async function(brandId, keyword) {
   if (!["tomoro", "fore"].includes(brandId) || keyword.trim().length < 3) return;
   setLiveBrandHint("Mencari outlet...");
   try {
+    if (brandId === "tomoro") {
+      try {
+        const response = await fetch(`${TEMP_TOMORO_API_BASE}/outlets?search=${encodeURIComponent(keyword.trim())}`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data?.success !== true || !Array.isArray(data.outlets)) throw new Error("Format outlet Tomoro tidak valid");
+        if (data.outlets.length) {
+          renderLiveBrandOutletResults(brandId, data.outlets);
+          setLiveBrandHint(`${data.outlets.length} outlet ditemukan. Pilih salah satu.`);
+          return;
+        }
+      } catch (error) {
+        console.warn("Pencarian Tomoro sementara gagal; mencoba katalog cadangan:", error);
+      }
+    }
     const url = `${BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
     const response = await fetch(url, { headers: getBrandCatalogHeaders() });
     const data = await response.json();
@@ -1427,25 +1447,59 @@ function buildTomoroLiveMenu(payload) {
   return matched;
 }
 
-async function loadLiveBrandMenu(brandId, outletCode) {
-  if (brandId === "tomoro") {
-    restoreLiveBrandMenu(brandId);
-    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "local" });
-    if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
-      setLiveBrandHint("Menu Tomoro lokal ditampilkan untuk outlet terpilih.");
+function buildBintangTomoroMenu(payload) {
+  if (payload?.success !== true || !Array.isArray(payload.categories)) throw new Error("Format menu Tomoro tidak valid");
+  const products = payload.categories.flatMap((category) => category.products || [])
+    .filter((product) => product && !product.isCombo && isTomoroDrinkMenu(product));
+  const localByName = getLocalTomoroMenuByName();
+  const seen = new Set();
+  const items = products.flatMap((product) => {
+    const name = String(product.name || "").trim();
+    const key = normalizedLiveName(name);
+    const officialPrice = firstNumber(product.originalPrice, product.price);
+    if (!key || !officialPrice || seen.has(key)) return [];
+    seen.add(key);
+    const local = localByName.get(key);
+    if (local) {
+      return [{
+        ...local,
+        image: product.image || local.image,
+        isSoldOut: product.isSoldOut === true,
+        liveOutletMenu: true,
+      }];
     }
-    if (typeof renderMenu === "function") renderMenu();
-    return;
-  }
+    return [{
+      id: `tomoro-preview-${normalizeApiText(product.id || name)}`,
+      brand: "tomoro",
+      group: tomoroUiMenuGroup(product),
+      name,
+      oldPrice: officialPrice,
+      price: officialPrice,
+      image: product.image || undefined,
+      options: [],
+      syncPending: true,
+      liveOutletMenu: true,
+    }];
+  });
+  const matched = items.filter((item) => !item.syncPending).length;
+  if (matched < 3 || matched < localByName.size * 0.6) throw new Error("Data menu Tomoro sementara belum lengkap");
+  return items;
+}
+
+async function loadLiveBrandMenu(brandId, outletCode) {
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
-    const response = await fetch(`${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`, {
-      headers: getBrandCatalogHeaders(),
-    });
+    const isTomoro = brandId === "tomoro";
+    const url = isTomoro
+      ? `${TEMP_TOMORO_API_BASE}/menu?store_code=${encodeURIComponent(outletCode)}`
+      : `${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
+    const response = await fetch(url, isTomoro
+      ? { cache: "no-store", signal: AbortSignal.timeout(12000) }
+      : { headers: getBrandCatalogHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
-    const items = brandId === "fore" ? buildForeLiveMenu(data) : buildTomoroLiveMenu(data);
+    const items = isTomoro ? buildBintangTomoroMenu(data) : buildForeLiveMenu(data);
     if (!items.length) throw new Error("Tidak ada menu yang cocok di outlet ini");
     replaceLiveBrandMenu(brandId, items);
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "live" });
