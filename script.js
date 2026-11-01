@@ -290,7 +290,6 @@ const backToCartButton = document.querySelector("#backToCart");
 const paymentProofInput = document.querySelector("#modalPaymentProof");
 const manualProofInput = document.querySelector("#manualPaymentProof");
 const proofPreview = document.querySelector("#proofPreview");
-const shareProofButton = document.querySelector("#shareProofButton");
 const selectedDrink = document.querySelector("#selectedDrink");
 const itemNoteInput = document.querySelector("#itemNote");
 const itemNoteField = document.querySelector(".item-note-field");
@@ -2683,8 +2682,7 @@ orderForm.addEventListener("reset", () => setTimeout(() => { syncPaymentProofCho
 function updateProofPreview() {
   syncPaymentProofChoice();
   const file = getPaymentProofFile();
-  if (!file) { proofPreview.innerHTML = manualProofInput?.checked ? "<span>Bukti akan dikirim manual lewat WhatsApp setelah order tersimpan.</span>" : "<span>Belum ada bukti dipilih</span>"; shareProofButton.disabled = true; return; }
-  shareProofButton.disabled = false;
+  if (!file) { proofPreview.innerHTML = manualProofInput?.checked ? "<span>Bukti akan dikirim manual lewat WhatsApp setelah order tersimpan.</span>" : "<span>Belum ada bukti dipilih</span>"; return; }
   if (file.type.startsWith("image/")) {
     proofPreviewUrl = URL.createObjectURL(file);
     proofPreview.innerHTML = `<img src="${proofPreviewUrl}" alt="Preview" /><span>${file.name}</span>`;
