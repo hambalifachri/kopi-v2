@@ -288,6 +288,7 @@ const continueShoppingButton = document.querySelector("#continueShopping");
 const goCheckoutButton = document.querySelector("#goCheckout");
 const backToCartButton = document.querySelector("#backToCart");
 const paymentProofInput = document.querySelector("#modalPaymentProof");
+const manualProofInput = document.querySelector("#manualPaymentProof");
 const proofPreview = document.querySelector("#proofPreview");
 const shareProofButton = document.querySelector("#shareProofButton");
 const selectedDrink = document.querySelector("#selectedDrink");
@@ -1676,7 +1677,7 @@ async function createOrderRecord(formData) {
   const subtotal = entries.reduce((total, item) => total + item.price * item.qty, 0);
   const takeawayPlastic = getCartBrandId() === "kopi-kenangan" && formData.get("takeawayPlastic") === "yes";
   const takeawayPlasticFee = takeawayPlastic ? TAKEAWAY_PLASTIC_FEE : 0;
-  const proofFile = getPaymentProofFile();
+  const { file: proofFile, manual: manualProof } = getPaymentProofChoice(formData);
   const orderId = makeOrderId();
   const contactMethod = String(formData.get("contactMethod") || "whatsapp");
   const customerEmail = String(formData.get("customerEmail") || "").trim();
@@ -1709,6 +1710,7 @@ async function createOrderRecord(formData) {
     note: [
       takeawayPlastic ? `Plastik Take Away: Ya (${rupiah.format(takeawayPlasticFee)})` : "",
       `Kontak: ${contactMethod === "email" ? `Email ${customerEmail}` : "Via chat WhatsApp"}`,
+      manualProof ? "Bukti transfer akan dikirim manual lewat WhatsApp; belum diverifikasi" : "",
     ].filter(Boolean).join(" | "),
     takeawayPlastic,
     takeawayPlasticFee,
@@ -1726,6 +1728,7 @@ async function createOrderRecord(formData) {
       type: proofFile ? proofFile.type : "",
       size: proofFile ? proofFile.size : 0,
       uploadError: proofUploadError,
+      manual: manualProof,
     }
   };
 }
@@ -2017,6 +2020,7 @@ function formatOrderItemForWA(item, index) {
 
 function formatProofForWA(savedOrder) {
   if (savedOrder?.proof?.url) return savedOrder.proof.url;
+  if (savedOrder?.proof?.manual) return "Akan dikirim manual di chat WhatsApp ini. Mohon lampirkan foto bukti transfer setelah pesan order terkirim; pembayaran belum diverifikasi.";
 
   const fileName = savedOrder?.proof?.name || "file bukti";
   return `${fileName} (upload otomatis gagal, customer diminta kirim bukti manual di chat ini)`;
@@ -2651,9 +2655,35 @@ function isAndroidDevice() { return /Android/i.test(navigator.userAgent); }
 function getCartQuantity() { return [...cart.values()].reduce((total, item) => total + item.qty, 0); }
 function getPaymentProofFile() { return paymentProofInput.files && paymentProofInput.files[0] ? paymentProofInput.files[0] : null; }
 
-function updateProofPreview() {
+function getPaymentProofChoice(formData) {
   const file = getPaymentProofFile();
-  if (!file) { proofPreview.innerHTML = "<span>Belum ada bukti dipilih</span>"; shareProofButton.disabled = true; return; }
+  const manual = !file && formData.get("manualProof") === "yes";
+  if (!file && !manual) throw new Error("Pilih bukti transfer, atau centang kirim bukti manual lewat WhatsApp jika tidak bisa upload.");
+  if (manual && formData.get("contactMethod") === "email") throw new Error("Untuk mengirim bukti manual, pilih kontak WhatsApp terlebih dahulu.");
+  return {file,manual};
+}
+
+function syncPaymentProofChoice() {
+  const manual = Boolean(manualProofInput?.checked);
+  paymentProofInput.required = !manual;
+  const help = document.querySelector("#manualProofHelp");
+  if (help) help.hidden = !manual;
+}
+
+manualProofInput?.addEventListener("change", () => {
+  if (manualProofInput.checked) {
+    const whatsapp = orderForm.querySelector('input[name="contactMethod"][value="whatsapp"]');
+    if (whatsapp) whatsapp.checked = true;
+    syncContactMethodFields();
+  }
+  updateProofPreview();
+});
+orderForm.addEventListener("reset", () => setTimeout(() => { syncPaymentProofChoice(); updateProofPreview(); },0));
+
+function updateProofPreview() {
+  syncPaymentProofChoice();
+  const file = getPaymentProofFile();
+  if (!file) { proofPreview.innerHTML = manualProofInput?.checked ? "<span>Bukti akan dikirim manual lewat WhatsApp setelah order tersimpan.</span>" : "<span>Belum ada bukti dipilih</span>"; shareProofButton.disabled = true; return; }
   shareProofButton.disabled = false;
   if (file.type.startsWith("image/")) {
     proofPreviewUrl = URL.createObjectURL(file);

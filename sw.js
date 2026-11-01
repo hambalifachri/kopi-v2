@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v20-meruya-menu-completeness';
+const CACHE_NAME = 'fachrindah-pwa-v21-manual-proof';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261031-outlet-schedule',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261031-temporary-menu',
+  './script.js?v=20261101-manual-proof',
   './assets/js/api.js?v=20261101-meruya-menu-completeness',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',

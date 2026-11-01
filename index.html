@@ -435,6 +435,12 @@
                   Upload bukti transfer QRIS
                   <input id="modalPaymentProof" name="paymentProof" type="file" accept="image/*,.pdf" required />
                 </label>
+                <p class="proof-help">Tidak bisa memilih foto di browser Threads/Instagram? Buka tautan lewat Chrome atau Safari. Jika tetap gagal, gunakan pilihan kirim manual di bawah agar pesanan tidak perlu diulang.</p>
+                <label style="display:flex;align-items:flex-start;gap:8px;line-height:1.5">
+                  <input id="manualPaymentProof" name="manualProof" type="checkbox" value="yes" style="width:auto;flex:none;margin-top:4px" />
+                  <span>Saya tidak bisa upload. Saya akan kirim bukti transfer lewat WhatsApp admin setelah menyimpan order.</span>
+                </label>
+                <p class="proof-help" id="manualProofHelp" hidden>Pesanan akan dicatat tanpa lampiran. Setelah WhatsApp terbuka, kirim pesan order lalu lampirkan foto bukti transfer. Pembayaran tetap harus diperiksa admin.</p>
                 <div class="proof-preview" id="proofPreview">
                   <span>Belum ada bukti dipilih</span>
                 </div>
@@ -599,7 +605,7 @@
     <script src="gallery-images.js"></script>
     <script src="menu-data.js?v=20260825-1"></script>
     <script src="assets/js/api.js?v=20261101-meruya-menu-completeness"></script>
-    <script src="script.js?v=20261031-temporary-menu"></script>
+    <script src="script.js?v=20261101-manual-proof"></script>
     <script src="assets/js/best-sellers.js?v=20261030-1"></script>
     <script src="assets/js/order-queue.js?v=20261029-queue-confirm"></script>
     <script src="assets/js/mobile-dialogs.js?v=20261015-1"></script>
