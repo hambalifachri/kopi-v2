@@ -53,6 +53,14 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   assert.equal(items[1].syncPending, true);
   assert.equal(context.testApi.buildDynamicKopiKenanganBundles(items).length, 0);
 
+  live.cached = true;
+  const originalCategories = live.categories;
+  live.categories = [{ categoryName: "Menu Lengkap", items: originalCategories[0].items }];
+  const degraded = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
+  assert.equal(degraded.source, "supabase", "Partial third-party cache must not hide synced products");
+  live.categories = originalCategories;
+  live.cached = false;
+
   failLive = true;
   const fallback = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
   assert.equal(fallback.source, "supabase");

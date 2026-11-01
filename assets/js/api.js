@@ -116,9 +116,20 @@ async function loadKopkenMenuWithFallback(outletCode) {
           }];
         }),
       }));
-    if (!groups.some(group => group.menu_products.some(product => isSupportedKopiKenanganApiProduct({
+    const liveAvailableCount = groups.flatMap(group => group.menu_products.map(product => ({
       ...product, _category_name: group.group_name,
-    })))) throw new Error("Menu sementara kosong");
+    }))).filter(isSupportedKopiKenanganApiProduct).length;
+    if (!liveAvailableCount) throw new Error("Menu sementara kosong");
+    const syncedAvailableCount = synced ? getApiMenuGroups(synced.payload).flatMap(group =>
+      (Array.isArray(group.menu_products) ? group.menu_products : []).map(product => ({
+        ...product, _category_name: group.group_name,
+      }))
+    ).filter(isSupportedKopiKenanganApiProduct).length : 0;
+    const degradedCache = live.cached === true && synced && (
+      live.categories.some(group => normalizeApiText(group.categoryName) === "menu-lengkap")
+      || (syncedAvailableCount >= 10 && liveAvailableCount < syncedAvailableCount * 0.7)
+    );
+    if (degradedCache) throw new Error("Cache menu sementara tidak lengkap");
     return { category: synced?.category || "", payload: { data: { menu_groups: groups } }, source: "temporary-api" };
   } catch (error) {
     const synced = await syncedPromise;
