@@ -4,7 +4,7 @@ const UPSTREAM_BASE = "https://www.nufsfood.shop/api";
 const FORE_API_BASE = "https://api.fore.coffee";
 const FORE_IMAGE_BASE = "https://static.fore.coffee/";
 const TOMORO_API_BASE = "https://api-service.tomoro-coffee.id";
-const FORE_APP_VERSION = Deno.env.get("FORE_APP_VERSION") || "5.3.0";
+const FORE_APP_VERSION = "5.7.2";
 const FORE_ACCESS_TOKEN_ENV = Deno.env.get("FORE_ACCESS_TOKEN") || "";
 const TOMORO_RUNTIME_HEADERS_ENV = Deno.env.get("TOMORO_RUNTIME_HEADERS") || "";
 const JSON_HEADERS = {
@@ -26,6 +26,14 @@ function cleanKeyword(value: string | null) {
 function cleanOutletCode(value: string | null) {
   const code = String(value || "").trim();
   return /^[a-zA-Z0-9._-]{1,80}$/.test(code) ? code : "";
+}
+
+function matchesForeOutletKeyword(outlet: { name: string; city: string }, keyword: string) {
+  const normalize = (value: string) => value.toLocaleLowerCase("id-ID").replace(/[^a-z0-9]+/g, " ").trim();
+  const search = normalize(keyword.replace(/^fore(?:\s+coffee)?\s*[-,:]?\s*/i, ""));
+  if (!search) return false;
+  const outletText = normalize(`${outlet.name} ${outlet.city}`);
+  return search.split(" ").every((word) => outletText.includes(word));
 }
 
 async function fetchJson(url: string, init?: RequestInit) {
@@ -81,6 +89,8 @@ async function foreOfficial(path: string) {
     headers: {
       "access-token": accessToken,
       "app-version": FORE_APP_VERSION,
+      "country-id": "1",
+      platform: "android",
     },
   });
 }
@@ -169,10 +179,25 @@ function foreImageUrl(value: unknown) {
 
 async function getOfficialForeOutlets() {
   if (foreOutletCache && foreOutletCache.expiresAt > Date.now()) return foreOutletCache.outlets;
-  const data = await foreOfficial("/store/all?lat=-6.200000&long=106.816666&country_id=1&company_code=fki");
-  const outlets: ForeOutlet[] = Array.isArray(data?.payload) ? data.payload : [];
-  foreOutletCache = { expiresAt: Date.now() + 2 * 60 * 1000, outlets };
-  return outlets;
+  let lastError: unknown;
+  for (const countryId of [1, 0, 2]) {
+    const path = `/store/all?lat=-6.200000&long=106.816666&country_id=${countryId}&company_code=fki`;
+    try {
+      const data = await foreOfficial(path);
+      const outlets: ForeOutlet[] = Array.isArray(data?.payload) ? data.payload : [];
+      if (outlets.length) {
+        console.info(`Fore outlet lookup succeeded with country_id=${countryId} (${outlets.length} outlets)`);
+        foreOutletCache = { expiresAt: Date.now() + 2 * 60 * 1000, outlets };
+        return outlets;
+      }
+      lastError = new Error(`Daftar outlet Fore kosong untuk country_id=${countryId}`);
+    } catch (error) {
+      lastError = error;
+      if (!/data negara tidak ditemukan|upstream http 404/i.test(String(error))) throw error;
+      console.warn(`Fore rejected country_id=${countryId}; trying next candidate`);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Tidak dapat mengambil outlet Fore");
 }
 
 function normalizeOfficialForeOutlet(outlet: ForeOutlet) {
@@ -258,10 +283,9 @@ Deno.serve(async (request) => {
     if (action === "fore-outlets") {
       if (keyword.length < 3) return json({ error: "Keyword minimal 3 karakter" }, 400);
       try {
-        const needle = keyword.toLocaleLowerCase("id-ID");
         const outlets = (await getOfficialForeOutlets())
           .map(normalizeOfficialForeOutlet)
-          .filter((outlet) => `${outlet.name} ${outlet.city}`.toLocaleLowerCase("id-ID").includes(needle))
+          .filter((outlet) => matchesForeOutletKeyword(outlet, keyword))
           .slice(0, 15);
         return json({ outlets, source: "fore-official" });
       } catch (officialError) {
