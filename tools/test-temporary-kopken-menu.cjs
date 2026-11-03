@@ -82,6 +82,10 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
   assert.equal(context.testApi.isOutletOutsideOrderingHours(palmerah, new Date("2026-10-31T07:00:00Z")), false);
   assert.equal(context.testApi.isApiOutletClosed({ is_open: false, open_status: "CLOSED" }), true);
   assert.equal(context.testApi.isApiOutletClosed({ is_open: true, open_status: "OPEN" }), false);
+  assert.equal(context.testApi.isApiOutletClosed({ is_open: false, open_status: "PESAN DI OUTLET" }), false);
+  assert.equal(context.testApi.isApiOutletClosed({ is_open: false, open_status: "PESAN DI OUTLET", status_label: "CLOSED" }), true);
+  assert.equal(context.testApi.isOutletOutsideOrderingHours({ open_time: "07:00:00", order_close_time: "18:00:00" }, new Date("2026-11-03T03:45:00Z")), false);
+  assert.equal(context.testApi.isOutletOutsideOrderingHours({ open_time: "07:00:00", order_close_time: "18:00:00" }, new Date("2026-11-03T12:00:00Z")), true);
   const results = { children: [], appendChild(child) { this.children.push(child); }, set innerHTML(value) { this.children = []; } };
   const input = { value: "Palmerah" };
   const hint = { textContent: "" };

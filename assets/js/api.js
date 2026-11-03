@@ -739,9 +739,10 @@ function isOutletOutsideOrderingHours(outlet, now = new Date()) {
 }
 
 function isApiOutletClosed(outlet) {
-  return outlet?.is_open === false
-    || String(outlet?.open_status || "").toUpperCase() === "CLOSED"
-    || String(outlet?.status_label || "").toUpperCase() === "CLOSED";
+  const openStatus = String(outlet?.open_status || "").toUpperCase();
+  if (openStatus === "CLOSED" || String(outlet?.status_label || "").toUpperCase() === "CLOSED") return true;
+  if (openStatus === "PESAN DI OUTLET") return false;
+  return outlet?.is_open === false;
 }
 
 function matchesTemporaryOutlet(outlet, keyword) {
