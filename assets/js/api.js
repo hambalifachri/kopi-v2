@@ -75,6 +75,10 @@ async function loadSupabaseKopkenMenu(outletCode) {
 }
 
 async function loadKopkenMenuWithFallback(outletCode) {
+  cacheOriginalKopiKenanganMenu();
+  const localByName = new Map((originalKopiKenanganMenu || [])
+    .filter(item => !isLocalPromoMenuItem(item) && item.price > 0 && item.oldPrice > 0)
+    .map(item => [normalizeApiText(item.name), item]));
   const syncedPromise = loadSupabaseKopkenMenu(outletCode).catch(() => null);
   try {
     const idsResponse = await fetch("./assets/data/temporary-kopken-outlet-ids.json");
@@ -103,6 +107,7 @@ async function loadKopkenMenuWithFallback(outletCode) {
           const officialPrice = Number(item.originalPrice);
           if (!item.name || !Number.isFinite(officialPrice) || officialPrice <= 0) return [];
           const matched = byId.get(String(item.id)) || byName.get(normalizeApiText(item.name));
+          const local = localByName.get(normalizeApiText(item.name));
           return [{
             ...(matched || {}),
             id: matched?.id || item.id,
@@ -112,7 +117,7 @@ async function loadKopkenMenuWithFallback(outletCode) {
             price: matched?.price || officialPrice,
             orig_price: matched?.orig_price || officialPrice,
             is_sold_out: item.isSoldOut === true,
-            sync_pending: !matched,
+            sync_pending: !matched && !local,
             brand: matched?.brand || "Kopi Kenangan",
           }];
         }),

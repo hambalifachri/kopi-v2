@@ -12,6 +12,7 @@ const live = { success: true, storeCode: "KK.CBN.RKTLN", categories: [
   { categoryName: "Kenangan Toast", items: [
     { id: 5917, name: "Wahyu Sapi Toast", originalPrice: 20000, price: 10000 },
     { id: 9999, name: "Produk Baru", originalPrice: 24000, price: 12000 },
+    { id: 10219, name: "Milk Oreo Crumble", originalPrice: 26000, price: 18500 },
   ] },
   { categoryName: "Paket Kombo Bintang Store", items: [{ id: "bintang_combo_1", name: "Paket", originalPrice: 50000 }] },
 ] };
@@ -22,6 +23,7 @@ const response = data => ({ ok: true, json: async () => data });
 const context = {
   window: { addEventListener() {}, kopiKenanganOutletState: {}, KOPI_SUPABASE_CONFIG: { url: "https://example.supabase.co", anonKey: "test" } },
   document: { addEventListener() {} },
+  menuItems: [{ id: "milk-oreo-crumble", brand: "kopi-kenangan", group: "non-coffee", name: "Milk Oreo Crumble", price: 17000, oldPrice: 26000, largePrice: 25000 }],
   AbortSignal,
   console,
   fetch: async url => {
@@ -44,13 +46,15 @@ vm.runInNewContext(`${source}\nglobalThis.testApi = { loadKopkenMenuWithFallback
 (async () => {
   const result = await context.testApi.loadKopkenMenuWithFallback("KK.CBN.RKTLN");
   assert.equal(result.source, "temporary-api");
-  const items = context.testApi.buildDynamicKopiKenanganItems(result.payload, new Map());
-  assert.equal(items.length, 2, "Exclude third-party promotional bundles");
+  const items = context.testApi.buildDynamicKopiKenanganItems(result.payload, new Map([["milk oreo crumble", context.menuItems[0]]]));
+  assert.equal(items.length, 3, "Exclude third-party promotional bundles");
   assert.equal(items[0].id, "9341610000", "Keep synced product identity");
   assert.equal(items[0].oldPrice, 19000, "Keep synced prices when size details are unavailable");
   assert.equal(items[1].oldPrice, 24000, "Use official price for preview-only products");
   assert.equal(items[0].syncPending, false);
   assert.equal(items[1].syncPending, true);
+  assert.equal(items[2].syncPending, false, "Known local products can be ordered when live but absent from outlet sync");
+  assert.equal(items[2].largePrice, 25000, "Keep the local size configuration");
   assert.equal(context.testApi.buildDynamicKopiKenanganBundles(items).length, 0);
 
   const originalSyncedProducts = synced.menu.data.menu_groups[0].menu_products;

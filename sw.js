@@ -1,11 +1,11 @@
-const CACHE_NAME = 'fachrindah-pwa-v24-outlet-order-status';
+const CACHE_NAME = 'fachrindah-pwa-v25-local-menu-match';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261031-outlet-schedule',
   './menu-data.js?v=20260825-1',
   './script.js?v=20261101-stock-batch-rules',
-  './assets/js/api.js?v=20261103-outlet-order-status',
+  './assets/js/api.js?v=20261103-local-menu-match',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
