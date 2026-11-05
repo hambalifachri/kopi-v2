@@ -1776,6 +1776,25 @@ button {
   border-top: 2px solid var(--line);
 }
 
+.payment-qr-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.payment-qr-option {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin: 0;
+  text-align: center;
+}
+
+.payment-qr-option figcaption {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
 .payment-panel img {
   display: block;
   width: 100%;
@@ -1792,6 +1811,12 @@ button {
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.45;
+}
+
+@media (max-width: 600px) {
+  .payment-qr-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .grand-total {

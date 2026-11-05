@@ -89,7 +89,7 @@ function checkStoreStatus(brandId) {
   const day = now.getDay(); 
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   
-  const waLink = "<br><br><a href='https://wa.me/6281281400462?text=Halo%20admin%20kopi.fachrindah,%20saya%20mau%20tanya-tanya%20dulu%20dong.' target='_blank' class='wa-direct-btn'>Chat WhatsApp Admin</a>";
+  const waLink = "<br><br><a href='https://wa.me/6285712342606?text=Halo%20admin%20kopi.fachrindah,%20saya%20mau%20tanya-tanya%20dulu%20dong.' target='_blank' class='wa-direct-btn'>Chat WhatsApp Admin</a>";
 
   if (allStoresClosed) {
     return { closed: true, scope: "all", message: globalStoreClosedMessage + waLink };
@@ -2381,7 +2381,7 @@ function buildWhatsappMessage(formData, savedOrder) {
 }
 
 function buildWhatsappLinks(adminPhone, encodedMessage) {
-  adminPhone = "6281281400462"; // Fixed destination; never trust the editable form value.
+  adminPhone = "6285712342606"; // Fixed destination; never trust the editable form value.
   return { waMeUrl: `https://wa.me/${adminPhone}?text=${encodedMessage}`, appUrl: `whatsapp://send?phone=${adminPhone}&text=${encodedMessage}` };
 }
 

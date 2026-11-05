@@ -1,15 +1,17 @@
-const CACHE_NAME = 'fachrindah-pwa-v25-local-menu-match';
+const CACHE_NAME = 'fachrindah-pwa-v26-dual-qris';
 const urlsToCache = [
   './',
   './index.html',
-  './styles.css?v=20261031-outlet-schedule',
+  './styles.css?v=20261106-dual-qris',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261101-stock-batch-rules',
+  './script.js?v=20261106-admin-phone',
   './assets/js/api.js?v=20261103-local-menu-match',
   './assets/data/temporary-kopken-outlet-ids.json',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
-  './assets/data/best-sellers.json?v=20261030'
+  './assets/data/best-sellers.json?v=20261030',
+  './assets/qris-kopi-fachrindah.jpeg?v=20260728',
+  './assets/qris-kopi-fachrindah12.jpeg?v=20261106'
 ];
 
 // 1. Install & Simpan ke Memori
