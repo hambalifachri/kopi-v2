@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261106-dual-qris" />
+    <link rel="stylesheet" href="styles.css?v=20261106-qris-choice" />
               <!-- Default Statcounter code for My Business Website
           https://hambalifachri.github.io/kopi.fachrindah/ -->
           <script type="text/javascript">
@@ -267,17 +267,19 @@
             <div class="panel-title">
               <p>Pembayaran QRIS</p>
             </div>
-            <div class="payment-qr-list">
-              <figure class="payment-qr-option">
-                <figcaption>Kopi.Fachrindah</figcaption>
-                <img src="assets/qris-kopi-fachrindah12.jpeg?v=20261106" alt="QRIS Kopi.Fachrindah" />
-              </figure>
-              <figure class="payment-qr-option">
-                <figcaption>Kukusan.Fachrindah</figcaption>
-                <img src="assets/qris-kopi-fachrindah.jpeg?v=20260728" alt="QRIS Kukusan.Fachrindah" />
-              </figure>
+            <div class="payment-qr-switch" role="group" aria-label="Pilih QRIS pembayaran">
+              <button type="button" data-qris-choice="1" aria-pressed="true">QRIS 1</button>
+              <button type="button" data-qris-choice="2" aria-pressed="false">QRIS 2</button>
             </div>
-            <p>Pilih salah satu QRIS, bayar sesuai total, lalu upload bukti pembayaran saat checkout.</p>
+            <figure class="payment-qr-option" data-qris-panel="1">
+              <figcaption>Kukusan.Fachrindah</figcaption>
+              <img src="assets/qris-kopi-fachrindah.jpeg?v=20260728" alt="QRIS 1 Kukusan.Fachrindah" />
+            </figure>
+            <figure class="payment-qr-option" data-qris-panel="2" hidden>
+              <figcaption>Kopi.Fachrindah</figcaption>
+              <img src="assets/qris-kopi-fachrindah12.jpeg?v=20261106" alt="QRIS 2 Kopi.Fachrindah" />
+            </figure>
+            <p>Scan QRIS yang dipilih sesuai total bayar, lalu upload bukti pembayaran saat checkout.</p>
           </div>
         </div>
 
@@ -380,17 +382,19 @@
               <div class="panel-title">
                 <p>Pembayaran QRIS</p>
               </div>
-              <div class="payment-qr-list">
-                <figure class="payment-qr-option">
-                  <figcaption>Kopi.Fachrindah</figcaption>
-                  <img src="assets/qris-kopi-fachrindah12.jpeg?v=20261106" alt="QRIS Kopi.Fachrindah" />
-                </figure>
-                <figure class="payment-qr-option">
-                  <figcaption>Kukusan.Fachrindah</figcaption>
-                  <img src="assets/qris-kopi-fachrindah.jpeg?v=20260728" alt="QRIS Kukusan.Fachrindah" />
-                </figure>
+              <div class="payment-qr-switch" role="group" aria-label="Pilih QRIS pembayaran">
+                <button type="button" data-qris-choice="1" aria-pressed="true">QRIS 1</button>
+                <button type="button" data-qris-choice="2" aria-pressed="false">QRIS 2</button>
               </div>
-              <p>Pilih salah satu QRIS, bayar sesuai total, lalu upload bukti. Order akan tersimpan untuk admin.</p>
+              <figure class="payment-qr-option" data-qris-panel="1">
+                <figcaption>Kukusan.Fachrindah</figcaption>
+                <img src="assets/qris-kopi-fachrindah.jpeg?v=20260728" alt="QRIS 1 Kukusan.Fachrindah" />
+              </figure>
+              <figure class="payment-qr-option" data-qris-panel="2" hidden>
+                <figcaption>Kopi.Fachrindah</figcaption>
+                <img src="assets/qris-kopi-fachrindah12.jpeg?v=20261106" alt="QRIS 2 Kopi.Fachrindah" />
+              </figure>
+              <p>Scan QRIS yang dipilih sesuai total bayar, lalu upload bukti. Order akan tersimpan untuk admin.</p>
             </div>
             <form class="order-form modal-order-form" id="modalOrderForm">
               <div class="panel-title">
@@ -621,6 +625,7 @@
     <script src="menu-data.js?v=20260825-1"></script>
     <script src="assets/js/api.js?v=20261103-local-menu-match"></script>
     <script src="script.js?v=20261106-admin-phone"></script>
+    <script src="assets/js/payment-qris.js?v=20261106-1"></script>
     <script src="assets/js/best-sellers.js?v=20261030-1"></script>
     <script src="assets/js/order-queue.js?v=20261029-queue-confirm"></script>
     <script src="assets/js/mobile-dialogs.js?v=20261015-1"></script>

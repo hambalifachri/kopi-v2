@@ -1776,10 +1776,35 @@ button {
   border-top: 2px solid var(--line);
 }
 
-.payment-qr-list {
+.payment-qr-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 4px;
+  width: min(100%, 320px);
+  margin: 0 auto;
+  padding: 4px;
+  border-radius: 8px;
+  background: #eee6e0;
+}
+
+.payment-qr-switch button {
+  min-height: 40px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.payment-qr-switch button[aria-pressed="true"] {
+  border-color: var(--line);
+  background: var(--white);
+  box-shadow: 0 1px 4px rgba(43, 23, 16, 0.12);
+}
+
+.payment-qr-switch button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
 }
 
 .payment-qr-option {
@@ -1788,6 +1813,10 @@ button {
   gap: 8px;
   margin: 0;
   text-align: center;
+}
+
+.payment-qr-option[hidden] {
+  display: none;
 }
 
 .payment-qr-option figcaption {
@@ -1811,12 +1840,6 @@ button {
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.45;
-}
-
-@media (max-width: 600px) {
-  .payment-qr-list {
-    grid-template-columns: 1fr;
-  }
 }
 
 .grand-total {
