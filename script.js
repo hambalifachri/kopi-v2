@@ -1508,9 +1508,19 @@ function renderCart() {
   }
 
   const batchGuidance = getKopkenBatchGuidance();
-  if (batchGuidance.text) targetCartHtml += renderKopkenBatchGuidance(batchGuidance);
+  const guidanceHtml = batchGuidance.text ? renderKopkenBatchGuidance(batchGuidance) : "";
+  const blocked = Boolean(batchGuidance.error);
+  const batchNotice = document.querySelector("#modalCartBatchNotice");
+  if (batchNotice) batchNotice.innerHTML = blocked ? guidanceHtml : "";
+  if (!blocked || !batchNotice) targetCartHtml += guidanceHtml;
   if (modalCartItems) modalCartItems.innerHTML = targetCartHtml;
-  if (mainCartItems) mainCartItems.innerHTML = targetCartHtml;
+  if (mainCartItems) mainCartItems.innerHTML = (blocked && batchNotice ? guidanceHtml : "") + targetCartHtml;
+  continueShoppingButton.textContent = blocked ? "Tambah Menu" : "Tambah Pesanan Lagi";
+  goCheckoutButton.textContent = blocked ? "Cek Syarat Bayar" : "Selesai, Bayar QRIS";
+  const nextStep = document.querySelector("#cartNextStep");
+  if (nextStep) nextStep.textContent = blocked
+    ? "Tambah menu atau ubah jumlah barang. Keranjang akan membagi pesanan ulang otomatis."
+    : "Pesanan sudah masuk keranjang. Mau tambah pesanan lagi atau selesai?";
 
   subtotalEl.textContent = rupiah.format(subtotal);
   grandTotalEl.textContent = rupiah.format(grandTotal); // Gunakan grandTotal
@@ -1894,18 +1904,18 @@ function renderKopkenBatchGuidance(guidance) {
     const short = kopkenMinimumEnabled && total < kopkenMinimumOfficialTotal;
     const over = kopkenMinimumEnabled && total > 65000;
     const note = short
-      ? `Kurang ${rupiah.format(kopkenMinimumOfficialTotal - total)} untuk minimum. Tambah menu atau hapus barang pada batch ini.`
-      : over ? "Melebihi Rp65.000. Sesuaikan menu pada batch ini." : "Memenuhi aturan";
+      ? `Bagian ${batch.number} kurang ${rupiah.format(kopkenMinimumOfficialTotal - total)}. Tambah menu sesuai harga asli outlet.`
+      : over ? `Bagian ${batch.number} lebih dari Rp65.000. Kurangi atau ganti menu.` : "Sudah memenuhi syarat";
     return `<div style="padding:10px 0;border-top:1px solid #eaded5">
-      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:14px"><strong>Batch ${batch.number} · ${qty} barang</strong><strong>${rupiah.format(total)}</strong></div>
-      <p style="margin:5px 0 0;font-size:13px;line-height:1.5;color:${short || over ? '#a32921' : '#416449'}">${escapeHtml(note)}</p>
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;font-size:14px"><strong>Bagian ${batch.number} · ${qty} barang</strong><strong>${rupiah.format(total)}</strong></div>
+      <p style="margin:5px 0 0;font-size:14px;font-weight:700;line-height:1.5;color:${short || over ? '#a32921' : '#416449'}">${escapeHtml(note)}</p>
     </div>`;
   }).join("");
   return `<section class="cart-batch-guidance" role="status" style="margin:18px 0;padding:14px 16px;background:#faf5f0;border:1px solid #eaded5;border-radius:12px">
-    <strong style="display:block;font-size:15px">Pembagian pesanan otomatis</strong>
-    <p style="margin:4px 0 10px;font-size:12px;line-height:1.5;color:#78665b">Dasar harga outlet, tanpa topping/addon.${kopkenMinimumEnabled ? ` Setiap batch wajib ${rupiah.format(kopkenMinimumOfficialTotal)}–Rp65.000.` : ""}${kopkenMax3ItemsEnabled ? " Batas 3 barang per batch. Jika 3 barang belum mencapai minimum, boleh tambah sampai minimum tercapai; barang selanjutnya masuk batch baru." : ""}</p>
+    <strong style="display:block;font-size:16px">${guidance.error ? "Belum bisa bayar" : "Pembagian pesanan"}</strong>
+    <p style="margin:4px 0 10px;font-size:13px;line-height:1.5;color:#78665b">${kopkenMinimumEnabled ? `Tiap bagian harus ${rupiah.format(kopkenMinimumOfficialTotal)}–Rp65.000. ` : ""}Hitung dari harga asli outlet, sebelum diskon dan tanpa topping/addon.</p>
+    ${kopkenMax3ItemsEnabled ? '<p style="margin:0 0 10px;font-size:13px">Maksimal 3 barang per bagian. Kalau belum mencapai minimum, boleh tambah barang.</p>' : ''}
     ${rows}
-    ${guidance.error ? '<p style="margin:8px 0 0;font-size:13px;font-weight:600;line-height:1.5">Sesuaikan keranjang untuk melanjutkan pembayaran. Batch akan disusun ulang otomatis.</p>' : ''}
   </section>`;
 }
 
@@ -3071,7 +3081,13 @@ goCheckoutButton.addEventListener("click", async () => {
   }
 
   const guidance = getKopkenBatchGuidance();
-  if (guidance.error) { renderCart(); alert(guidance.error); return; }
+  if (guidance.error) {
+    renderCart();
+    const notice = document.querySelector("#modalCartBatchNotice");
+    notice?.focus({ preventScroll: true });
+    notice?.scrollIntoView({ block: "nearest" });
+    return;
+  }
   if (cartBrandId === "kopi-kenangan") {
     if (typeof window.confirmKopkenQueue !== "function") { alert("Muat ulang halaman untuk memeriksa antrean pesanan."); return; }
     if (!await window.confirmKopkenQueue()) return;

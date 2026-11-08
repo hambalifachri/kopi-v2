@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v27-qris-choice';
+const CACHE_NAME = 'fachrindah-pwa-v28-cart-guidance';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261106-qris-choice',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261106-admin-phone',
+  './script.js?v=20261108-cart-guidance',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261103-local-menu-match',
   './assets/data/temporary-kopken-outlet-ids.json',

@@ -349,6 +349,7 @@
               <button class="clear-button" id="modalClearCart" type="button">Kosongkan</button>
             </div>
               <div class="order-queue" data-order-queue role="status" aria-live="polite" hidden><strong data-queue-title></strong><p data-queue-detail></p></div>
+            <div id="modalCartBatchNotice" tabindex="-1"></div>
             <div class="cart-items" id="modalCartItems"></div>
             <div class="totals">
               <div>
@@ -361,7 +362,7 @@
               </div>
             </div>
             <div class="modal-next-actions">
-              <p>Pesanan sudah masuk keranjang. Mau tambah pesanan lagi atau selesai?</p>
+              <p id="cartNextStep">Pesanan sudah masuk keranjang. Mau tambah pesanan lagi atau selesai?</p>
               <div class="modal-choice-row">
                 <button class="secondary-button" id="continueShopping" type="button">Tambah Pesanan Lagi</button>
                 <button class="send-button" id="goCheckout" type="button">Selesai, Bayar QRIS</button>
@@ -624,7 +625,7 @@
     <script src="gallery-images.js"></script>
     <script src="menu-data.js?v=20260825-1"></script>
     <script src="assets/js/api.js?v=20261103-local-menu-match"></script>
-    <script src="script.js?v=20261106-admin-phone"></script>
+    <script src="script.js?v=20261108-cart-guidance"></script>
     <script src="assets/js/payment-qris.js?v=20261106-1"></script>
     <script src="assets/js/best-sellers.js?v=20261030-1"></script>
     <script src="assets/js/order-queue.js?v=20261029-queue-confirm"></script>
