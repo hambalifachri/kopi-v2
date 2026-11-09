@@ -1227,13 +1227,17 @@ function getModeItems(items) {
   return items;
 }
 
-function sortMenuItems(items) {
+function sortMenuItems(items, categoryId) {
   const sorted = [...items];
   if (activeSortMode === "price-asc") {
     return sorted.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name));
   }
   if (activeSortMode === "price-desc") {
     return sorted.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name));
+  }
+  if (activeBrandId === "kopi-kenangan" && categoryId === "food") {
+    const rank = item => item.kopkenCategoryOrder?.food ?? Number.MAX_SAFE_INTEGER;
+    return sorted.sort((a, b) => rank(a) - rank(b));
   }
   return sorted.sort((a, b) => (window.menuSalesScore?.(b) || 0) - (window.menuSalesScore?.(a) || 0)
     || (b.isBestSeller === true ? 1 : 0) - (a.isBestSeller === true ? 1 : 0));
@@ -1464,14 +1468,17 @@ function renderMenu(query = "") {
   htmlOutput += visibleCategories.map((category) => {
     const categoryMatches = normalizeText(category.title).includes(normalizedQuery);
     const items = sortMenuItems(modeItems.filter((item) => {
-      if (categoryItems.has(item.id)) return false;
+      if (category.id !== "baru" && categoryItems.has(item.id)) return false;
       if (!getItemGroups(item).includes(category.id)) return false;
       if (!normalizedQuery) return true;
       return categoryMatches || normalizeText(item.name).includes(normalizedQuery);
-    }));
+    }), category.id);
 
     if (items.length === 0) return "";
-    items.forEach((item) => { foundItems.add(item.id); categoryItems.add(item.id); });
+    items.forEach((item) => {
+      foundItems.add(item.id);
+      if (category.id !== "baru") categoryItems.add(item.id);
+    });
 
     return `<section class="catalog-section" id="${category.id}">
       <h2>${escapeHtml(category.title)}</h2>

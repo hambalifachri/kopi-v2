@@ -500,7 +500,7 @@ function getApiProductName(item) {
   return String(item.name || "").trim() || "Menu Tanpa Nama";
 }
 
-function toKopiKenanganMenuItem(item, localMenuByName) {
+function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const itemName = getApiProductName(item);
   const localItem = localMenuByName.get(normalizeMenuName(itemName)) || {};
   const overrideItem = KOPI_KENANGAN_API_MENU_OVERRIDES[normalizeApiText(itemName)] || {};
@@ -526,6 +526,7 @@ function toKopiKenanganMenuItem(item, localMenuByName) {
     outletCodes: [],
     brand: "kopi-kenangan",
     group: finalGroup,
+    kopkenCategoryOrder: { [finalGroup]: sourceIndex },
     name: itemName,
     desc: item.description || localItem.desc,
     price: regularPrice,
@@ -557,6 +558,7 @@ function mergeDuplicateMenuItems(items) {
       ...existing,
       ...item,
       group: mergeMenuGroups(existing.group, item.group),
+      kopkenCategoryOrder: { ...item.kopkenCategoryOrder, ...existing.kopkenCategoryOrder },
       isNew: existing.isNew === true || item.isNew === true,
       isBestSeller: existing.isBestSeller === true || item.isBestSeller === true,
       isSoldOut: existing.isSoldOut === true && item.isSoldOut === true,
@@ -579,7 +581,7 @@ function buildDynamicKopiKenanganItems(rawResponse, localMenuByName) {
       }));
     })
     .filter(isSupportedKopiKenanganApiProduct)
-    .map((item) => toKopiKenanganMenuItem(item, localMenuByName));
+    .map((item, sourceIndex) => toKopiKenanganMenuItem(item, localMenuByName, sourceIndex));
 }
 
 function updateOutletUi(outlet = null) {
