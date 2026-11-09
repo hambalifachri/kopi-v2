@@ -95,7 +95,9 @@ async function loadOutletStatus(url: URL) {
     select: "outlet_name,outlet_code", outlet_code: `eq.${outletCode}`, limit: "1",
   }));
   if (!outlet) return json({ error: "Outlet tidak ditemukan" }, 404);
-  const fuzzyName = cleanKeyword(outlet.outlet_name);
+  // The upstream name is sent as JSON, not a PostgREST filter. Keep
+  // punctuation: the official search distinguishes "(FCK)" from "FCK".
+  const fuzzyName = String(outlet.outlet_name || "").trim();
   if (!fuzzyName) return json({ error: "Nama outlet belum tersedia" }, 503);
   // Reference coordinates are not customer location. This is a store search,
   // with the distance limit disabled, and results must match the exact code.

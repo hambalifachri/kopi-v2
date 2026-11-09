@@ -8,7 +8,7 @@ const source = readFileSync(join(__dirname, "..", "supabase", "functions", "kopk
   .replace(/^import .*\r?\n/, "");
 const row = {
   outlet_code: "JKT.CRPALMERAH",
-  outlet_name: "Dapur Kitchen Palmerah",
+  outlet_name: "Dapur Kitchen Palmerah (FCK)",
   outlet_address: "Palmerah",
   category: "Cloud Kitchen",
   updated_at: "2026-10-31T10:00:00Z",
