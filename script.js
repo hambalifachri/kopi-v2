@@ -567,7 +567,8 @@ function getKopiKenanganOutletState() {
 
 function shouldGateKopiKenanganMenu() {
   const outletState = getKopiKenanganOutletState();
-  return activeBrandId === "kopi-kenangan" && !outletState.menuLoaded;
+  return activeBrandId === "kopi-kenangan"
+    && (!outletState.menuLoaded || outletState.pickupStatus === "checking" || Boolean(window.getKopkenPickupBlock?.()));
 }
 
 function shouldGateManualBrandMenu() {
@@ -594,6 +595,11 @@ function getManualBrandGateMessage() {
 
 function getKopiKenanganGateMessage() {
   const outletState = getKopiKenanganOutletState();
+  const blocked = window.getKopkenPickupBlock?.();
+  if (blocked) return { title: blocked, body: "Pilih outlet lain dari hasil pencarian untuk melanjutkan.", status: blocked };
+  if (outletState.pickupStatus === "checking") {
+    return { title: "Sedang cek status outlet…", body: "Tunggu sebentar sebelum memilih menu.", status: "Memeriksa status outlet." };
+  }
   if (outletState.menuLoading) {
     return {
       title: "Sedang memuat menu outlet...",
@@ -1857,6 +1863,7 @@ function syncIceOptions() {
 function selectItemForOptions(id) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
+  if (item.brand === "kopi-kenangan" && window.getKopkenPickupBlock?.()) return;
   if (item.syncPending) return;
   if (isResellerActive() && isPromoItem(item)) {
     alert("Bundle tidak tersedia untuk akun reseller.");
@@ -1939,6 +1946,7 @@ function getKopkenBatchGuidance() {
 function addItem(id, note = "", quantity = 1) {
   const item = menuItems.find((menuItem) => menuItem.id === id);
   if (!item) return;
+  if (item.brand === "kopi-kenangan" && window.getKopkenPickupBlock?.()) return;
   if (item.syncPending) return;
   if (!canAddBrandToCart(item)) return;
   const options = isFoodItem(item) ? {} : getCleanSelectedOptions(item);
@@ -3052,6 +3060,8 @@ goCheckoutButton.addEventListener("click", async () => {
   try {
     await fetchStoreSettings(true);
     if (getCartBrandId() === "kopi-kenangan") {
+      if (typeof window.requireKopkenPickupOpen !== "function") throw new Error("Muat ulang halaman untuk memeriksa status outlet.");
+      await window.requireKopkenPickupOpen();
       if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
       await window.validateKopkenCartAvailability();
     }

@@ -181,6 +181,67 @@ function setKopiKenanganOutletState(patch) {
   };
 }
 
+let outletStatusRequestId = 0;
+
+function renderKopkenOutletLiveStatus() {
+  const label = document.getElementById("kopkenOutletLiveStatus");
+  if (!label) return;
+  const outlet = window.kopiKenanganOutletState;
+  const status = outlet.pickupStatus;
+  label.hidden = !outlet.outletCode || !status;
+  label.textContent = ({
+    checking: "Sedang cek status outlet…",
+    open: "Outlet buka",
+    closed: "Outlet tutup",
+    onsite_only: "Hanya bisa pesan di outlet",
+    unknown: "Status belum bisa dicek",
+  })[status] || "";
+  if (outlet.pickupMessage && (status === "closed" || status === "onsite_only")) {
+    label.textContent += ` · ${outlet.pickupMessage}`;
+  }
+}
+
+async function refreshKopkenOutletStatus(code) {
+  const requestId = ++outletStatusRequestId;
+  setKopiKenanganOutletState({ pickupStatus: "checking", pickupMessage: "" });
+  renderKopkenOutletLiveStatus();
+  let status = "unknown", message = "";
+  try {
+    const response = await fetch(`${KOPKEN_CATALOG_API}?action=status&outletCode=${encodeURIComponent(code)}`, {
+      headers: getBrandCatalogHeaders(), cache: "no-store", signal: AbortSignal.timeout(8500),
+    });
+    if (!response.ok) throw new Error("Status outlet tidak tersedia");
+    const result = await response.json();
+    if (result.outletCode === code && ["open", "closed", "onsite_only"].includes(result.status)) {
+      status = result.status;
+      message = typeof result.message === "string" ? result.message.slice(0, 120) : "";
+    }
+  } catch { /* An unavailable check is not a closed outlet. */ }
+  if (requestId === outletStatusRequestId && window.kopiKenanganOutletState.outletCode === code) {
+    setKopiKenanganOutletState({ pickupStatus: status, pickupMessage: message });
+    renderKopkenOutletLiveStatus();
+    if (typeof renderMenu === "function") renderMenu();
+  }
+  return status;
+}
+
+window.getKopkenPickupBlock = function() {
+  const outlet = window.kopiKenanganOutletState;
+  if (outlet.pickupStatus === "closed") return "Outlet sedang tutup";
+  if (outlet.pickupStatus === "onsite_only") return "Outlet hanya menerima pesanan langsung di lokasi";
+  return "";
+};
+
+window.requireKopkenPickupOpen = async function() {
+  const code = window.kopiKenanganOutletState.outletCode;
+  if (!code) throw new Error("Pilih outlet Kopi Kenangan dahulu.");
+  const status = await refreshKopkenOutletStatus(code);
+  if (window.kopiKenanganOutletState.outletCode !== code) throw new Error("Outlet berubah saat diperiksa. Coba lagi.");
+  if (status === "closed") throw new Error("Outlet sedang tutup. Pilih outlet lain sebelum bayar.");
+  if (status === "onsite_only") throw new Error("Outlet hanya menerima pesanan langsung di lokasi. Pilih outlet lain.");
+  if (status !== "open") throw new Error("Status outlet belum bisa dicek. Coba lagi sebelum bayar.");
+};
+
 function getOutletWifiPassword(outlet) {
   return outlet?.wifiPassword || outlet?.wifi_password || outlet?.wifi || outlet?.password || "";
 }
@@ -565,7 +626,11 @@ function updateOutletUi(outlet = null) {
     outletCode: code,
     outletName: name,
     outletCategory: String(outlet?.category || ""),
+    pickupStatus: "",
+    pickupMessage: "",
   });
+  outletStatusRequestId++;
+  renderKopkenOutletLiveStatus();
 
   if (selectedOutletName) selectedOutletName.textContent = name || "Belum dipilih";
   if (outletSearch && name) outletSearch.value = name;
@@ -757,6 +822,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   });
 
   container.innerHTML = '<p class="no-results">Sedang memuat menu outlet...</p>';
+  void refreshKopkenOutletStatus(String(outletCode));
 
   try {
     let rawResponse;

@@ -88,6 +88,40 @@ async function loadMenu(url: URL) {
   });
 }
 
+async function loadOutletStatus(url: URL) {
+  const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
+  if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
+  const [outlet] = await catalogRows(new URLSearchParams({
+    select: "outlet_name,outlet_code", outlet_code: `eq.${outletCode}`, limit: "1",
+  }));
+  if (!outlet) return json({ error: "Outlet tidak ditemukan" }, 404);
+  const fuzzyName = cleanKeyword(outlet.outlet_name);
+  if (!fuzzyName) return json({ error: "Nama outlet belum tersedia" }, 503);
+  // Reference coordinates are not customer location. This is a store search,
+  // with the distance limit disabled, and results must match the exact code.
+  const response = await fetch("https://apps.kopikenangan.com/kk-api-kopikenangan/api/store/query_pageable_store", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fuzzy_name: fuzzyName, lat: -6.419, lng: 107.452, deliverable: 0,
+      order_type: [], page: { page_index: 1, page_size: 10 }, brand_codes: [],
+      disable_delivery_distance_limit: true,
+    }),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!response.ok) throw new Error(`outlet-status-http-${response.status}`);
+  const result = await response.json();
+  const stores = result?.data?.store;
+  const match = result?.error_code === 0 && Array.isArray(stores)
+    ? stores.find(store => String(store?.code ?? store?.store_code ?? "") === outletCode)
+    : null;
+  const message = typeof match?.open_status === "string" ? match.open_status.trim().slice(0, 120) : "";
+  const status = /pesan di outlet/i.test(message) ? "onsite_only"
+    : match?.is_open === true ? "open"
+    : match?.is_open === false ? "closed" : "unknown";
+  return json({ outletCode, status, message, checkedAt: new Date().toISOString(), source: "kopken-official" });
+}
+
 Deno.serve(async request => {
   if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (request.method !== "GET") return json({ error: "Method tidak didukung" }, 405);
@@ -96,6 +130,7 @@ Deno.serve(async request => {
     switch (url.searchParams.get("action")) {
       case "outlets": return await searchOutlets(url);
       case "menu": return await loadMenu(url);
+      case "status": return await loadOutletStatus(url);
       default: return json({ error: "Action tidak dikenal" }, 400);
     }
   } catch (error) {

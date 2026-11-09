@@ -10,6 +10,7 @@ const code = "KK.KWG.RKAMDYNICKP";
 const results = { children: [], appendChild(child) { this.children.push(child); }, set innerHTML(value) { this.children = []; } };
 const requests = [];
 let failSearch = false, failTomoro = false;
+let pickupStatus = "open";
 const localTomoro = { id:"tomoro-local",brand:"tomoro",name:"Local fallback",price:19000 };
 const respond = data => ({ok:true,json:async()=>data});
 const ctx = {
@@ -20,6 +21,10 @@ const ctx = {
   fetch:async url=>{
     const u=new URL(url); requests.push(u); assert.ok(u.hostname.endsWith(".supabase.co"),u.hostname);
     if(u.pathname.endsWith("/kopken-catalog")){
+      if(u.searchParams.get("action")==="status"){
+        assert.equal(u.searchParams.get("outletCode"),code);
+        return respond({outletCode:code,status:pickupStatus});
+      }
       if(failSearch)throw Error("catalog unavailable");
       return respond({outlets:[{code,name:"Ruko Ahmad Yani Cikampek",isOpen:null}]});
     }
@@ -49,6 +54,16 @@ vm.runInNewContext(api+'\nglobalThis.testApi={loadSupabaseKopkenMenu,buildDynami
  const [item]=ctx.testApi.buildDynamicKopiKenanganItems(data.payload,new Map());
  assert.equal(item.name,"Spanish Latte");
  assert.equal(item.syncPending,false);
+ ctx.window.kopiKenanganOutletState.outletCode=code;
+ await ctx.window.requireKopkenPickupOpen();
+ pickupStatus="closed";
+ await assert.rejects(ctx.window.requireKopkenPickupOpen(),/Outlet sedang tutup/);
+ assert.match(ctx.window.getKopkenPickupBlock(),/tutup/);
+ pickupStatus="onsite_only";
+ await assert.rejects(ctx.window.requireKopkenPickupOpen(),/langsung di lokasi/);
+ pickupStatus="unknown";
+ await assert.rejects(ctx.window.requireKopkenPickupOpen(),/belum bisa dicek/);
+ assert.equal(ctx.window.getKopkenPickupBlock(),"");
  await ctx.window.searchLiveBrandOutlets("tomoro","Gobah");
  assert.equal(requests.at(-1).searchParams.get("action"),"tomoro-outlets");
  await ctx.testApi.loadLiveBrandMenu("tomoro","PKB08A");
