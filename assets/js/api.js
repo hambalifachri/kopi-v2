@@ -13,9 +13,6 @@ window.addEventListener('load', function() {
 // Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
 const KOPKEN_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog";
-const TEMP_KOPKEN_MENU_API = "https://kopken.bintanggitar.tech/api/menu";
-const TEMP_KOPKEN_OUTLETS_API = "https://www.bintanggstore.web.id/outlet.json";
-const TEMP_TOMORO_API_BASE = "https://kopken.bintanggitar.tech/api/tomoro";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/brand-catalog";
 function getBrandCatalogHeaders() {
@@ -27,7 +24,6 @@ function getBrandCatalogHeaders() {
 const LIVE_BRAND_OUTLETS_KEY = "kopiFachrindahLiveBrandOutlets";
 let outletSearchTimer = null;
 let outletSearchRequestId = 0;
-let temporaryOutletHoursPromise = null;
 let liveBrandOutletSearchTimer = null;
 let originalKopiKenanganMenu = null;
 let originalLiveBrandMenus = null;
@@ -72,74 +68,6 @@ async function loadSupabaseKopkenMenu(outletCode) {
           })),
         },
   };
-}
-
-async function loadKopkenMenuWithFallback(outletCode) {
-  cacheOriginalKopiKenanganMenu();
-  const localByName = new Map((originalKopiKenanganMenu || [])
-    .filter(item => !isLocalPromoMenuItem(item) && item.price > 0 && item.oldPrice > 0)
-    .map(item => [normalizeApiText(item.name), item]));
-  const syncedPromise = loadSupabaseKopkenMenu(outletCode).catch(() => null);
-  try {
-    const idsResponse = await fetch("./assets/data/temporary-kopken-outlet-ids.json");
-    if (!idsResponse.ok) throw new Error("Daftar ID outlet sementara tidak tersedia");
-    const outletId = (await idsResponse.json())[outletCode];
-    if (!Number.isInteger(outletId)) throw new Error("ID outlet sementara tidak ditemukan");
-
-    const url = `${TEMP_KOPKEN_MENU_API}?storeCode=${encodeURIComponent(outletCode)}&outletId=${outletId}`;
-    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10000) });
-    if (!response.ok) throw new Error(`Menu sementara HTTP ${response.status}`);
-    const live = await response.json();
-    if (live?.success !== true || live.storeCode !== outletCode || !Array.isArray(live.categories)) {
-      throw new Error("Format menu sementara tidak sesuai");
-    }
-
-    const synced = await syncedPromise;
-    const syncedProducts = synced ? getApiMenuGroups(synced.payload)
-      .flatMap(group => Array.isArray(group.menu_products) ? group.menu_products : []) : [];
-    const byId = new Map(syncedProducts.map(item => [String(item.id), item]));
-    const byName = new Map(syncedProducts.map(item => [normalizeApiText(item.name), item]));
-    const groups = live.categories
-      .filter(group => !/bintang\s+store/i.test(String(group.categoryName || "")))
-      .map(group => ({
-        group_name: group.categoryName,
-        menu_products: (Array.isArray(group.items) ? group.items : []).flatMap(item => {
-          const officialPrice = Number(item.originalPrice);
-          if (!item.name || !Number.isFinite(officialPrice) || officialPrice <= 0) return [];
-          const matched = byId.get(String(item.id)) || byName.get(normalizeApiText(item.name));
-          const local = localByName.get(normalizeApiText(item.name));
-          return [{
-            ...(matched || {}),
-            id: matched?.id || item.id,
-            name: item.name,
-            description: item.description || matched?.description || "",
-            image: item.image || matched?.image,
-            price: matched?.price || officialPrice,
-            orig_price: matched?.orig_price || officialPrice,
-            is_sold_out: item.isSoldOut === true,
-            sync_pending: !matched && !local,
-            brand: matched?.brand || "Kopi Kenangan",
-          }];
-        }),
-      }));
-    const liveAvailableCount = groups.flatMap(group => group.menu_products.map(product => ({
-      ...product, _category_name: group.group_name,
-    }))).filter(isSupportedKopiKenanganApiProduct).length;
-    if (!liveAvailableCount) throw new Error("Menu sementara kosong");
-    const syncedAvailableCount = synced ? getApiMenuGroups(synced.payload).flatMap(group =>
-      (Array.isArray(group.menu_products) ? group.menu_products : []).map(product => ({
-        ...product, _category_name: group.group_name,
-      }))
-    ).filter(isSupportedKopiKenanganApiProduct).length : 0;
-    if (syncedAvailableCount >= 10 && liveAvailableCount < syncedAvailableCount * 0.7) {
-      throw new Error("Menu sementara jauh lebih sedikit dari hasil sync");
-    }
-    return { category: synced?.category || "", payload: { data: { menu_groups: groups } }, source: "temporary-api" };
-  } catch (error) {
-    const synced = await syncedPromise;
-    if (synced) return { ...synced, source: "supabase" };
-    throw error;
-  }
 }
 
 window.brandOutletStates = window.brandOutletStates || {
@@ -715,59 +643,6 @@ function renderOutletNotFound() {
   outletResults.hidden = false;
 }
 
-function loadTemporaryOutletHours() {
-  if (!temporaryOutletHoursPromise) {
-    temporaryOutletHoursPromise = fetch(TEMP_KOPKEN_OUTLETS_API, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(10000),
-    }).then(async response => {
-      if (!response.ok) throw new Error(`Jadwal outlet HTTP ${response.status}`);
-      const rows = await response.json();
-      if (!Array.isArray(rows)) throw new Error("Format jadwal outlet tidak sesuai");
-      return new Map(rows.filter(row => row?.code).map(row => [String(row.code), row]));
-    }).catch(error => {
-      temporaryOutletHoursPromise = null;
-      throw error;
-    });
-  }
-  return temporaryOutletHoursPromise;
-}
-
-function isOutletOutsideOrderingHours(outlet, now = new Date()) {
-  const open = String(outlet?.open_time || "").slice(0, 5);
-  const close = String(outlet?.order_close_time || "").slice(0, 5);
-  if (!/^\d{2}:\d{2}$/.test(open) || !/^\d{2}:\d{2}$/.test(close) || open === close) return false;
-  const time = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).format(now);
-  return open < close ? time < open || time >= close : time >= close && time < open;
-}
-
-function isApiOutletClosed(outlet) {
-  const openStatus = String(outlet?.open_status || "").toUpperCase();
-  if (openStatus === "CLOSED" || String(outlet?.status_label || "").toUpperCase() === "CLOSED") return true;
-  if (openStatus === "PESAN DI OUTLET") return false;
-  return outlet?.is_open === false;
-}
-
-function matchesTemporaryOutlet(outlet, keyword) {
-  const searchText = `${outlet?.name || ""} ${outlet?.address || ""}`.toLocaleLowerCase("id");
-  return String(keyword || "").toLocaleLowerCase("id").split(/\s+/).filter(Boolean)
-    .every(token => searchText.includes(token));
-}
-
-function fromTemporaryOutlet(outlet) {
-  return {
-    code: outlet.code,
-    name: outlet.name,
-    address: outlet.address || "",
-    category: outlet.category || "",
-    isOpen: isApiOutletClosed(outlet) ? false : null,
-    openStatus: isApiOutletClosed(outlet) ? "TUTUP" : "",
-    scheduleClosed: isOutletOutsideOrderingHours(outlet),
-  };
-}
-
 function renderOutletResults(outlets, keyword = "") {
   const outletResults = document.getElementById("outletResults");
   if (!outletResults) return;
@@ -885,12 +760,10 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
 
   try {
     let rawResponse;
-    let menuSource = "supabase";
     let outletCategory = getKopiKenanganOutletState?.().outletCategory || "";
-    const cachedOutlet = await loadKopkenMenuWithFallback(outletCode);
+    const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
     rawResponse = cachedOutlet.payload;
     outletCategory = cachedOutlet.category || outletCategory;
-    menuSource = cachedOutlet.source;
 
     if (String(getKopiKenanganOutletState().outletCode) !== String(outletCode)) return;
     cacheOriginalKopiKenanganMenu();
@@ -917,7 +790,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       menuLoading: false,
       outletCode,
       outletCategory,
-      source: menuSource,
+      source: "supabase",
     });
     if (typeof renderMenu === "function") renderMenu();
 
@@ -960,31 +833,17 @@ window.searchOutlets = async function(keyword) {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
     let outlets = [];
-    const temporaryOutlets = await loadTemporaryOutletHours().catch(() => null);
-    if (temporaryOutlets) {
-      outlets = [...temporaryOutlets.values()]
-        .filter(outlet => matchesTemporaryOutlet(outlet, keyword))
-        .slice(0, 20)
-        .map(fromTemporaryOutlet);
-    }
-
-    if (!outlets.length) {
-      try {
-        const catalogResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
-          headers: getBrandCatalogHeaders(),
-          signal: AbortSignal.timeout(10000),
-        });
-        if (catalogResponse.ok) {
-          const catalogData = await catalogResponse.json();
-          outlets = Array.isArray(catalogData.outlets) ? catalogData.outlets : [];
-          outlets = outlets.map(outlet => {
-            const temporary = temporaryOutlets?.get(getOutletCode(outlet));
-            return temporary ? { ...outlet, ...fromTemporaryOutlet(temporary) } : outlet;
-          });
-        }
-      } catch (catalogError) {
-        console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", catalogError);
+    try {
+      const catalogResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
+        headers: getBrandCatalogHeaders(),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (catalogResponse.ok) {
+        const catalogData = await catalogResponse.json();
+        outlets = Array.isArray(catalogData.outlets) ? catalogData.outlets : [];
       }
+    } catch (catalogError) {
+      console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", catalogError);
     }
 
     if (!outlets.length) {
@@ -1007,10 +866,7 @@ window.searchOutlets = async function(keyword) {
         category: row.category,
         isOpen: null,
         openStatus: "Status buka belum dapat diperbarui",
-      })).map(outlet => {
-        const temporary = temporaryOutlets?.get(getOutletCode(outlet));
-        return temporary ? { ...outlet, ...fromTemporaryOutlet(temporary) } : outlet;
-      });
+      }));
     }
 
     if (requestId !== outletSearchRequestId) return;
@@ -1210,24 +1066,6 @@ window.searchLiveBrandOutlets = async function(brandId, keyword) {
   if (!["tomoro", "fore"].includes(brandId) || keyword.trim().length < 3) return;
   setLiveBrandHint("Mencari outlet...");
   try {
-    if (brandId === "tomoro") {
-      try {
-        const response = await fetch(`${TEMP_TOMORO_API_BASE}/outlets?search=${encodeURIComponent(keyword.trim())}`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(10000),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        if (data?.success !== true || !Array.isArray(data.outlets)) throw new Error("Format outlet Tomoro tidak valid");
-        if (data.outlets.length) {
-          renderLiveBrandOutletResults(brandId, data.outlets);
-          setLiveBrandHint(`${data.outlets.length} outlet ditemukan. Pilih salah satu.`);
-          return;
-        }
-      } catch (error) {
-        console.warn("Pencarian Tomoro sementara gagal; mencoba katalog cadangan:", error);
-      }
-    }
     const url = `${BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
     const response = await fetch(url, { headers: getBrandCatalogHeaders() });
     const data = await response.json();
@@ -1453,59 +1291,15 @@ function buildTomoroLiveMenu(payload) {
   return matched;
 }
 
-function buildBintangTomoroMenu(payload) {
-  if (payload?.success !== true || !Array.isArray(payload.categories)) throw new Error("Format menu Tomoro tidak valid");
-  const products = payload.categories.flatMap((category) => category.products || [])
-    .filter((product) => product && !product.isCombo && isTomoroDrinkMenu(product));
-  const localByName = getLocalTomoroMenuByName();
-  const seen = new Set();
-  const items = products.flatMap((product) => {
-    const name = String(product.name || "").trim();
-    const key = normalizedLiveName(name);
-    const officialPrice = firstNumber(product.originalPrice, product.price);
-    if (!key || !officialPrice || seen.has(key)) return [];
-    seen.add(key);
-    const local = localByName.get(key);
-    if (local) {
-      return [{
-        ...local,
-        image: product.image || local.image,
-        isSoldOut: product.isSoldOut === true,
-        liveOutletMenu: true,
-      }];
-    }
-    return [{
-      id: `tomoro-preview-${normalizeApiText(product.id || name)}`,
-      brand: "tomoro",
-      group: tomoroUiMenuGroup(product),
-      name,
-      oldPrice: officialPrice,
-      price: officialPrice,
-      image: product.image || undefined,
-      options: [],
-      syncPending: true,
-      liveOutletMenu: true,
-    }];
-  });
-  const matched = items.filter((item) => !item.syncPending).length;
-  if (matched < 3 || matched < localByName.size * 0.6) throw new Error("Data menu Tomoro sementara belum lengkap");
-  return items;
-}
-
 async function loadLiveBrandMenu(brandId, outletCode) {
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
-    const isTomoro = brandId === "tomoro";
-    const url = isTomoro
-      ? `${TEMP_TOMORO_API_BASE}/menu?store_code=${encodeURIComponent(outletCode)}`
-      : `${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
-    const response = await fetch(url, isTomoro
-      ? { cache: "no-store", signal: AbortSignal.timeout(12000) }
-      : { headers: getBrandCatalogHeaders() });
+    const url = `${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
+    const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(12000) });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
-    const items = isTomoro ? buildBintangTomoroMenu(data) : buildForeLiveMenu(data);
+    const items = brandId === "tomoro" ? buildTomoroLiveMenu(data) : buildForeLiveMenu(data);
     if (!items.length) throw new Error("Tidak ada menu yang cocok di outlet ini");
     replaceLiveBrandMenu(brandId, items);
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "live" });
@@ -1576,12 +1370,8 @@ window.validateKopkenCartAvailability = async function() {
   const outlet = getKopiKenanganOutletState();
   const code = String(outlet.outletCode || "");
   if (!code || !outlet.selected) throw new Error("Pilih outlet Kopi Kenangan dahulu sebelum melanjutkan.");
-  const outletStatus = await loadTemporaryOutletHours().then(hours => hours.get(code)).catch(() => null);
-  if (outletStatus && (isApiOutletClosed(outletStatus) || isOutletOutsideOrderingHours(outletStatus))) {
-    throw new Error("Outlet Kopi Kenangan ini sedang tutup. Pilih outlet lain sebelum melanjutkan.");
-  }
   let latest;
-  try { latest = await loadKopkenMenuWithFallback(code); }
+  try { latest = await loadSupabaseKopkenMenu(code); }
   catch { throw new Error("Ketersediaan menu outlet belum bisa diperiksa. Periksa koneksi lalu coba lagi sebelum transfer."); }
   if (String(getKopiKenanganOutletState().outletCode || "") !== code) {
     throw new Error("Outlet berubah saat pemeriksaan. Periksa keranjang lalu lanjutkan kembali.");
@@ -1603,7 +1393,7 @@ window.validateKopkenCartAvailability = async function() {
   const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
   menuItems.length = 0;
   menuItems.push(...otherBrands,...validItems);
-  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:latest.source,outletCategory:latest.category || outlet.outletCategory});
+  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:"supabase",outletCategory:latest.category || outlet.outletCategory});
   if (typeof renderMenu === "function") renderMenu();
   if (missing.length) {
     saveCartToStorage();

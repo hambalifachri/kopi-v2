@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fachrindah-pwa-v28-cart-guidance';
+const CACHE_NAME = 'fachrindah-pwa-v29-own-catalog';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,8 +6,7 @@ const urlsToCache = [
   './menu-data.js?v=20260825-1',
   './script.js?v=20261108-cart-guidance',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261103-local-menu-match',
-  './assets/data/temporary-kopken-outlet-ids.json',
+  './assets/js/api.js?v=20261109-own-catalog',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',
@@ -45,9 +44,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   // Menu, settings, sessions and orders must never fall back to stale API data.
-  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)
-    || url.hostname === 'kopken.bintanggitar.tech'
-    || url.hostname === 'www.bintanggstore.web.id') {
+  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)) {
     event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
