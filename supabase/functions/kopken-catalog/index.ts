@@ -88,6 +88,33 @@ async function loadMenu(url: URL) {
   });
 }
 
+async function loadLiveMenu(url: URL) {
+  const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
+  if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
+  const [outlet] = await catalogRows(new URLSearchParams({
+    select: "outlet_code,category", outlet_code: `eq.${outletCode}`, limit: "1",
+  }));
+  if (!outlet || outlet.outlet_code !== outletCode) return json({ error: "Outlet tidak ditemukan" }, 404);
+  const response = await fetch("https://apps.kopikenangan.com/kk-api-kopikenangan/api/product/query_product_menu", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      store_code: outletCode, voucher_code: null, product_without_promo: true,
+      display_combo_v2: true, for_shipping: false, display_merchandise_product: true,
+      display_mix_match_optional: true, support_discount_percentage: true,
+    }),
+    signal: AbortSignal.timeout(6500),
+  });
+  if (!response.ok) throw new Error(`live-menu-http-${response.status}`);
+  const payload = await response.json();
+  const groups = payload?.data?.menu_groups;
+  if (payload?.error_code !== 0 || !Array.isArray(groups) ||
+      !groups.some(group => Array.isArray(group?.menu_products) && group.menu_products.length)) {
+    return json({ error: "Menu langsung belum tersedia. Coba lagi." }, 503);
+  }
+  return json({ outletCode, category: outlet.category || "", payload, source: "kopken-official", checkedAt: new Date().toISOString() });
+}
+
 async function loadOutletStatus(url: URL) {
   const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
   if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
@@ -132,6 +159,7 @@ Deno.serve(async request => {
     switch (url.searchParams.get("action")) {
       case "outlets": return await searchOutlets(url);
       case "menu": return await loadMenu(url);
+      case "live-menu": return await loadLiveMenu(url);
       case "status": return await loadOutletStatus(url);
       default: return json({ error: "Action tidak dikenal" }, 400);
     }

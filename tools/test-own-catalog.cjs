@@ -21,6 +21,10 @@ const ctx = {
   fetch:async url=>{
     const u=new URL(url); requests.push(u); assert.ok(u.hostname.endsWith(".supabase.co"),u.hostname);
     if(u.pathname.endsWith("/kopken-catalog")){
+      if(u.searchParams.get("action")==="live-menu"){
+        assert.equal(u.searchParams.get("outletCode"),code);
+        return respond({outletCode:code,source:"kopken-official",payload:menu});
+      }
       if(u.searchParams.get("action")==="status"){
         assert.equal(u.searchParams.get("outletCode"),code);
         return respond({outletCode:code,status:pickupStatus});
@@ -42,7 +46,7 @@ const ctx = {
     ]}]}});
   }
 };
-vm.runInNewContext(api+'\nglobalThis.testApi={loadSupabaseKopkenMenu,buildDynamicKopiKenanganItems,loadLiveBrandMenu};',ctx);
+vm.runInNewContext(api+'\nglobalThis.testApi={loadLiveKopkenMenu,buildDynamicKopiKenanganItems,loadLiveBrandMenu};',ctx);
 (async()=>{
  await ctx.window.searchOutlets("Cikampek");
  assert.equal(results.children.length,1);
@@ -50,7 +54,7 @@ vm.runInNewContext(api+'\nglobalThis.testApi={loadSupabaseKopkenMenu,buildDynami
  failSearch=true;
  await ctx.window.searchOutlets("Cikampek");
  assert.equal(results.children.length,1,"Table search fallback remains available");
- const data=await ctx.testApi.loadSupabaseKopkenMenu(code);
+ const data=await ctx.testApi.loadLiveKopkenMenu(code);
  const [item]=ctx.testApi.buildDynamicKopiKenanganItems(data.payload,new Map());
  assert.equal(item.name,"Spanish Latte");
  assert.equal(item.syncPending,false);

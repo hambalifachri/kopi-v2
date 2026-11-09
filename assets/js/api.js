@@ -28,46 +28,19 @@ let liveBrandOutletSearchTimer = null;
 let originalKopiKenanganMenu = null;
 let originalLiveBrandMenus = null;
 
-async function loadSupabaseKopkenMenu(outletCode) {
-  const config = window.KOPI_SUPABASE_CONFIG || {};
-  if (!config.url || !config.anonKey) throw new Error("Konfigurasi Supabase belum tersedia");
-
-  const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,category,menu,updated_at&outlet_code=eq.${encodeURIComponent(outletCode)}&limit=1`;
-  const response = await fetch(endpoint, {
+async function loadLiveKopkenMenu(outletCode) {
+  const response = await fetch(`${KOPKEN_CATALOG_API}?action=live-menu&outletCode=${encodeURIComponent(outletCode)}`, {
+    headers: getBrandCatalogHeaders(),
     cache: "no-store",
-    signal: AbortSignal.timeout(10000),
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${config.anonKey}`,
-    },
+    signal: AbortSignal.timeout(12000),
   });
-  if (!response.ok) throw new Error(`Supabase HTTP ${response.status}`);
-
-  const rows = await response.json();
-  const row = Array.isArray(rows) ? rows[0] : null;
-  const hasCompactMenu = Array.isArray(row?.menu) && row.menu.length > 0;
-  const hasFullMenu = Array.isArray(row?.menu?.data?.menu_groups)
-    && row.menu.data.menu_groups.length > 0;
-  if (!row || (!hasCompactMenu && !hasFullMenu)) {
-    throw new Error("Menu outlet belum tersimpan di Supabase");
+  if (!response.ok) throw new Error("Menu langsung belum tersedia. Coba lagi.");
+  const result = await response.json();
+  if (result.outletCode !== outletCode || result.source !== "kopken-official" ||
+      !Array.isArray(result.payload?.data?.menu_groups) || !result.payload.data.menu_groups.length) {
+    throw new Error("Respons menu outlet belum valid.");
   }
-
-  return {
-    category: String(row.category || ""),
-    updatedAt: row.updated_at || "",
-    payload: hasFullMenu
-      ? row.menu
-      : {
-          mergeLocalMenu: false,
-          menu: row.menu.map((item, index) => ({
-            ...item,
-            id: item.id || item.product_code || `${outletCode}-${index}`,
-            name: item.name || item.product_name || "",
-            image: item.image || item.image_url || null,
-            category: item.category || item.group_name || "",
-          })),
-        },
-  };
+  return result;
 }
 
 window.brandOutletStates = window.brandOutletStates || {
@@ -827,11 +800,12 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   try {
     let rawResponse;
     let outletCategory = getKopiKenanganOutletState?.().outletCategory || "";
-    const cachedOutlet = await loadSupabaseKopkenMenu(outletCode);
-    rawResponse = cachedOutlet.payload;
-    outletCategory = cachedOutlet.category || outletCategory;
+    const liveOutlet = await loadLiveKopkenMenu(String(outletCode));
+    rawResponse = liveOutlet.payload;
+    outletCategory = liveOutlet.category || outletCategory;
 
     if (String(getKopiKenanganOutletState().outletCode) !== String(outletCode)) return;
+    setKopiKenanganOutletState({ outletCategory });
     cacheOriginalKopiKenanganMenu();
     const localMenuByName = new Map(
       (originalKopiKenanganMenu || []).map((item) => [normalizeMenuName(item.name), item])
@@ -856,7 +830,7 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       menuLoading: false,
       outletCode,
       outletCategory,
-      source: "supabase",
+      source: liveOutlet.source,
     });
     if (typeof renderMenu === "function") renderMenu();
 
@@ -1437,7 +1411,7 @@ window.validateKopkenCartAvailability = async function() {
   const code = String(outlet.outletCode || "");
   if (!code || !outlet.selected) throw new Error("Pilih outlet Kopi Kenangan dahulu sebelum melanjutkan.");
   let latest;
-  try { latest = await loadSupabaseKopkenMenu(code); }
+  try { latest = await loadLiveKopkenMenu(code); }
   catch { throw new Error("Ketersediaan menu outlet belum bisa diperiksa. Periksa koneksi lalu coba lagi sebelum transfer."); }
   if (String(getKopiKenanganOutletState().outletCode || "") !== code) {
     throw new Error("Outlet berubah saat pemeriksaan. Periksa keranjang lalu lanjutkan kembali.");
@@ -1459,7 +1433,7 @@ window.validateKopkenCartAvailability = async function() {
   const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
   menuItems.length = 0;
   menuItems.push(...otherBrands,...validItems);
-  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:"supabase",outletCategory:latest.category || outlet.outletCategory});
+  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:latest.source,outletCategory:latest.category || outlet.outletCategory});
   if (typeof renderMenu === "function") renderMenu();
   if (missing.length) {
     saveCartToStorage();

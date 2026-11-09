@@ -1674,10 +1674,8 @@ function buildStoredOrderBatches(entries) {
 
 async function createOrderRecord(formData) {
   await fetchStoreSettings(true);
-  if (getCartBrandId() === "kopi-kenangan") {
-    if (typeof window.validateKopkenCartAvailability !== "function") throw new Error("Muat ulang halaman untuk memperbarui pemeriksaan menu.");
-    await window.validateKopkenCartAvailability();
-  }
+  // Live availability was verified before QRIS. A change after payment
+  // must not remove purchased items or stop proof from being recorded.
   const limitError = getKopkenBatchGuidance().error;
   if (limitError) throw new Error(limitError);
   if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {

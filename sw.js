@@ -1,12 +1,12 @@
-const CACHE_NAME = 'fachrindah-pwa-v30-live-status';
+const CACHE_NAME = 'fachrindah-pwa-v31-live-menu';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261106-qris-choice',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261109-live-status',
+  './script.js?v=20261109-live-menu',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261109-live-status',
+  './assets/js/api.js?v=20261109-live-menu',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',

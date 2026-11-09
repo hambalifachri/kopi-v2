@@ -17,6 +17,7 @@ const row = {
 let handler;
 const upstreamUrls = [];
 let liveStore = { code: row.outlet_code, is_open: true, open_status: "" };
+let liveMenu = { error_code: 0, data: { menu_groups: [{ group_name: "Coffee", menu_products: [{ name: "Spanish Latte" }] }] } };
 const context = {
   Deno: {
     env: { get: name => ({ SUPABASE_URL: "https://example.supabase.co", SUPABASE_ANON_KEY: "test" })[name] },
@@ -24,6 +25,12 @@ const context = {
   },
   fetch: async (url, options) => {
     upstreamUrls.push(String(url));
+    if (String(url).includes("query_product_menu")) {
+      assert.equal(options.method, "POST");
+      assert.equal(JSON.parse(options.body).store_code, row.outlet_code);
+      assert.equal(Object.hasOwn(options.headers, "Authorization"), false);
+      return { ok: true, json: async () => liveMenu };
+    }
     if (String(url).includes("query_pageable_store")) {
       assert.equal(options.method, "POST");
       assert.equal(JSON.parse(options.body).fuzzy_name, row.outlet_name);
@@ -48,6 +55,12 @@ vm.runInNewContext(stripTypeScriptTypes(source), context);
   const menu = await handler(new Request(`${base}?action=menu&outletCode=JKT.CRPALMERAH`));
   assert.equal(menu.status, 200);
   assert.equal((await menu.json()).source, "vsphone-sync");
+  const liveMenuUrl = `${base}?action=live-menu&outletCode=${row.outlet_code}`;
+  const currentMenu = await (await handler(new Request(liveMenuUrl))).json();
+  assert.equal(currentMenu.source, "kopken-official");
+  assert.equal(currentMenu.payload.data.menu_groups[0].menu_products[0].name, "Spanish Latte");
+  liveMenu = { error_code: 0, data: { menu_groups: [] } };
+  assert.equal((await handler(new Request(liveMenuUrl))).status, 503, "Do not substitute stale menu for empty live response");
   const statusUrl = `${base}?action=status&outletCode=${row.outlet_code}`;
   assert.equal((await (await handler(new Request(statusUrl))).json()).status, "open");
   liveStore = { ...liveStore, is_open: false, open_status: "BUKA BESOK JAM 08:15" };
