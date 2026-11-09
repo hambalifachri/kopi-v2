@@ -933,8 +933,10 @@ function cloneOptionGroups(groups) {
   }));
 }
 
-function isCrumbleRegularOnly(item) {
-  return String(item.name || "").trim().replace(/\s+/g, " ").toLowerCase() === "butterscotch sea salt crumble";
+function isRegularOnlyKopkenItem(item) {
+  const name = String(item.name || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return (item.brand || "kopi-kenangan") === "kopi-kenangan"
+    && ["babyccino", "butterscotch sea salt crumble"].includes(name);
 }
 
 function getItemOptionGroups(item) {
@@ -944,7 +946,7 @@ function getItemOptionGroups(item) {
       ? { ...group, options: group.options.filter(option => String(option.value).toLowerCase() !== "no sugar") }
       : group);
   }
-  if (!isCrumbleRegularOnly(item)) return groups;
+  if (!isRegularOnlyKopkenItem(item)) return groups;
   return groups.map(group => group.key === "size"
     ? { ...group, options: group.options.filter(option => String(option.value).toLowerCase() !== "large") }
     : group).filter(group => group.options.length);
@@ -1685,9 +1687,6 @@ async function createOrderRecord(formData) {
   // must not remove purchased items or stop proof from being recorded.
   const limitError = getKopkenBatchGuidance().error;
   if (limitError) throw new Error(limitError);
-  if ([...cart.values()].some(item => isCrumbleRegularOnly(item) && String(item.options?.size || "").toLowerCase() === "large")) {
-    throw new Error("Butterscotch Sea Salt Crumble hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.");
-  }
   if ([...cart.values()].some((item) => String(item.options?.topping || "").toLowerCase() === "golden boba")) {
     throw new Error("Golden Boba sedang habis. Hapus atau ganti topping tersebut sebelum melanjutkan.");
   }
@@ -1933,6 +1932,12 @@ function renderKopkenBatchGuidance(guidance) {
 
 function getKopkenBatchGuidance() {
   if (getCartBrandId() !== "kopi-kenangan" || !cart.size) return { text: "", error: "" };
+  const invalidSize = [...cart.values()].find(item => isRegularOnlyKopkenItem(item)
+    && String(item.options?.size || "").toLowerCase() === "large");
+  if (invalidSize) {
+    const error = `Pesanan Kopi Kenangan belum bisa dilanjutkan. ${invalidSize.name} hanya tersedia Regular. Hapus item Large dari keranjang lalu tambahkan kembali.`;
+    return { text: error, error };
+  }
   try {
     const batches = buildStoredOrderBatches([...cart.values()]);
     const minimum = kopkenMinimumOfficialTotal;
@@ -3167,7 +3172,7 @@ orderForm.addEventListener("submit", async (event) => {
   } catch (error) { 
     console.error("Gagal menyiapkan order:", error);
     const reason = String(error?.message || "");
-    const knownValidation = ["Aturan pesanan", "Pemeriksaan aturan pesanan", "Pesanan belum berhasil disimpan", "Pesanan Kopi Kenangan", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Butterscotch Sea Salt Crumble hanya tersedia Regular", "Harga asli satu item harus"];
+    const knownValidation = ["Aturan pesanan", "Pemeriksaan aturan pesanan", "Pesanan belum berhasil disimpan", "Pesanan Kopi Kenangan", "Nama pemesan wajib diisi", "Golden Boba sedang habis", "Harga asli satu item harus"];
     alert(knownValidation.some(prefix => reason.startsWith(prefix))
       ? reason
       : "Gagal menyiapkan order. Kirim tangkapan layar beserta menu, ukuran, dan topping ke admin. Jangan ulang pembayaran.");

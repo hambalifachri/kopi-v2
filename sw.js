@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v32-menu-categories';
+const CACHE_NAME = 'fachrindah-pwa-v33-babyccino-regular';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261106-qris-choice',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261109-menu-categories',
+  './script.js?v=20261109-babyccino-regular',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261109-menu-categories',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
