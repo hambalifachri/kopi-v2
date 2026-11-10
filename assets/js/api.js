@@ -175,12 +175,14 @@ function renderKopkenOutletLiveStatus() {
 }
 
 async function refreshKopkenOutletStatus(code) {
+  const outletName = window.kopiKenanganOutletState.outletName;
   const requestId = ++outletStatusRequestId;
   setKopiKenanganOutletState({ pickupStatus: "checking", pickupMessage: "" });
   renderKopkenOutletLiveStatus();
   let status = "unknown", message = "";
   try {
-    const response = await fetch(`${KOPKEN_CATALOG_API}?action=status&outletCode=${encodeURIComponent(code)}`, {
+    const params = new URLSearchParams({ action: "status", outletCode: code, outletName });
+    const response = await fetch(`${KOPKEN_CATALOG_API}?${params}`, {
       headers: getBrandCatalogHeaders(), cache: "no-store", signal: AbortSignal.timeout(8500),
     });
     if (!response.ok) throw new Error("Status outlet tidak tersedia");
@@ -874,42 +876,17 @@ window.searchOutlets = async function(keyword) {
   try {
     if (outletHint) outletHint.textContent = "Mencari outlet...";
 
-    let outlets = [];
-    try {
-      const catalogResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
-        headers: getBrandCatalogHeaders(),
-        signal: AbortSignal.timeout(10000),
-      });
-      if (catalogResponse.ok) {
-        const catalogData = await catalogResponse.json();
-        outlets = Array.isArray(catalogData.outlets) ? catalogData.outlets : [];
-      }
-    } catch (catalogError) {
-      console.warn("API katalog outlet tidak tersedia, memakai tabel Supabase:", catalogError);
+    const catalogResponse = await fetch(`${KOPKEN_CATALOG_API}?action=outlets&keyword=${encodeURIComponent(keyword)}&page=1`, {
+      headers: getBrandCatalogHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!catalogResponse.ok) throw new Error("Pencarian outlet resmi gagal");
+    const catalogData = await catalogResponse.json();
+    if (catalogData.source !== "kopken-official" || !Array.isArray(catalogData.outlets)) {
+      throw new Error("Respons pencarian outlet belum valid");
     }
-
-    if (!outlets.length) {
-      const config = window.KOPI_SUPABASE_CONFIG || {};
-      const safeKeyword = String(keyword || "").replace(/[,*()]/g, " ").trim();
-      if (!config.url || !config.anonKey || !safeKeyword) {
-        throw new Error("API katalog outlet gagal");
-      }
-      const filter = `(outlet_name.ilike.*${safeKeyword}*,outlet_address.ilike.*${safeKeyword}*)`;
-      const endpoint = `${config.url}/rest/v1/kopken_outlets_catalog?select=outlet_code,outlet_name,outlet_address,category&or=${encodeURIComponent(filter)}&order=outlet_name.asc&limit=20`;
-      const catalogResponse = await fetch(endpoint, {
-        headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` },
-      });
-      if (!catalogResponse.ok) throw new Error(`Supabase HTTP ${catalogResponse.status}`);
-      const rows = await catalogResponse.json();
-      outlets = (Array.isArray(rows) ? rows : []).map((row) => ({
-        code: row.outlet_code,
-        name: row.outlet_name,
-        address: row.outlet_address,
-        category: row.category,
-        isOpen: null,
-        openStatus: "Status buka belum dapat diperbarui",
-      }));
-    }
+    const outlets = catalogData.outlets;
 
     if (requestId !== outletSearchRequestId) return;
     renderOutletResults(outlets, keyword);
