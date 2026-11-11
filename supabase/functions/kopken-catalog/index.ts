@@ -145,10 +145,22 @@ async function loadOutletStatus(url: URL) {
     fuzzyName = cleanKeyword(outlet?.outlet_name);
   }
   if (!fuzzyName) return json({ error: "Nama outlet belum tersedia" }, 503);
-  const { store: stores } = await fetchOfficialStores(fuzzyName, 1, 10);
-  const match = stores.find((store: { code?: string; store_code?: string }) =>
-    String(store?.code ?? store?.store_code ?? "") === outletCode
-  );
+  const matchesCode = (store: { code?: string; store_code?: string }) =>
+    String(store?.code ?? store?.store_code ?? "") === outletCode;
+  const { store: stores } = await fetchOfficialStores(fuzzyName, 1, 20);
+  let match = stores.find(matchesCode);
+  if (!match) {
+    // The official fuzzy search can omit an outlet when given its full name.
+    const searchKeyword = cleanKeyword(url.searchParams.get("searchKeyword"));
+    const shortName = fuzzyName.replace(/^(?:ruko|mall)\s+/i, "").split(" ")[0];
+    const fallback = searchKeyword.length >= 3 && searchKeyword.toLowerCase() !== fuzzyName.toLowerCase()
+      ? searchKeyword
+      : shortName;
+    if (fallback.length >= 3 && fallback.toLowerCase() !== fuzzyName.toLowerCase()) {
+      const result = await fetchOfficialStores(fallback, 1, 20);
+      match = result.store.find(matchesCode);
+    }
+  }
   const message = typeof match?.open_status === "string" ? match.open_status.trim().slice(0, 120) : "";
   const status = /pesan di outlet/i.test(message) ? "onsite_only"
     : match?.is_open === true ? "open"

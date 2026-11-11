@@ -16,7 +16,9 @@ const row = {
 };
 let handler;
 const upstreamUrls = [];
-let liveStore = { code: row.outlet_code, is_open: true, open_status: "" };
+let liveStore = { code: row.outlet_code, name: row.outlet_name, is_open: true, open_status: "" };
+let omitFullName = false;
+const searchKeywords = [];
 let liveMenu = { error_code: 0, data: { menu_groups: [{ group_name: "Coffee", menu_products: [{ name: "Spanish Latte" }] }] } };
 const context = {
   Deno: {
@@ -33,9 +35,14 @@ const context = {
     }
     if (String(url).includes("query_pageable_store")) {
       assert.equal(options.method, "POST");
-      assert.equal(JSON.parse(options.body).fuzzy_name, row.outlet_name);
+      const request = JSON.parse(options.body);
+      assert.equal(request.page.page_size, 20);
+      searchKeywords.push(request.fuzzy_name);
       assert.equal(Object.hasOwn(options.headers, "Authorization"), false);
-      return { ok: true, json: async () => ({ error_code: 0, data: { store: [liveStore] } }) };
+      const stores = omitFullName && request.fuzzy_name === row.outlet_name
+        ? [{ ...liveStore, code: "DIFFERENT.OUTLET" }]
+        : [liveStore];
+      return { ok: true, json: async () => ({ error_code: 0, data: { store: stores } }) };
     }
     return { ok: true, json: async () => [row] };
   },
@@ -49,8 +56,8 @@ vm.runInNewContext(stripTypeScriptTypes(source), context);
   assert.equal(outlets.status, 200);
   const outletBody = await outlets.json();
   assert.equal(outletBody.outlets[0].code, "JKT.CRPALMERAH");
-  assert.equal(outletBody.outlets[0].isOpen, null, "Do not claim a live status from menu sync");
-  assert.match(upstreamUrls[0], /kopken_outlets_catalog/);
+  assert.equal(outletBody.outlets[0].isOpen, true);
+  assert.match(upstreamUrls[0], /query_pageable_store/);
 
   const menu = await handler(new Request(`${base}?action=menu&outletCode=JKT.CRPALMERAH`));
   assert.equal(menu.status, 200);
@@ -63,6 +70,11 @@ vm.runInNewContext(stripTypeScriptTypes(source), context);
   assert.equal((await handler(new Request(liveMenuUrl))).status, 503, "Do not substitute stale menu for empty live response");
   const statusUrl = `${base}?action=status&outletCode=${row.outlet_code}`;
   assert.equal((await (await handler(new Request(statusUrl))).json()).status, "open");
+  omitFullName = true;
+  const withSearch = `${statusUrl}&outletName=${encodeURIComponent(row.outlet_name)}&searchKeyword=Palmerah`;
+  assert.equal((await (await handler(new Request(withSearch))).json()).status, "open");
+  assert.deepEqual(searchKeywords.slice(-2), [row.outlet_name, "Palmerah"]);
+  omitFullName = false;
   liveStore = { ...liveStore, is_open: false, open_status: "BUKA BESOK JAM 08:15" };
   assert.equal((await (await handler(new Request(statusUrl))).json()).status, "closed");
   liveStore.open_status = "PESAN DI OUTLET";

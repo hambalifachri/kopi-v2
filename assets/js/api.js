@@ -175,15 +175,16 @@ function renderKopkenOutletLiveStatus() {
 }
 
 async function refreshKopkenOutletStatus(code) {
-  const outletName = window.kopiKenanganOutletState.outletName;
+  const { outletName, searchKeyword } = window.kopiKenanganOutletState;
   const requestId = ++outletStatusRequestId;
   setKopiKenanganOutletState({ pickupStatus: "checking", pickupMessage: "" });
   renderKopkenOutletLiveStatus();
   let status = "unknown", message = "";
   try {
     const params = new URLSearchParams({ action: "status", outletCode: code, outletName });
+    if (searchKeyword) params.set("searchKeyword", searchKeyword);
     const response = await fetch(`${KOPKEN_CATALOG_API}?${params}`, {
-      headers: getBrandCatalogHeaders(), cache: "no-store", signal: AbortSignal.timeout(8500),
+      headers: getBrandCatalogHeaders(), cache: "no-store", signal: AbortSignal.timeout(12000),
     });
     if (!response.ok) throw new Error("Status outlet tidak tersedia");
     const result = await response.json();
@@ -602,6 +603,7 @@ function updateOutletUi(outlet = null) {
     menuLoading: false,
     outletCode: code,
     outletName: name,
+    searchKeyword: String(outlet?.searchKeyword || ""),
     outletCategory: String(outlet?.category || ""),
     pickupStatus: "",
     pickupMessage: "",
@@ -730,7 +732,7 @@ function renderOutletResults(outlets, keyword = "") {
         button.appendChild(addressElement);
       }
       button.addEventListener("click", () => {
-        const selectedOutlet = { ...outlet, name, code };
+        const selectedOutlet = { ...outlet, name, code, searchKeyword: keyword };
         saveSelectedOutlet(selectedOutlet);
         clearOutletResults();
         if (code) window.loadDynamicMenu(code);
