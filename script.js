@@ -6,7 +6,7 @@ const MY_SUPABASE_URL = "https://omkboytvivjxoobyhumc.supabase.co";
 const MY_SUPABASE_ANON_KEY = "sb_publishable_T83cBlF_eaawT4v9xfsXKQ__bmro8-2";
 
 // Variabel bawaan
-let kopkenMinimumEnabled = true;
+let kopkenMinimumEnabled = false;
 let kopkenMax3ItemsEnabled = false;
 let kopkenMinimumOfficialTotal = 50000;
 let allStoresClosed = false;
@@ -19,6 +19,7 @@ let jumatanStartTime = "12:00";
 let jumatanEndTime = "13:00";
 let jumatanClosedMessage = "Maaf, toko sedang istirahat untuk ibadah Sholat Jumat dan akan buka kembali pukul 13:00 WIB.";
 let storeSettingsClient = null;
+let storeSettingsReady = false;
 
 async function fetchStoreSettings(requireFresh = false) {
   try {
@@ -42,9 +43,18 @@ async function fetchStoreSettings(requireFresh = false) {
           || Number(settings.kopken_minimum_official_total) <= 0) {
         throw new Error("Aturan pesanan belum valid. Hubungi admin sebelum transfer.");
       }
-      kopkenMax3ItemsEnabled = settings.kopken_max_3_items_enabled === true;
+      const minimumEnabled = settings.kopken_minimum_enabled;
+      const max3ItemsEnabled = settings.kopken_max_3_items_enabled === true;
+      const configuredTotal = Number(settings.kopken_minimum_official_total);
+      const batchRulesChanged = !storeSettingsReady
+        || minimumEnabled !== kopkenMinimumEnabled
+        || max3ItemsEnabled !== kopkenMax3ItemsEnabled
+        || configuredTotal !== kopkenMinimumOfficialTotal;
       const previousClosedState = allStoresClosed;
-      kopkenMinimumEnabled = settings.kopken_minimum_enabled === true;
+      kopkenMinimumEnabled = minimumEnabled;
+      kopkenMax3ItemsEnabled = max3ItemsEnabled;
+      kopkenMinimumOfficialTotal = configuredTotal;
+      storeSettingsReady = true;
       allStoresClosed = settings.all_stores_closed === true;
       globalStoreClosedMessage = String(settings.store_closed_message || globalStoreClosedMessage).trim();
       kopkenStoreClosed = settings.kopken_store_closed === true;
@@ -54,11 +64,8 @@ async function fetchStoreSettings(requireFresh = false) {
       jumatanStartTime = String(settings.jumatan_start_time || jumatanStartTime).slice(0, 5);
       jumatanEndTime = String(settings.jumatan_end_time || jumatanEndTime).slice(0, 5);
       jumatanClosedMessage = String(settings.jumatan_closed_message || jumatanClosedMessage).trim();
-      const configuredTotal = Number(settings.kopken_minimum_official_total);
-      if (Number.isFinite(configuredTotal) && configuredTotal > 0) {
-        kopkenMinimumOfficialTotal = configuredTotal;
-      }
       updatePromoLabelVisibility();
+      if (batchRulesChanged && cart.size && getCartBrandId() === "kopi-kenangan") renderCart();
       if (previousClosedState !== allStoresClosed && typeof renderMenu === "function") renderMenu();
       const kopkenMinOrder = kopkenMinimumEnabled ? "aktif" : "nonaktif";
       console.log("⚡ Aturan minimal order hari ini dari Supabase:", kopkenMinOrder);
@@ -3079,7 +3086,6 @@ goCheckoutButton.addEventListener("click", async () => {
     alert(error.message || "Menu outlet belum dapat diperiksa.");
     return;
   } finally { goCheckoutButton.disabled = false; }
-  await fetchStoreSettings(); 
   const cartBrandId = getCartBrandId();
   const store = checkStoreStatus(cartBrandId);
   
@@ -3090,10 +3096,6 @@ goCheckoutButton.addEventListener("click", async () => {
   }
 
   const totalQty = getCartQuantity();
-  const requiresKopkenMinimum = cartBrandId === "kopi-kenangan";
-
-  // 👇 SISTEM AKAN MEMBACA ANGKA TERBARU DARI SUPABASE 👇
-  const officialCartTotal = getOfficialCartTotal();
 
   if (totalQty === 0) {
     alert("Keranjang masih kosong. Pilih menu dulu ya.");
@@ -3509,7 +3511,7 @@ function updatePromoLabelVisibility() {
   if (activeBrandId === 'kopi-kenangan') {
     promoLabel.style.display = 'block'; 
     const promoMain = promoLabel.querySelector('.promo-main');
-    if (promoMain) {
+    if (promoMain && storeSettingsReady) {
       promoMain.textContent = kopkenMinimumEnabled
         ? `Kopi Kenangan: Minimal harga outlet ${rupiah.format(kopkenMinimumOfficialTotal)}`
         : 'Kopi Kenangan: Tanpa minimal order';

@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v34-live-outlets';
+const CACHE_NAME = 'fachrindah-pwa-v35-fresh-order-rules';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261106-qris-choice',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261109-babyccino-regular',
+  './script.js?v=20261111-fresh-order-rules',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261110-live-outlets',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
