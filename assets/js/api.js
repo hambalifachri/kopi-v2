@@ -36,7 +36,8 @@ async function loadLiveKopkenMenu(outletCode) {
   });
   if (!response.ok) throw new Error("Menu langsung belum tersedia. Coba lagi.");
   const result = await response.json();
-  if (result.outletCode !== outletCode || result.source !== "kopken-official" ||
+  if (result.outletCode !== outletCode ||
+      !new Set(["kopken-official", "supabase-cache"]).has(result.source) ||
       !Array.isArray(result.payload?.data?.menu_groups) || !result.payload.data.menu_groups.length) {
     throw new Error("Respons menu outlet belum valid.");
   }
@@ -169,6 +170,12 @@ function renderKopkenOutletLiveStatus() {
     onsite_only: "Hanya bisa pesan di outlet",
     unknown: "Status belum bisa dicek",
   })[status] || "";
+  if (status === "unknown" && outlet.source === "supabase-cache") {
+    const updated = outlet.menuUpdatedAt
+      ? new Date(outlet.menuUpdatedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+      : "waktu sinkron tidak tersedia";
+    label.textContent = `Mode Supabase sementara · menu terakhir disinkron ${updated} WIB · status buka/tutup belum live.`;
+  }
   if (outlet.pickupMessage && (status === "closed" || status === "onsite_only")) {
     label.textContent += ` · ${outlet.pickupMessage}`;
   }
@@ -215,7 +222,17 @@ window.requireKopkenPickupOpen = async function() {
   if (window.kopiKenanganOutletState.outletCode !== code) throw new Error("Outlet berubah saat diperiksa. Coba lagi.");
   if (status === "closed") throw new Error("Outlet sedang tutup. Pilih outlet lain sebelum bayar.");
   if (status === "onsite_only") throw new Error("Outlet hanya menerima pesanan langsung di lokasi. Pilih outlet lain.");
-  if (status !== "open") throw new Error("Status outlet belum bisa dicek. Coba lagi sebelum bayar.");
+  if (status !== "open") {
+    const state = window.kopiKenanganOutletState;
+    if (status === "unknown" && state.source === "supabase-cache") {
+      const updated = state.menuUpdatedAt
+        ? new Date(state.menuUpdatedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
+        : "waktu sinkron tidak tersedia";
+      if (window.confirm(`API live Kopken sedang bermasalah. Menu memakai data Supabase yang terakhir disinkron ${updated} WIB. Status buka/tutup dan ketersediaan menu belum real-time. Tetap lanjut?`)) return;
+      throw new Error("Pesanan dihentikan karena status outlet live belum tersedia.");
+    }
+    throw new Error("Status outlet belum bisa dicek. Coba lagi sebelum bayar.");
+  }
 };
 
 function getOutletWifiPassword(outlet) {
@@ -837,7 +854,9 @@ window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
       outletCode,
       outletCategory,
       source: liveOutlet.source,
+      menuUpdatedAt: liveOutlet.updatedAt || "",
     });
+    renderKopkenOutletLiveStatus();
     if (typeof renderMenu === "function") renderMenu();
 
   } catch (error) {
@@ -885,16 +904,24 @@ window.searchOutlets = async function(keyword) {
     });
     if (!catalogResponse.ok) throw new Error("Pencarian outlet resmi gagal");
     const catalogData = await catalogResponse.json();
-    if (catalogData.source !== "kopken-official" || !Array.isArray(catalogData.outlets)) {
+    if (!new Set(["kopken-official", "supabase-catalog"]).has(catalogData.source) || !Array.isArray(catalogData.outlets)) {
       throw new Error("Respons pencarian outlet belum valid");
     }
-    const outlets = catalogData.outlets;
+    const outlets = catalogData.outlets.map((outlet) => ({ ...outlet, source: catalogData.source }));
 
     if (requestId !== outletSearchRequestId) return;
     renderOutletResults(outlets, keyword);
-    if (outletHint) outletHint.textContent = outlets.length
-      ? `${outlets.length} outlet ditemukan.`
-      : "Outlet tidak ditemukan. Periksa kembali nama kota atau gerainya.";
+    if (outletHint) {
+      if (catalogData.source === "supabase-catalog") {
+        outletHint.textContent = outlets.length
+          ? `${outlets.length} outlet ditemukan dari Supabase. Status buka/tutup belum real-time.`
+          : "Outlet tidak ditemukan di katalog Supabase. Coba nama gerai atau kota yang lebih spesifik.";
+      } else {
+        outletHint.textContent = outlets.length
+          ? `${outlets.length} outlet ditemukan.`
+          : "Outlet tidak ditemukan. Periksa kembali nama kota atau gerainya.";
+      }
+    }
   } catch (error) {
     if (requestId !== outletSearchRequestId) return;
     clearOutletResults();
@@ -1414,7 +1441,7 @@ window.validateKopkenCartAvailability = async function() {
   const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
   menuItems.length = 0;
   menuItems.push(...otherBrands,...validItems);
-  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:latest.source,outletCategory:latest.category || outlet.outletCategory});
+  setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:latest.source,menuUpdatedAt:latest.updatedAt || "",outletCategory:latest.category || outlet.outletCategory});
   if (typeof renderMenu === "function") renderMenu();
   if (missing.length) {
     saveCartToStorage();

@@ -56,38 +56,65 @@ async function catalogRows(params: URLSearchParams) {
   return rows;
 }
 
+function cleanCatalogSearchTerm(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+}
+
 async function searchOutlets(url: URL) {
-  const keyword = cleanKeyword(url.searchParams.get("keyword"));
-  if (keyword.length < 3) return json({ outlets: [], page: 1, hasMore: false, source: "kopken-official" });
+  const keyword = cleanCatalogSearchTerm(cleanKeyword(url.searchParams.get("keyword")));
+  if (keyword.length < 3) return json({ outlets: [], page: 1, hasMore: false, source: "supabase-catalog" });
   const page = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("page") || "1", 10) || 1));
-  const result = await fetchOfficialStores(keyword, page, 20);
-  const outlets = new Map();
-  for (const store of result.store) {
-    const code = cleanOutletCode(store?.code ?? store?.store_code);
-    const name = cleanKeyword(store?.name);
-    if (!code || !name || outlets.has(code)) continue;
-    if (Array.isArray(store.brand_and_image) && !store.brand_and_image.some(
-      (brand: { brand_code?: number | string }) => Number(brand?.brand_code) === 1,
-    )) continue;
-    const openStatus = typeof store.open_status === "string" ? store.open_status.trim().slice(0, 120) : "";
-    outlets.set(code, {
-      code, name,
-      address: typeof store.address === "string" ? store.address.trim() : "",
-      category: typeof store.category === "string" ? store.category : "",
-      isOpen: /pesan di outlet/i.test(openStatus) ? false : typeof store.is_open === "boolean" ? store.is_open : null,
-      openStatus,
+  const pageSize = 20;
+  const terms = [...new Set([
+    keyword,
+    ...keyword.split(" ").filter(word => word.length >= 3).sort((a, b) => b.length - a.length),
+  ])];
+  let rows: Array<Record<string, unknown>> = [];
+  let matchedTerm = keyword;
+  for (const term of terms) {
+    const params = new URLSearchParams({
+      select: "outlet_code,outlet_name,outlet_address,category,updated_at",
+      or: `(outlet_name.ilike.*${term}*,outlet_address.ilike.*${term}*)`,
+      menu: "not.is.null",
+      order: "outlet_name.asc",
+      limit: String(pageSize + 1),
+      offset: String((page - 1) * pageSize),
     });
+    rows = await catalogRows(params);
+    if (rows.length) {
+      matchedTerm = term;
+      break;
+    }
   }
+  const tokens = keyword.toLowerCase().split(" ").filter(Boolean);
+  const score = (row: Record<string, unknown>) => {
+    const text = `${row.outlet_name || ""} ${row.outlet_address || ""}`.toLowerCase();
+    return tokens.reduce((total, token) => total + (text.includes(token) ? 1 : 0), 0);
+  };
+  rows.sort((a, b) => score(b) - score(a));
+  const outlets = rows.slice(0, pageSize).flatMap(row => {
+    const code = cleanOutletCode(String(row.outlet_code || ""));
+    const name = cleanKeyword(String(row.outlet_name || ""));
+    if (!code || !name) return [];
+    return [{
+      code, name,
+      address: typeof row.outlet_address === "string" ? row.outlet_address : "",
+      category: typeof row.category === "string" ? row.category : "",
+      isOpen: null,
+      updatedAt: row.updated_at || null,
+    }];
+  });
   return json({
-    outlets: [...outlets.values()],
+    outlets,
     page,
-    hasMore: page < Number(result.pages),
-    source: "kopken-official",
+    hasMore: rows.length > pageSize,
+    source: "supabase-catalog",
+    matchedTerm,
   });
 }
 
-async function loadMenu(url: URL) {
-  const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
+async function cachedMenu(outletCode: string, source: string) {
   if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
   const params = new URLSearchParams({
     select: "outlet_code,outlet_name,category,menu,updated_at",
@@ -106,66 +133,35 @@ async function loadMenu(url: URL) {
     category: row.category || "",
     updatedAt: row.updated_at || "",
     payload: row.menu,
-    source: "vsphone-sync",
+    source,
   });
+}
+
+async function loadMenu(url: URL) {
+  return await cachedMenu(cleanOutletCode(url.searchParams.get("outletCode")), "vsphone-sync");
 }
 
 async function loadLiveMenu(url: URL) {
   const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
   if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
-  const response = await fetch("https://apps.kopikenangan.com/kk-api-kopikenangan/api/product/query_product_menu", {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      store_code: outletCode, voucher_code: null, product_without_promo: true,
-      display_combo_v2: true, for_shipping: false, display_merchandise_product: true,
-      display_mix_match_optional: true, support_discount_percentage: true,
-    }),
-    signal: AbortSignal.timeout(6500),
-  });
-  if (!response.ok) throw new Error(`live-menu-http-${response.status}`);
-  const payload = await response.json();
-  const groups = payload?.data?.menu_groups;
-  if (payload?.error_code !== 0 || !Array.isArray(groups) ||
-      !groups.some(group => Array.isArray(group?.menu_products) && group.menu_products.length)) {
-    return json({ error: "Menu langsung belum tersedia. Coba lagi." }, 503);
-  }
-  return json({ outletCode, payload, source: "kopken-official", checkedAt: new Date().toISOString() });
+  return await cachedMenu(outletCode, "supabase-cache");
 }
 
 async function loadOutletStatus(url: URL) {
   const outletCode = cleanOutletCode(url.searchParams.get("outletCode"));
   if (!outletCode) return json({ error: "Kode outlet tidak valid" }, 400);
-  let fuzzyName = cleanKeyword(url.searchParams.get("outletName"));
-  if (!fuzzyName) {
-    // Older web clients only send the outlet code.
-    const [outlet] = await catalogRows(new URLSearchParams({
-      select: "outlet_name", outlet_code: `eq.${outletCode}`, limit: "1",
-    }));
-    fuzzyName = cleanKeyword(outlet?.outlet_name);
-  }
-  if (!fuzzyName) return json({ error: "Nama outlet belum tersedia" }, 503);
-  const matchesCode = (store: { code?: string; store_code?: string }) =>
-    String(store?.code ?? store?.store_code ?? "") === outletCode;
-  const { store: stores } = await fetchOfficialStores(fuzzyName, 1, 20);
-  let match = stores.find(matchesCode);
-  if (!match) {
-    // The official fuzzy search can omit an outlet when given its full name.
-    const searchKeyword = cleanKeyword(url.searchParams.get("searchKeyword"));
-    const shortName = fuzzyName.replace(/^(?:ruko|mall)\s+/i, "").split(" ")[0];
-    const fallback = searchKeyword.length >= 3 && searchKeyword.toLowerCase() !== fuzzyName.toLowerCase()
-      ? searchKeyword
-      : shortName;
-    if (fallback.length >= 3 && fallback.toLowerCase() !== fuzzyName.toLowerCase()) {
-      const result = await fetchOfficialStores(fallback, 1, 20);
-      match = result.store.find(matchesCode);
-    }
-  }
-  const message = typeof match?.open_status === "string" ? match.open_status.trim().slice(0, 120) : "";
-  const status = /pesan di outlet/i.test(message) ? "onsite_only"
-    : match?.is_open === true ? "open"
-    : match?.is_open === false ? "closed" : "unknown";
-  return json({ outletCode, status, message, checkedAt: new Date().toISOString(), source: "kopken-official" });
+  const [outlet] = await catalogRows(new URLSearchParams({
+    select: "outlet_name,updated_at", outlet_code: `eq.${outletCode}`, limit: "1",
+  }));
+  if (!outlet) return json({ error: "Outlet tidak ditemukan di katalog Supabase" }, 404);
+  return json({
+    outletCode,
+    status: "unknown",
+    message: "Status buka/tutup live sementara tidak tersedia.",
+    updatedAt: outlet.updated_at || "",
+    checkedAt: new Date().toISOString(),
+    source: "supabase-cache",
+  });
 }
 
 Deno.serve(async request => {
