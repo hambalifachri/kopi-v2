@@ -1319,7 +1319,10 @@ function buildTomoroUiCapturedMenu(payload) {
     if (product.catalog_only === true) {
       if (!localItem || !(Number(localItem.price) > 0) || product.isSoldOut === true || seen.has(key)) return [];
       seen.add(key);
-      return [{ ...localItem, image: product.imageUrl || localItem.image, liveOutletMenu: true }];
+      return [{ ...localItem, image: product.imageUrl || localItem.image, liveOutletMenu: true,
+        options: cloneGroups(localItem.options || optionGroups).map(group => group.key === "cupSize"
+          ? { ...group, options: (group.options || []).filter(option => option.value === "Small") } : group),
+      }];
     }
     const price = localItem?.price || getTomoroCapturedPrice(product);
     const oldPrice = getTomoroCapturedOldPrice(product) || localItem?.oldPrice || price;
@@ -1380,6 +1383,13 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     }
   } catch (error) {
     console.error(`Gagal memuat menu live ${brandId}:`, error);
+    if (brandId === "tomoro") {
+      replaceLiveBrandMenu(brandId, []);
+      setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: false, source: "" });
+      setLiveBrandHint("Menu Small untuk voucher 50% belum bisa diperiksa. Pilih ulang outlet atau coba lagi.");
+      if (typeof renderMenu === "function") renderMenu();
+      return;
+    }
     restoreLiveBrandMenu(brandId);
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "fallback" });
     if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
