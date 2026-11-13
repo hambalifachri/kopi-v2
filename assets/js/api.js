@@ -12,7 +12,7 @@ window.addEventListener('load', function() {
 
 // Ganti baris paling atas api.js Anda menjadi seperti ini:
 const NUFS_API_BASE = "https://www.nufsfood.shop/api";
-const KOPKEN_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog";
+const KOPKEN_CATALOG_API = "/api/kopken";
 const SELECTED_OUTLET_STORAGE_KEY = "kopiFachrindahSelectedOutlet";
 const BRAND_CATALOG_API = "https://omkboytvivjxoobyhumc.supabase.co/functions/v1/brand-catalog";
 function getBrandCatalogHeaders() {
@@ -37,7 +37,7 @@ async function loadLiveKopkenMenu(outletCode) {
   if (!response.ok) throw new Error("Menu langsung belum tersedia. Coba lagi.");
   const result = await response.json();
   if (result.outletCode !== outletCode ||
-      !new Set(["kopken-official", "supabase-cache"]).has(result.source) ||
+      !new Set(["kopken-official", "akzara", "supabase-cache"]).has(result.source) ||
       !Array.isArray(result.payload?.data?.menu_groups) || !result.payload.data.menu_groups.length) {
     throw new Error("Respons menu outlet belum valid.");
   }
@@ -526,6 +526,17 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const overrideItem = KOPI_KENANGAN_API_MENU_OVERRIDES[normalizeApiText(itemName)] || {};
   const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
   const finalGroup = apiGroup || localItem.group || "food";
+  if (item.catalog_only === true) {
+    // Partner supplies availability only; every price and option comes from our catalog.
+    if (!localItem.id || !(Number(localItem.price) > 0)) return null;
+    const noLarge = localItem.noLarge === true || item.noLarge === true;
+    return { ...localItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
+      name: itemName, group: finalGroup, kopkenCategoryOrder: { [finalGroup]: sourceIndex },
+      image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
+      isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
+      noLarge, largePrice: noLarge ? undefined : localItem.largePrice,
+    };
+  }
   const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;
   const image = item.image || item.img || localItem.image || null;
   const regularPrice = getApiProductPrice(item, localItem);
@@ -601,7 +612,7 @@ function buildDynamicKopiKenanganItems(rawResponse, localMenuByName) {
       }));
     })
     .filter(isSupportedKopiKenanganApiProduct)
-    .map((item, sourceIndex) => toKopiKenanganMenuItem(item, localMenuByName, sourceIndex));
+    .map((item, sourceIndex) => toKopiKenanganMenuItem(item, localMenuByName, sourceIndex)).filter(Boolean);
 }
 
 function updateOutletUi(outlet = null) {
@@ -904,7 +915,7 @@ window.searchOutlets = async function(keyword) {
     });
     if (!catalogResponse.ok) throw new Error("Pencarian outlet resmi gagal");
     const catalogData = await catalogResponse.json();
-    if (!new Set(["kopken-official", "supabase-catalog"]).has(catalogData.source) || !Array.isArray(catalogData.outlets)) {
+    if (!new Set(["kopken-official", "akzara", "supabase-catalog"]).has(catalogData.source) || !Array.isArray(catalogData.outlets)) {
       throw new Error("Respons pencarian outlet belum valid");
     }
     const outlets = catalogData.outlets.map((outlet) => ({ ...outlet, source: catalogData.source }));
