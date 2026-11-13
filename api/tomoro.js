@@ -21,9 +21,9 @@ export default async function handler(req, res) {
   try {
     if(action==='tomoro-outlets') {
       const keyword=(params.get('keyword')||'').replace(/[^\p{L}\p{N}\s-]/gu,' ').trim().slice(0,100);
-      if(keyword.length<3)return res.status(200).json({outlets:[],source:'akzara'});
+      if(keyword.length<3)return res.status(200).json({outlets:[],source:'catalog-provider'});
       const outlets=await rows('outlets',{select:'code,name,address,is_open,open_status',brand:'eq.tomoro',is_active:'eq.true',name:'ilike.*'+keyword+'*',order:'name.asc',limit:'30'});
-      return res.status(200).json({source:'akzara',outlets:outlets.filter(o=>o.code && !isAirportOutlet(o)).map(o=>({storeCode:o.code,storeName:o.name,storeAddress:o.address,isOpen:typeof o.is_open==='boolean'?o.is_open:null,openStatus:o.open_status||''}))});
+      return res.status(200).json({source:'catalog-provider',outlets:outlets.filter(o=>o.code && !isAirportOutlet(o)).map(o=>({storeCode:o.code,storeName:o.name,storeAddress:o.address,isOpen:typeof o.is_open==='boolean'?o.is_open:null,openStatus:o.open_status||''}))});
     }
     const code=params.get('outletCode')||'';
     if(!/^[a-zA-Z0-9._-]{3,80}$/.test(code))throw Error('Invalid code');
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const inventory=new Map(stock.map(p=>[String(p.product_code),p]));
     const products=catalog.filter(p=>isPromoProduct(p,inventory.get(String(p.product_code)))).map(p=>({productName:p.name,productCode:p.product_code,imageUrl:p.image_url,isSoldOut:inventory.get(String(p.product_code)).is_sold_out===true,catalog_only:true,small_only:true,promo_50:true}));
     if(!products.length)throw Error('Empty menu');
-    return res.status(200).json({source:'akzara',products});
+    return res.status(200).json({source:'catalog-provider',products});
   } catch {
     if(action==='tomoro-menu')return res.status(503).json({error:'Menu Small untuk voucher 50% belum dapat diperiksa. Coba lagi.'});
     try {

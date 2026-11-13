@@ -37,7 +37,7 @@ async function loadLiveKopkenMenu(outletCode) {
   if (!response.ok) throw new Error("Menu langsung belum tersedia. Coba lagi.");
   const result = await response.json();
   if (result.outletCode !== outletCode ||
-      !new Set(["kopken-official", "akzara", "supabase-cache"]).has(result.source) ||
+      !new Set(["kopken-official", "catalog-provider", "supabase-cache"]).has(result.source) ||
       !Array.isArray(result.payload?.data?.menu_groups) || !result.payload.data.menu_groups.length) {
     throw new Error("Respons menu outlet belum valid.");
   }
@@ -918,7 +918,7 @@ window.searchOutlets = async function(keyword) {
     });
     if (!catalogResponse.ok) throw new Error("Pencarian outlet resmi gagal");
     const catalogData = await catalogResponse.json();
-    if (!new Set(["kopken-official", "akzara", "supabase-catalog"]).has(catalogData.source) || !Array.isArray(catalogData.outlets)) {
+    if (!new Set(["kopken-official", "catalog-provider", "supabase-catalog"]).has(catalogData.source) || !Array.isArray(catalogData.outlets)) {
       throw new Error("Respons pencarian outlet belum valid");
     }
     const outlets = catalogData.outlets.map((outlet) => ({ ...outlet, source: catalogData.source }));

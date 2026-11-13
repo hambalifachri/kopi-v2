@@ -2,7 +2,7 @@
 const BASE = 'https://db.akzara.id';
 const PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubWtqbHh2d3N3cW9iZmxldXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4Mjc2NjksImV4cCI6MjA4NDQwMzY2OX0.3an86_X5-KwdVcE9jIOP2v-mJiQQe_UV55uYV0AuIXk";
 const FALLBACK = 'https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog';
-const SOURCE = 'akzara';
+const SOURCE = 'catalog-provider';
 const headers = { apikey: PUBLIC_KEY, Authorization: 'Bearer '+PUBLIC_KEY };
 export async function rows(table, params) {
   const response = await fetch(BASE+'/rest/v1/'+table+'?'+new URLSearchParams(params), {headers,signal:AbortSignal.timeout(6500)});
