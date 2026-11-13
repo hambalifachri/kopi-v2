@@ -4096,3 +4096,11 @@ body.cart-has-items .back-to-top {
     font-size: 0.74rem;
   }
 }
+
+.outlet-result-heading .outlet-open-status,
+.outlet-result-heading .outlet-unknown-status {
+  flex: 0 0 auto; padding: 3px 7px; border-radius: 4px;
+  font-size: 0.62rem; font-weight: 800; white-space: nowrap;
+}
+.outlet-result-heading .outlet-open-status { color: #166534; background: #dcfce7; }
+.outlet-result-heading .outlet-unknown-status { color: #6b7280; background: #f3f4f6; }

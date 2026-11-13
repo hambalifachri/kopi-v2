@@ -745,14 +745,17 @@ function renderOutletResults(outlets, keyword = "") {
       const heading = document.createElement("span");
       heading.className = "outlet-result-heading";
       heading.appendChild(nameElement);
+      const statusElement = document.createElement("span");
       if (isClosed) {
-        const statusElement = document.createElement("span");
         statusElement.className = scheduleClosed && !isApiClosed ? "outlet-schedule-status" : "outlet-closed-status";
-        statusElement.textContent = scheduleClosed && !isApiClosed
-          ? "JADWAL TUTUP"
-          : outlet.openStatus || "Outlet sedang tutup";
-        heading.appendChild(statusElement);
+        statusElement.textContent = scheduleClosed && !isApiClosed ? "JADWAL TUTUP"
+          : /pesan di outlet/i.test(outlet.openStatus || "") ? "PESAN DI OUTLET" : "TUTUP";
+      } else {
+        const isOpen = outlet.isOpen === true;
+        statusElement.className = isOpen ? "outlet-open-status" : "outlet-unknown-status";
+        statusElement.textContent = isOpen ? "BUKA" : "BELUM DICEK";
       }
+      heading.appendChild(statusElement);
       button.appendChild(heading);
       if (address) {
         const addressElement = document.createElement("span");
