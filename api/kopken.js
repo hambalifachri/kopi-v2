@@ -4,7 +4,7 @@ const PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const FALLBACK = 'https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog';
 const SOURCE = 'akzara';
 const headers = { apikey: PUBLIC_KEY, Authorization: 'Bearer '+PUBLIC_KEY };
-async function rows(table, params) {
+export async function rows(table, params) {
   const response = await fetch(BASE+'/rest/v1/'+table+'?'+new URLSearchParams(params), {headers,signal:AbortSignal.timeout(6500)});
   if (!response.ok) throw new Error('Source unavailable');
   const data=await response.json();if(!Array.isArray(data))throw new Error('Invalid source');return data;
@@ -64,4 +64,9 @@ export default async function handler(req, res) {
       return res.status(response.status).json(body);
     } catch { return res.status(503).json({ error: 'Layanan outlet dan cadangan sementara tidak tersedia' }); }
   }
+}
+
+export async function refreshSourceMenu(brand,code) {
+ if(!['tomoro'].includes(brand))throw Error('Invalid brand');
+ try {await fetch(BASE+'/functions/v1/sync-'+brand+'-menu',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({store_code:code}),signal:AbortSignal.timeout(5000)});}catch{}
 }

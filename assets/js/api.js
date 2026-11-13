@@ -1113,11 +1113,16 @@ function renderLiveBrandOutletResults(brandId, outlets) {
         detail.textContent = address;
         button.appendChild(detail);
       }
-      if (isClosed) {
+      if (brandId === "tomoro") {
         const status = document.createElement("span");
-        status.className = "outlet-closed-status";
-        status.textContent = "Outlet sedang tutup";
-        button.appendChild(status);
+        status.className = "outlet-result-heading";
+        const badge = document.createElement("span");
+        badge.className = isClosed ? "outlet-closed-status" : outlet.isOpen === true ? "outlet-open-status" : "outlet-unknown-status";
+        badge.textContent = isClosed ? "TUTUP" : outlet.isOpen === true ? "BUKA" : "BELUM DICEK";
+        status.appendChild(badge); button.appendChild(status);
+      } else if (isClosed) {
+        const status = document.createElement("span"); status.className = "outlet-closed-status";
+        status.textContent = "Outlet sedang tutup"; button.appendChild(status);
       }
       button.addEventListener("click", () => selectLiveBrandOutlet(brandId, { outletCode: code, outletName: name, outletAddress: address }));
       results.appendChild(button);
@@ -1128,7 +1133,7 @@ window.searchLiveBrandOutlets = async function(brandId, keyword) {
   if (!["tomoro", "fore"].includes(brandId) || keyword.trim().length < 3) return;
   setLiveBrandHint("Mencari outlet...");
   try {
-    const url = `${BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
+    const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?action=${brandId}-outlets&keyword=${encodeURIComponent(keyword.trim())}`;
     const response = await fetch(url, { headers: getBrandCatalogHeaders() });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
@@ -1237,7 +1242,7 @@ function collectTomoroProducts(value, products = []) {
   if (!value || typeof value !== "object") return products;
   const name = value.productName || value.menuName || value.goodsName || value.name;
   const price = firstNumber(value.price, value.salePrice, value.originPrice, value.originalPrice);
-  if (name && price) products.push(value);
+  if (name && (price || value.catalog_only === true)) products.push(value);
   Object.values(value).forEach((entry) => collectTomoroProducts(entry, products));
   return products;
 }
@@ -1311,6 +1316,11 @@ function buildTomoroUiCapturedMenu(payload) {
     const name = product.productName || product.menuName || product.goodsName || product.name;
     const key = normalizedLiveName(name);
     const localItem = localByName.get(key);
+    if (product.catalog_only === true) {
+      if (!localItem || !(Number(localItem.price) > 0) || product.isSoldOut === true || seen.has(key)) return [];
+      seen.add(key);
+      return [{ ...localItem, image: product.imageUrl || localItem.image, liveOutletMenu: true }];
+    }
     const price = localItem?.price || getTomoroCapturedPrice(product);
     const oldPrice = getTomoroCapturedOldPrice(product) || localItem?.oldPrice || price;
     if (!name || !price || seen.has(key)) return [];
@@ -1357,7 +1367,7 @@ async function loadLiveBrandMenu(brandId, outletCode) {
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
-    const url = `${BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
+    const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
     const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(12000) });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
