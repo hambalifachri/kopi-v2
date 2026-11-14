@@ -450,6 +450,7 @@ function buildDynamicBundleItem(drinks, foods, drinkCount, bundleMinimum) {
     label: item.name,
     priceDelta: item.price,
     officialPrice: item.oldPrice,
+    hasOutletOfficialPrice: item.hasOutletOfficialPrice === true,
     menuId: item.id,
   });
   const orderWithDefault = (itemsToOrder, defaultItem, eligibleIds) => [
@@ -483,6 +484,7 @@ function buildDynamicBundleItem(drinks, foods, drinkCount, bundleMinimum) {
     desc: `${bundleLabel}, bebas tukar dengan total harga outlet tepat Rp${bundleMinimum.toLocaleString("id-ID")}. Diskon bundle Rp2.000.`,
     price: defaultCombination.sellingTotal,
     oldPrice: defaultCombination.officialTotal,
+    hasOutletOfficialPrice: [...defaultCombination.drinks, defaultCombination.food].every(item => item.hasOutletOfficialPrice === true),
     image: defaultCombination.drinks[0].image || defaultCombination.food.image || null,
     bundleImageUrls: [...defaultCombination.drinks, defaultCombination.food]
       .map((item) => item.image)
@@ -527,14 +529,21 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
   const finalGroup = apiGroup || localItem.group || "food";
   if (item.catalog_only === true) {
-    // Partner supplies availability only; every price and option comes from our catalog.
+    // Keep our selling prices and options, but use the outlet’s original prices.
     if (!localItem.id || !(Number(localItem.price) > 0)) return null;
     const noLarge = localItem.noLarge === true || item.noLarge === true;
+    const outletRegular = firstNumber(item.outlet_regular_price);
+    const outletLarge = firstNumber(item.outlet_large_price);
+    const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
     return { ...localItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
       name: itemName, group: finalGroup, kopkenCategoryOrder: { [finalGroup]: sourceIndex },
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
       noLarge, largePrice: noLarge ? undefined : localItem.largePrice,
+      oldPrice: outletRegular || localItem.oldPrice,
+      oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
+      hasOutletOfficialPrice: Boolean(outletRegular),
+      hasOutletLargePrice: Boolean(outletLarge),
     };
   }
   const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;

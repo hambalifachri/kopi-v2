@@ -693,11 +693,11 @@ function getOfficialItemPrice(item, excludeVoucherExtras = false) {
     const bundleItem = item.bundleOptionGroups
       ? { ...item, options: item.bundleOptionGroups }
       : sourceItem;
-    const selectedCount = Array.isArray(bundleItem.options)
-      ? bundleItem.options.filter((group) => item.options?.[group.key]).length
-      : 1;
+    const selectedWithoutOutletPrice = Array.isArray(bundleItem.options)
+      ? bundleItem.options.filter(group => group.options.some(option => option.value === item.options?.[group.key] && !option.hasOutletOfficialPrice)).length
+      : 0;
     return getDynamicBundleOfficialTotal(bundleItem, item.options || {})
-      + (getKopkenPremiumOutletOfficialSurcharge(sourceItem) * Math.max(1, selectedCount));
+      + (getKopkenPremiumOutletOfficialSurcharge(sourceItem) * selectedWithoutOutletPrice);
   }
 
   let officialPrice = getMenuPriceValue(sourceItem, "oldPrice", "origPrice", "orig_price", "price") || item.price;
@@ -737,7 +737,8 @@ function getOfficialItemPrice(item, excludeVoucherExtras = false) {
     if (typeof selectedOption?.priceDelta === "number") officialPrice += selectedOption.priceDelta;
   });
 
-  return officialPrice + getKopkenPremiumOutletOfficialSurcharge(sourceItem);
+  const alreadyOutletPrice = sourceItem.hasOutletOfficialPrice || (selectedSize === "large" && sourceItem.hasOutletLargePrice);
+  return officialPrice + (alreadyOutletPrice ? 0 : getKopkenPremiumOutletOfficialSurcharge(sourceItem));
 }
 
 function getOfficialCartTotal() {
@@ -1141,7 +1142,7 @@ function menuCard(item) {
   const sizeBlockNotes = getActiveSizeBlockNotes(item);
   const sizeBlockHtml = sizeBlockNotes.length ? `<span class="sale-note">${sizeBlockNotes.join(" · ")}</span>` : "";
   const displayPrice = getDisplayPrice(item);
-  const displayOldPrice = Number(item.oldPrice || 0) + getKopkenPremiumOutletOfficialSurcharge(item);
+  const displayOldPrice = Number(item.oldPrice || 0) + (item.hasOutletOfficialPrice ? 0 : getKopkenPremiumOutletOfficialSurcharge(item));
   const resellerBadge = isResellerEligible(item) ? `<span class="reseller-price-badge">Reseller hemat ${rupiah.format(RESELLER_DISCOUNT)}</span>` : "";
   
   const buttonText = store.closed ? "Tutup" : (item.syncPending ? "Menunggu sync" : (currentlySoldOut ? "Habis" : "Tambah"));

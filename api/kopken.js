@@ -1,4 +1,4 @@
-// Public browser API used by Dibeliin; no upstream prices are imported.
+// Public browser API used by Dibeliin; outlet reference prices never replace our selling prices.
 const BASE = 'https://db.akzara.id';
 const PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpubWtqbHh2d3N3cW9iZmxldXB1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4Mjc2NjksImV4cCI6MjA4NDQwMzY2OX0.3an86_X5-KwdVcE9jIOP2v-mJiQQe_UV55uYV0AuIXk";
 const FALLBACK = 'https://omkboytvivjxoobyhumc.supabase.co/functions/v1/kopken-catalog';
@@ -19,7 +19,9 @@ export function normalizeMenu(catalog, stock, code) {
     for(const name of Array.isArray(p.categories)&&p.categories.length?p.categories:['Food']){
       if(!groups.has(name))groups.set(name,[]);
       groups.get(name).push({id:p.product_code,name:p.name,brand:'Kopi Kenangan',image:p.image_url,
-        catalog_only:true,is_sold_out:inventory.is_sold_out===true});
+        catalog_only:true,is_sold_out:inventory.is_sold_out===true,
+        outlet_regular_price: Number(inventory.regular_price) || undefined,
+        outlet_large_price: Number(inventory.large_price) || undefined});
     }
   }
   if(!groups.size)throw new Error('Incomplete outlet catalog');
@@ -42,7 +44,7 @@ async function primary(params) {
     try {await fetch(BASE+'/functions/v1/sync-outlet-menu',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({store_code:code}),signal:AbortSignal.timeout(5000)});}catch{}
     const [catalog,stock]=await Promise.all([
       rows('menu_items',{select:'product_code,name,categories,image_url',brand:'eq.kenangan',is_available:'eq.true',order:'id.asc',limit:'1000'}),
-      rows('store_menus',{select:'product_code,is_sold_out',store_code:'eq.'+code,limit:'1000'})
+      rows('store_menus',{select:'product_code,is_sold_out,regular_price,large_price',store_code:'eq.'+code,limit:'1000'})
     ]);
     return normalizeMenu(catalog,stock,code);
   }
