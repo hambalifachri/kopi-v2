@@ -35,7 +35,7 @@ async function primary(params) {
     const outlets=await rows('outlets',{select:'code,name,address,is_open,open_status',brand:'eq.kenangan',is_active:'eq.true',name:'ilike.*'+keyword+'*',order:'name.asc',limit:'30'});
     return {outlets:outlets.filter(o=>o.code).map(outletRow),source:SOURCE,page:1,hasMore:false};
   }
-  const code=params.get('outletCode')||'';if(!/^[a-zA-Z0-9._-]{3,80}$/.test(code))throw Error('Invalid code');
+  const code=params.get('outletCode')||'';if(!/^[a-zA-Z0-9._-]{2,80}$/.test(code))throw Error('Invalid code');
   const [outlet]=await rows('outlets',{select:'code,name,address,is_open,open_status',brand:'eq.kenangan',is_active:'eq.true',code:'eq.'+code,limit:'1'});
   if(!outlet)throw Error('Outlet missing');
   if(action==='status')return {outletCode:code,source:SOURCE,status:/pesan di outlet/i.test(outlet.open_status||'')?'onsite_only':outlet.is_open===true?'open':outlet.is_open===false?'closed':'unknown',message:outlet.open_status||'',checkedAt:new Date().toISOString()};
