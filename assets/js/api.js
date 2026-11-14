@@ -1130,11 +1130,6 @@ function renderLiveBrandOutletResults(brandId, outlets) {
         badge.className = isClosed ? "outlet-closed-status" : outlet.isOpen === true ? "outlet-open-status" : "outlet-unknown-status";
         badge.textContent = isClosed ? "TUTUP" : outlet.isOpen === true ? "BUKA" : "BELUM DICEK";
         status.appendChild(badge); button.appendChild(status);
-        if (outlet.hasSyncedMenu === false) {
-          const menuNote = document.createElement("span");
-          menuNote.textContent = "Menu belum disinkronkan";
-          button.appendChild(menuNote);
-        }
       } else if (isClosed) {
         const status = document.createElement("span"); status.className = "outlet-closed-status";
         status.textContent = "Outlet sedang tutup"; button.appendChild(status);
@@ -1400,12 +1395,14 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
     const items = brandId === "tomoro" ? buildTomoroLiveMenu(data) : buildForeLiveMenu(data);
     if (!items.length) throw new Error(brandId === "tomoro"
-      ? "Menu tersimpan untuk outlet ini belum punya minuman Small yang cocok dengan promo dan katalog harga kita."
+      ? "Katalog Tomoro belum punya minuman Small yang cocok dengan promo dan daftar harga."
       : "Tidak ada menu yang cocok di outlet ini");
     replaceLiveBrandMenu(brandId, items);
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: data.source === "tomoro-cache" ? "tomoro-cache" : "live" });
     if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
-      setLiveBrandHint(`${items.length} menu tersedia sesuai outlet terpilih.`);
+      setLiveBrandHint(data.sharedCatalog
+        ? `${items.length} menu dari katalog umum Tomoro. Stok dikonfirmasi sesuai outlet.`
+        : `${items.length} menu tersedia sesuai outlet terpilih.`);
     }
   } catch (error) {
     console.error(`Gagal memuat menu live ${brandId}:`, error);

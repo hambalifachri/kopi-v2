@@ -12,14 +12,14 @@ export default async function handler(req, res) {
   if (action === 'tomoro-outlets') {
     const keyword = (params.get('keyword') || '').replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().slice(0, 100);
     if (keyword.length < 3) return res.status(200).json({source: SOURCE, outlets: []});
-    query.set('select', 'store_code,store_name,store_address,raw_store,menu_updated_at');
+    query.set('select', 'store_code,store_name,store_address,raw_store');
     query.set('or', '(store_name.ilike.*'+keyword+'*,store_address.ilike.*'+keyword+'*)');
     query.set('order', 'store_name.asc');
     query.set('limit', '30');
   } else if (action === 'tomoro-menu') {
     const code = params.get('outletCode') || '';
     if (!/^[a-zA-Z0-9._-]{2,80}$/.test(code)) return res.status(400).json({error: 'Kode outlet tidak valid'});
-    query.set('select', 'store_name,menu,menu_updated_at');
+    query.set('select', 'store_name');
     query.set('store_code', 'eq.'+code);
     query.set('limit', '1');
   } else {
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     for (const key of ['apikey', 'authorization']) {
       if (typeof req.headers[key] === 'string') headers[key] = req.headers[key];
     }
-    const response = await fetch(CATALOG+'?'+query, {headers, signal: AbortSignal.timeout(9000)});
+    const response = await fetch(CATALOG+'?'+query, {headers, signal: AbortSignal.timeout(5000)});
     if (!response.ok) throw Error('Database unavailable');
     const rows = await response.json();
     if (action === 'tomoro-outlets') {
@@ -38,15 +38,28 @@ export default async function handler(req, res) {
         storeCode: row.store_code,
         storeName: row.store_name,
         storeAddress: row.store_address,
-        hasSyncedMenu: Boolean(row.menu_updated_at),
         isOpen: typeof row.raw_store?.isOpen === 'boolean' ? row.raw_store.isOpen : null,
       }));
       return res.status(200).json({source: SOURCE, outlets});
     }
     const [outlet] = rows;
     if (!outlet || isAirportOutlet({name: outlet.store_name})) return res.status(404).json({error: 'Outlet Tomoro tidak tersedia'});
-    if (!outlet.menu) return res.status(404).json({error: 'Menu outlet ini belum disinkronkan ke Supabase.'});
-    return res.status(200).json({source: SOURCE, menu: outlet.menu, updatedAt: outlet.menu_updated_at});
+    const catalogQuery = new URLSearchParams({
+      select: 'menu,menu_updated_at',
+      menu: 'not.is.null',
+      order: 'menu_updated_at.desc.nullslast,store_code.asc',
+      limit: '30',
+    });
+    const catalogResponse = await fetch(CATALOG+'?'+catalogQuery, {headers, signal: AbortSignal.timeout(5000)});
+    if (!catalogResponse.ok) throw Error('Shared catalog unavailable');
+    const catalog = await catalogResponse.json();
+    if (!catalog.length) return res.status(404).json({error: 'Katalog umum Tomoro belum tersedia.'});
+    return res.status(200).json({
+      source: SOURCE,
+      menu: catalog.map(row => row.menu),
+      sharedCatalog: true,
+      updatedAt: catalog[0].menu_updated_at,
+    });
   } catch {
     return res.status(503).json({error: 'Katalog Tomoro sementara tidak dapat dibaca.'});
   }
