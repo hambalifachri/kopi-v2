@@ -581,7 +581,8 @@ function shouldGateKopiKenanganMenu() {
 function shouldGateManualBrandMenu() {
   if (activeBrandId === "kopi-kenangan") return false;
   const state = window.brandOutletStates?.[activeBrandId];
-  return Boolean(state?.menuLoading) || !getSelectedOutletNameForBrand(activeBrandId);
+  return Boolean(state?.menuLoading) || !getSelectedOutletNameForBrand(activeBrandId)
+    || (activeBrandId === "tomoro" && !state?.menuLoaded);
 }
 
 function getManualBrandGateMessage() {
@@ -592,6 +593,9 @@ function getManualBrandGateMessage() {
       body: `Menu ${getActiveBrand().label} sedang disesuaikan dengan outlet pilihan.`,
       status: "Sedang memuat menu outlet.",
     };
+  }
+  if (activeBrandId === "tomoro" && state?.menuError) {
+    return { title: "Menu Tomoro belum tersedia", body: state.menuError, status: "Menu belum tersedia untuk outlet ini." };
   }
   return {
     title: `Pilih outlet ${getActiveBrand().label} dulu`,

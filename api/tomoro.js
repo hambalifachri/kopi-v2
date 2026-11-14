@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (action === 'tomoro-outlets') {
     const keyword = (params.get('keyword') || '').replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().slice(0, 100);
     if (keyword.length < 3) return res.status(200).json({source: SOURCE, outlets: []});
-    query.set('select', 'store_code,store_name,store_address,raw_store');
+    query.set('select', 'store_code,store_name,store_address,raw_store,menu_updated_at');
     query.set('or', '(store_name.ilike.*'+keyword+'*,store_address.ilike.*'+keyword+'*)');
     query.set('order', 'store_name.asc');
     query.set('limit', '30');
@@ -38,6 +38,7 @@ export default async function handler(req, res) {
         storeCode: row.store_code,
         storeName: row.store_name,
         storeAddress: row.store_address,
+        hasSyncedMenu: Boolean(row.menu_updated_at),
         isOpen: typeof row.raw_store?.isOpen === 'boolean' ? row.raw_store.isOpen : null,
       }));
       return res.status(200).json({source: SOURCE, outlets});

@@ -1130,6 +1130,11 @@ function renderLiveBrandOutletResults(brandId, outlets) {
         badge.className = isClosed ? "outlet-closed-status" : outlet.isOpen === true ? "outlet-open-status" : "outlet-unknown-status";
         badge.textContent = isClosed ? "TUTUP" : outlet.isOpen === true ? "BUKA" : "BELUM DICEK";
         status.appendChild(badge); button.appendChild(status);
+        if (outlet.hasSyncedMenu === false) {
+          const menuNote = document.createElement("span");
+          menuNote.textContent = "Menu belum disinkronkan";
+          button.appendChild(menuNote);
+        }
       } else if (isClosed) {
         const status = document.createElement("span"); status.className = "outlet-closed-status";
         status.textContent = "Outlet sedang tutup"; button.appendChild(status);
@@ -1386,7 +1391,7 @@ function buildTomoroLiveMenu(payload) {
 }
 
 async function loadLiveBrandMenu(brandId, outletCode) {
-  setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "" });
+  setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "", menuError: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
     const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
@@ -1394,7 +1399,9 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
     const items = brandId === "tomoro" ? buildTomoroLiveMenu(data) : buildForeLiveMenu(data);
-    if (!items.length) throw new Error("Tidak ada menu yang cocok di outlet ini");
+    if (!items.length) throw new Error(brandId === "tomoro"
+      ? "Menu tersimpan untuk outlet ini belum punya minuman Small yang cocok dengan promo dan katalog harga kita."
+      : "Tidak ada menu yang cocok di outlet ini");
     replaceLiveBrandMenu(brandId, items);
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: data.source === "tomoro-cache" ? "tomoro-cache" : "live" });
     if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
@@ -1404,8 +1411,9 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     console.error(`Gagal memuat menu live ${brandId}:`, error);
     if (brandId === "tomoro") {
       replaceLiveBrandMenu(brandId, []);
-      setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: false, source: "" });
-      setLiveBrandHint(error.message || "Menu Tomoro belum dapat dimuat dari Supabase.");
+      const menuError = error.message || "Menu Tomoro belum dapat dimuat dari Supabase.";
+      setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: false, source: "", menuError });
+      setLiveBrandHint(menuError);
       if (typeof renderMenu === "function") renderMenu();
       return;
     }
