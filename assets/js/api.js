@@ -1353,6 +1353,15 @@ function buildTomoroUiCapturedMenu(payload) {
 }
 
 function buildTomoroLiveMenu(payload) {
+  if (payload.source === "tomoro-cache") {
+    const excluded = /ice[ -]?cream|es krim|frapp|jujutsu|kaisen|collab|kolaborasi|character cup|limited edition|one piece|sanrio|pokemon/i;
+    const products = collectTomoroProducts(payload.menu).filter(product => {
+      const label = [product.productName, product.menuName, product.goodsName, product.name,
+        product.category, product.categoryName, product.categories].flat().filter(Boolean).join(" ");
+      return !excluded.test(label) && product.isSoldOut !== true && product.soldOut !== true;
+    }).map(product => ({ ...product, catalog_only: true }));
+    return buildTomoroUiCapturedMenu(products);
+  }
   const captured = buildTomoroUiCapturedMenu(payload);
   if (captured.length >= 3) return captured;
   cacheOriginalLiveBrandMenus();
@@ -1387,7 +1396,7 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     const items = brandId === "tomoro" ? buildTomoroLiveMenu(data) : buildForeLiveMenu(data);
     if (!items.length) throw new Error("Tidak ada menu yang cocok di outlet ini");
     replaceLiveBrandMenu(brandId, items);
-    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: "live" });
+    setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: data.source === "tomoro-cache" ? "tomoro-cache" : "live" });
     if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
       setLiveBrandHint(`${items.length} menu tersedia sesuai outlet terpilih.`);
     }
@@ -1396,7 +1405,7 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     if (brandId === "tomoro") {
       replaceLiveBrandMenu(brandId, []);
       setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: false, source: "" });
-      setLiveBrandHint("Menu Small untuk voucher 50% belum bisa diperiksa. Pilih ulang outlet atau coba lagi.");
+      setLiveBrandHint(error.message || "Menu Tomoro belum dapat dimuat dari Supabase.");
       if (typeof renderMenu === "function") renderMenu();
       return;
     }

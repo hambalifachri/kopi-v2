@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fachrindah-pwa-v37-menu-recovery';
+const CACHE_NAME = 'fachrindah-pwa-v38-tomoro-supabase';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const urlsToCache = [
   './menu-data.js?v=20260825-1',
   './script.js?v=20261114-outlet-price',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261114-menu-recovery',
+  './assets/js/api.js?v=20261114-tomoro-supabase',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',
