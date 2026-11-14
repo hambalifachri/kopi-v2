@@ -1,12 +1,12 @@
-const CACHE_NAME = 'fachrindah-pwa-v36-outlet-status';
+const CACHE_NAME = 'fachrindah-pwa-v37-menu-recovery';
 const urlsToCache = [
   './',
   './index.html',
-  './styles.css?v=20261106-qris-choice',
+  './styles.css?v=20261113-outlet-status',
   './menu-data.js?v=20260825-1',
-  './script.js?v=20261111-fresh-order-rules',
+  './script.js?v=20261114-outlet-price',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261111-outlet-status',
+  './assets/js/api.js?v=20261114-menu-recovery',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',
@@ -44,7 +44,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   // Menu, settings, sessions and orders must never fall back to stale API data.
-  if (event.request.method !== 'GET' || /\/(?:rest|functions)\/v1\//.test(url.pathname)) {
+  if (event.request.method !== 'GET' || url.pathname.startsWith('/api/') || /\/(?:rest|functions)\/v1\//.test(url.pathname)) {
     event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }

@@ -32,7 +32,8 @@ async function loadLiveKopkenMenu(outletCode) {
   const response = await fetch(`${KOPKEN_CATALOG_API}?action=live-menu&outletCode=${encodeURIComponent(outletCode)}`, {
     headers: getBrandCatalogHeaders(),
     cache: "no-store",
-    signal: AbortSignal.timeout(12000),
+    // Allow the server to complete its primary lookup and fallback.
+    signal: AbortSignal.timeout(32000),
   });
   if (!response.ok) throw new Error("Menu langsung belum tersedia. Coba lagi.");
   const result = await response.json();
