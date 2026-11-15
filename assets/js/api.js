@@ -1353,7 +1353,6 @@ function buildTomoroUiCapturedMenu(payload) {
 }
 
 function buildTomoroLiveMenu(payload) {
-  if (payload.source === "tomoro-cingops") return buildTomoroUiCapturedMenu(payload.products);
   if (payload.source === "tomoro-cache") {
     const excluded = /ice[ -]?cream|es krim|frapp|jujutsu|kaisen|collab|kolaborasi|character cup|limited edition|one piece|sanrio|pokemon/i;
     const products = collectTomoroProducts(payload.menu).filter(product => {
@@ -1393,7 +1392,7 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     const params = new URLSearchParams({ action: `${brandId}-menu`, outletCode });
     if (brandId === "tomoro") params.set("outletName", window.brandOutletStates.tomoro.outletName || "");
     const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?${params}`;
-    const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(brandId === "tomoro" ? 36000 : 12000) });
+    const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(12000) });
     const data = await response.json();
     if (brandId === "tomoro" && window.brandOutletStates.tomoro.outletCode !== outletCode) return;
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
@@ -1405,7 +1404,7 @@ async function loadLiveBrandMenu(brandId, outletCode) {
     setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: true, source: data.source === "tomoro-cache" ? "tomoro-cache" : "live" });
     if (typeof activeBrandId === "undefined" || activeBrandId === brandId) {
       setLiveBrandHint(data.sharedCatalog
-        ? `${items.length} menu dari katalog umum Tomoro. Stok dikonfirmasi sesuai outlet.`
+        ? `${items.length} menu dari katalog umum Tomoro. Stok perlu dikonfirmasi di outlet.`
         : `${items.length} menu tersedia sesuai outlet terpilih.`);
     }
   } catch (error) {

@@ -1,6 +1,6 @@
 const BASE = 'https://cingops.com';
 const SOURCE = 'tomoro-cingops';
-const EXCLUDED = /ice[ -]?cream|es krim|master\s+s[.\s]*o[.\s]*e|frapp[ée]|jujutsu|kaisen|collab|kolaborasi|character cup|limited edition|one piece|sanrio|pokemon|bundle|merchandise|\bfood\b|\b1\s*l\b|literan/i;
+const CATALOG = 'https://omkboytvivjxoobyhumc.supabase.co/rest/v1/tomoro_outlets_catalog';
 
 export function isAirportOutlet(outlet) {
   return /bandara|airport|soekarno.?hatta|ngurah rai|juanda international|apt pranoto/i.test([outlet.name, outlet.address, outlet.storeCategory].join(' '));
@@ -24,48 +24,27 @@ function outletStatus(outlet) {
     ? outlet.isOpen : null;
 }
 
-function supportsIcedSmall(details) {
-  if (!details || details.isSoldOut !== false || !Array.isArray(details.variants)) return false;
-  return details.variants.some(variant => {
-    if (variant.isSoldOut !== false || !Array.isArray(variant.properties)) return false;
-    const size = variant.properties.find(property => property.propertyCode === 'P012' || /^cup\s*size$/i.test(property.propertyName));
-    const temp = variant.properties.find(property => property.propertyCode === 'P002' || /^temperature$/i.test(property.propertyName));
-    return /^small$/i.test(size?.valueName) && (!temp || /^ice(?:d)?$/i.test(temp.valueName));
+async function sharedMenu(request) {
+  const query = new URLSearchParams({
+    select: 'menu,menu_updated_at',
+    menu: 'not.is.null',
+    order: 'menu_updated_at.desc.nullslast,store_code.asc',
+    limit: '30',
   });
-}
-
-async function readMenu(storeCode, storeName) {
-  const menu = await read('/api/menu', { storeCode, storeName, includeBundles: '0' }, AbortSignal.timeout(14000));
-  if (menu.dynamic?.storeCode !== storeCode || menu.dynamicOutlet?.code !== storeCode || !Array.isArray(menu.menuGroups)) {
-    throw Error('Menu tidak cocok dengan outlet');
+  const headers = { Accept: 'application/json' };
+  for (const name of ['apikey', 'authorization']) {
+    if (typeof request.headers?.[name] === 'string') headers[name] = request.headers[name];
   }
-  if (isAirportOutlet(menu.dynamicOutlet)) return { blocked: true };
-  const candidates = new Map();
-  for (const group of menu.menuGroups) {
-    for (const product of group.products || []) {
-      const title = [group.groupName, product.groupName, product.name].join(' ');
-      if (!product.id || !product.name || EXCLUDED.test(title) || product.isComboV2 || product.isMixMatch) continue;
-      if (product.typeCode !== 1 || product.isSoldOut !== false) continue;
-      candidates.set(product.id, product);
-    }
-  }
-  const pending = [...candidates.values()];
-  const signal = AbortSignal.timeout(17000);
-  const products = await Promise.all(Array.from({ length: Math.min(5, pending.length) }, async () => {
-    const verified = [];
-    while (pending.length && !signal.aborted) {
-      const product = pending.shift();
-      try {
-        const detail = await read('/api/item-details', { storeCode, itemCode: product.id }, AbortSignal.any([signal, AbortSignal.timeout(4000)]));
-        if (detail.dynamic?.storeCode !== storeCode || String(detail.dynamic?.itemCode) !== String(product.id)) continue;
-        if (supportsIcedSmall(detail.details)) verified.push({
-          productName: product.name, imageUrl: product.image, catalog_only: true,
-        });
-      } catch { /* Only list products whose Small stock was confirmed. */ }
-    }
-    return verified;
-  }));
-  return { products: products.flat().sort((a, b) => a.productName.localeCompare(b.productName)) };
+  const response = await fetch(CATALOG + '?' + query, { headers, signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw Error('Katalog Tomoro sementara tidak dapat dibaca');
+  const catalog = await response.json();
+  if (!Array.isArray(catalog) || !catalog.length) throw Error('Katalog umum Tomoro belum tersedia');
+  return {
+    source: 'tomoro-cache',
+    menu: catalog.map(row => row.menu),
+    sharedCatalog: true,
+    updatedAt: catalog[0].menu_updated_at,
+  };
 }
 
 export default async function handler(req, res) {
@@ -87,13 +66,10 @@ export default async function handler(req, res) {
     }
     if (action === 'tomoro-menu') {
       const code = params.get('outletCode') || '';
-      if (code.startsWith('ui-') || !/^[a-zA-Z0-9._-]{2,80}$/.test(code)) return res.status(400).json({ error: 'Pilih lagi outlet dari hasil pencarian' });
+      if (!/^[a-zA-Z0-9._-]{2,80}$/.test(code)) return res.status(400).json({ error: 'Pilih lagi outlet dari hasil pencarian' });
       const storeName = (params.get('outletName') || '').trim().slice(0, 160);
-      const menu = await readMenu(code, storeName);
-      if (menu.blocked) return res.status(400).json({ error: 'Voucher 50% tidak berlaku di outlet bandara.' });
-      if (!menu.products.length) return res.status(503).json({ error: 'Stok menu Small untuk voucher 50% belum bisa dipastikan.' });
-      res.setHeader('Vercel-CDN-Cache-Control', 's-maxage=20');
-      return res.status(200).json({ source: SOURCE, products: menu.products });
+      if (isAirportOutlet({ name: storeName })) return res.status(400).json({ error: 'Voucher 50% tidak berlaku di outlet bandara.' });
+      return res.status(200).json(await sharedMenu(req));
     }
     return res.status(400).json({ error: 'Action tidak valid' });
   } catch {
