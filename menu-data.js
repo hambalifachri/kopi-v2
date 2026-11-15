@@ -1595,6 +1595,12 @@ const MENU_ITEMS_DATA = [
   { id: "bambang-choco-cheese", group: "kenangan-toast", name: "Bambang Choco Cheese", oldPrice: 17000, price: 13500, kind: "toast", color: "#d58a35" },
   { id: "wahyu-sapi-toast", group: "kenangan-toast", name: "Wahyu Sapi Toast", oldPrice: 19000, price: 12500, kind: "toast", color: "#d18a3c", outletCodes: ["KWG.RKJNDCKMPK"] },
  
+  { id: "classic-peanut-butter-panini", group: "food", name: "Classic Peanut Butter Panini", oldPrice: 17000, price: 11500, kind: "food", isNew: true },
+  { id: "choco-peanut-butter-panini", group: "food", name: "Choco Peanut Butter Panini", oldPrice: 19000, price: 12500, kind: "food", isNew: true },
+  { id: "strawberry-peanut-butter-panini", group: "food", name: "Strawberry Peanut Butter Panini", oldPrice: 19000, price: 12500, kind: "food", isNew: true },
+  { id: "beef-cheese-jalapeno-bagel", group: "food", name: "Beef & Cheese Jalapeño Bagel", oldPrice: 20000, price: 13000, kind: "food", isNew: true },
+  { id: "double-choco-bagel", group: "food", name: "Double Choco Bagel", oldPrice: 18000, price: 13000, kind: "food", isNew: true },
+  { id: "triple-cheese-bagel", group: "food", name: "Triple Cheese Bagel", oldPrice: 18000, price: 12000, kind: "food", isNew: true },
   { id: "chocolate-croissant", group: "food", name: "Chocolate Croissant", oldPrice: 19000, price: 14500, kind: "food", color: "#c6782d" },
   { id: "sugar-donut", group: "food", name: "Sugar Donut", oldPrice: 10000, price: 8000, kind: "food", color: "#e4b56c" },
   { id: "roti-coklat-klasik", group: "food", name: "Roti Coklat Klasik", oldPrice: 9000, price: 7500, kind: "food", color: "#8a4328" },

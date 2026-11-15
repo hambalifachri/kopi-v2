@@ -1,9 +1,9 @@
-const CACHE_NAME = 'fachrindah-pwa-v41-kopken-taro';
+const CACHE_NAME = 'fachrindah-pwa-v42-kopken-bakery';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261113-outlet-status',
-  './menu-data.js?v=20261115-kopken-taro',
+  './menu-data.js?v=20261115-kopken-bakery',
   './script.js?v=20261114-tomoro-menu-status',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261114-tomoro-shared-catalog',
