@@ -1353,6 +1353,7 @@ function buildTomoroUiCapturedMenu(payload) {
 }
 
 function buildTomoroLiveMenu(payload) {
+  if (payload.source === "tomoro-cingops") return buildTomoroUiCapturedMenu(payload.products);
   if (payload.source === "tomoro-cache") {
     const excluded = /ice[ -]?cream|es krim|frapp|jujutsu|kaisen|collab|kolaborasi|character cup|limited edition|one piece|sanrio|pokemon/i;
     const products = collectTomoroProducts(payload.menu).filter(product => {
@@ -1389,9 +1390,12 @@ async function loadLiveBrandMenu(brandId, outletCode) {
   setLiveBrandOutletState(brandId, { menuLoading: true, menuLoaded: false, source: "", menuError: "" });
   if (typeof renderMenu === "function") renderMenu();
   try {
-    const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?action=${brandId}-menu&outletCode=${encodeURIComponent(outletCode)}`;
-    const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(12000) });
+    const params = new URLSearchParams({ action: `${brandId}-menu`, outletCode });
+    if (brandId === "tomoro") params.set("outletName", window.brandOutletStates.tomoro.outletName || "");
+    const url = `${brandId === "tomoro" ? "/api/tomoro" : BRAND_CATALOG_API}?${params}`;
+    const response = await fetch(url, { headers: getBrandCatalogHeaders(), signal: AbortSignal.timeout(brandId === "tomoro" ? 36000 : 12000) });
     const data = await response.json();
+    if (brandId === "tomoro" && window.brandOutletStates.tomoro.outletCode !== outletCode) return;
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
     const items = brandId === "tomoro" ? buildTomoroLiveMenu(data) : buildForeLiveMenu(data);
     if (!items.length) throw new Error(brandId === "tomoro"
@@ -1407,8 +1411,9 @@ async function loadLiveBrandMenu(brandId, outletCode) {
   } catch (error) {
     console.error(`Gagal memuat menu live ${brandId}:`, error);
     if (brandId === "tomoro") {
+      if (window.brandOutletStates.tomoro.outletCode !== outletCode) return;
       replaceLiveBrandMenu(brandId, []);
-      const menuError = error.message || "Menu Tomoro belum dapat dimuat dari Supabase.";
+      const menuError = error.message || "Menu Tomoro belum dapat dimuat.";
       setLiveBrandOutletState(brandId, { menuLoading: false, menuLoaded: false, source: "", menuError });
       setLiveBrandHint(menuError);
       if (typeof renderMenu === "function") renderMenu();
