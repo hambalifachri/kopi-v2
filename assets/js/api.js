@@ -541,6 +541,9 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
       noLarge, largePrice: noLarge ? undefined : localItem.largePrice,
+      price: localItem.useOutletPriceFormula && outletRegular
+        ? getApiProductPrice({ name: itemName, price: outletRegular }, localItem)
+        : localItem.price,
       oldPrice: outletRegular || localItem.oldPrice,
       oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
       hasOutletOfficialPrice: Boolean(outletRegular),
