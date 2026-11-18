@@ -535,12 +535,15 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     const noLarge = localItem.noLarge === true || item.noLarge === true;
     const outletRegular = firstNumber(item.outlet_regular_price);
     const outletLarge = firstNumber(item.outlet_large_price);
+    const largePrice = noLarge ? undefined : localItem.useOutletPriceFormula && outletLarge
+      ? getApiProductPrice({ name: itemName, price: outletLarge }, localItem)
+      : localItem.largePrice;
     const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
     return { ...localItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
       name: itemName, group: finalGroup, kopkenCategoryOrder: { [finalGroup]: sourceIndex },
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
-      noLarge, largePrice: noLarge ? undefined : localItem.largePrice,
+      noLarge, largePrice,
       price: localItem.useOutletPriceFormula && outletRegular
         ? getApiProductPrice({ name: itemName, price: outletRegular }, localItem)
         : localItem.price,

@@ -1,12 +1,12 @@
-const CACHE_NAME = 'fachrindah-pwa-v46-butter-croissant';
+const CACHE_NAME = 'fachrindah-pwa-v47-oatside-matcha';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261113-outlet-status',
-  './menu-data.js?v=20261118-butter-croissant',
+  './menu-data.js?v=20261118-oatside-matcha',
   './script.js?v=20261114-tomoro-menu-status',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261118-butter-croissant',
+  './assets/js/api.js?v=20261118-oatside-matcha',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',
