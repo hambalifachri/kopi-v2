@@ -1,9 +1,9 @@
-const CACHE_NAME = 'fachrindah-pwa-v48-outlet-menu';
+const CACHE_NAME = 'fachrindah-pwa-v49-matcha-17500';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261113-outlet-status',
-  './menu-data.js?v=20261118-outlet-menu',
+  './menu-data.js?v=20261118-matcha-17500',
   './script.js?v=20261118-outlet-menu',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261118-outlet-menu',
