@@ -1152,7 +1152,7 @@ function menuCard(item) {
   const buttonText = store.closed ? "Tutup" : (item.syncPending ? "Menunggu sync" : (currentlySoldOut ? "Habis" : "Tambah"));
   const buttonHtml = currentlySoldOut 
     ? `<button class="add-button" type="button" disabled>${buttonText}</button>`
-    : `<button class="add-button" type="button" data-id="${item.id}">Tambah</button>`;
+    : `<button class="add-button" type="button" data-id="${escapeHtml(item.id)}">Tambah</button>`;
 
 return `<article class="menu-card ${item.isNew ? "new" : ""} ${bestSellerClass} ${soldOutClass} ${brandClass}" data-menu-id="${escapeHtml(item.id)}">
     ${menuVisual(item)}
@@ -1523,7 +1523,7 @@ function renderCart() {
         const optionsText = formatOptions(item.options);
         const itemNoteText = item.note ? `<small class="cart-item-note">Catatan: ${escapeHtml(item.note)}</small>` : "";
         const safeCartKey = encodeURIComponent(item.cartKey);
-        return `<div class="cart-line"><div><h3>${item.name}</h3><span>${rupiah.format(item.price)} x ${item.qty}</span>${optionsText ? `<small class="cart-options">${optionsText}</small>` : ""}${itemNoteText}</div><div class="quantity"><button class="qty-button" type="button" data-action="decrease" data-id="${safeCartKey}">-</button><strong>${item.qty}</strong><button class="qty-button" type="button" data-action="increase" data-id="${safeCartKey}">+</button></div></div>`;
+        return `<div class="cart-line"><div><h3>${escapeHtml(item.name)}</h3><span>${rupiah.format(item.price)} x ${item.qty}</span>${optionsText ? `<small class="cart-options">${optionsText}</small>` : ""}${itemNoteText}</div><div class="quantity"><button class="qty-button" type="button" data-action="decrease" data-id="${safeCartKey}">-</button><strong>${item.qty}</strong><button class="qty-button" type="button" data-action="increase" data-id="${safeCartKey}">+</button></div></div>`;
       }).join("");
 
   // Tambahkan baris biaya layanan ke dalam modal jika ada
@@ -1569,7 +1569,7 @@ function renderCheckoutSummary(entries, subtotal, serviceFee, takeawayPlasticFee
   }
   let html = `<div class="checkout-lines">${entries.map((item) => {
     const itemNoteText = item.note ? `<small>Catatan: ${escapeHtml(item.note)}</small>` : "";
-    return `<div><span>${item.name} x${item.qty}</span><strong>${rupiah.format(item.price * item.qty)}</strong>${itemNoteText}</div>`;
+    return `<div><span>${escapeHtml(item.name)} x${item.qty}</span><strong>${rupiah.format(item.price * item.qty)}</strong>${itemNoteText}</div>`;
   }).join("")}</div>`;
 
   if (serviceFee > 0) {

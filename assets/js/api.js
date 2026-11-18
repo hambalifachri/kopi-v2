@@ -120,6 +120,8 @@ const KOPI_KENANGAN_FOOD_GROUPS = new Set([
   "kenangan-toast",
   "cerita-roti",
   "bakery",
+  "boulangerie",
+  "spicy-saudi",
   "snack",
 ]);
 
@@ -129,6 +131,7 @@ const API_GROUP_ALIASES = {
   "kopi": "coffee",
   "non-coffee": "non-coffee",
   "non-kopi": "non-coffee",
+  "frappe": "kenangan-frappe",
   "oatside": "oatside-series",
   "oatside-series": "oatside-series",
   "kenangan-frappe": "kenangan-frappe",
@@ -499,7 +502,7 @@ function buildDynamicBundleItem(drinks, foods, drinkCount, bundleMinimum) {
 
 function buildDynamicKopiKenanganBundles(items) {
   const availableItems = items.filter((item) => !item.isSoldOut && !item.syncPending && item.price > 0 && item.oldPrice > 0);
-  const drinks = availableItems.filter((item) => !isDynamicBundleFood(item));
+  const drinks = availableItems.filter((item) => !item.catalogOptionsUnverified && !isDynamicBundleFood(item));
   const foods = availableItems.filter(isDynamicBundleFood);
   return KOPI_KENANGAN_BUNDLE_TARGETS.flatMap((bundleMinimum) => [
     buildDynamicBundleItem(drinks, foods, 1, bundleMinimum),
@@ -530,24 +533,37 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
   const finalGroup = apiGroup || localItem.group || "food";
   if (item.catalog_only === true) {
-    // Keep our selling prices and options, but use the outlet’s original prices.
-    if (!localItem.id || !(Number(localItem.price) > 0)) return null;
-    const noLarge = localItem.noLarge === true || item.noLarge === true;
     const outletRegular = firstNumber(item.outlet_regular_price);
     const outletLarge = firstNumber(item.outlet_large_price);
-    const largePrice = noLarge ? undefined : localItem.useOutletPriceFormula && outletLarge
-      ? getApiProductPrice({ name: itemName, price: outletLarge }, localItem)
+    const hasLocalItem = Boolean(localItem.id);
+    if (hasLocalItem ? !firstNumber(localItem.price) : !item.id || !(outletRegular || outletLarge)) return null;
+
+    const useOutletPrice = !hasLocalItem || localItem.useOutletPriceFormula;
+    const noRegular = localItem.noRegular === true || (!hasLocalItem && !outletRegular);
+    const noLarge = localItem.noLarge === true || item.noLarge === true;
+    if (noRegular && noLarge) return null;
+
+    const regularBase = outletRegular || (noRegular ? outletLarge : undefined);
+    const priceFromOutlet = (price) => getApiProductPrice({ name: itemName, price }, localItem);
+    const price = useOutletPrice && regularBase && !localItem.fixedRegularPrice
+      ? priceFromOutlet(regularBase)
+      : localItem.price;
+    const largePrice = noLarge ? undefined : useOutletPrice && outletLarge
+      ? priceFromOutlet(outletLarge)
       : localItem.largePrice;
     const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
-    return { ...localItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
+    const catalogItem = hasLocalItem ? localItem : {
+      id: "kopken-live-" + item.id,
+      options: [],
+      catalogOptionsUnverified: true,
+    };
+    return { ...catalogItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
+      ...(KOPI_KENANGAN_FOOD_GROUPS.has(finalGroup) ? { kind: localItem.kind || "food" } : {}),
       name: itemName, group: finalGroup, kopkenCategoryOrder: { [finalGroup]: sourceIndex },
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
-      noLarge, largePrice,
-      price: localItem.useOutletPriceFormula && outletRegular
-        ? getApiProductPrice({ name: itemName, price: outletRegular }, localItem)
-        : localItem.price,
-      oldPrice: outletRegular || localItem.oldPrice,
+      noRegular, noLarge, price, largePrice,
+      oldPrice: regularBase || localItem.oldPrice,
       oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
       hasOutletOfficialPrice: Boolean(outletRegular),
       hasOutletLargePrice: Boolean(outletLarge),
@@ -555,8 +571,11 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   }
   const isSoldOut = item.is_sold_out === true || item.isSoldOut === true || localItem.isSoldOut === true;
   const image = item.image || item.img || localItem.image || null;
-  const regularPrice = getApiProductPrice(item, localItem);
-  const apiLargePrice = getApiProductLargePrice(item, localItem);
+  const regularPrice = localItem.fixedRegularPrice ? localItem.price : getApiProductPrice(item, localItem);
+  const officialLargePrice = getApiProductLargeOldPrice(item, localItem);
+  const apiLargePrice = localItem.useOutletPriceFormula && !localItem.noLarge && officialLargePrice
+    ? getApiProductPrice({ name: itemName, price: officialLargePrice }, localItem)
+    : getApiProductLargePrice(item, localItem);
   // Produk minuman baru kadang belum mengirim data Large dari API.
   const isNewKopkenDrink = finalGroup === "baru"
     || Number(item.type_code) === 4005
@@ -579,7 +598,7 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     price: regularPrice,
     oldPrice: getApiProductOldPrice(item, localItem),
     largePrice,
-    oldLargePrice: getApiProductLargeOldPrice(item, localItem) || (fallbackLargePrice ? item.orig_price + 7000 : undefined),
+    oldLargePrice: officialLargePrice || (fallbackLargePrice ? item.orig_price + 7000 : undefined),
     image,
     isNew: localItem.isNew === true || finalGroup === "baru" || item.isNew === true,
     isSoldOut,
