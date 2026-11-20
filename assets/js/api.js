@@ -539,18 +539,16 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     const hasLocalItem = Boolean(localItem.id);
     if (hasLocalItem ? !firstNumber(localItem.price) : !item.id || !(outletRegular || outletLarge)) return null;
 
-    const useOutletPrice = !hasLocalItem || localItem.useOutletPriceFormula;
     const noRegular = localItem.noRegular === true || (!hasLocalItem && !outletRegular);
     const noLarge = localItem.noLarge === true || item.noLarge === true;
     if (noRegular && noLarge) return null;
 
     const regularBase = outletRegular || (noRegular ? outletLarge : undefined);
     const priceFromOutlet = (price) => getApiProductPrice({ name: itemName, price }, localItem);
-    const useRegularOutletPrice = useOutletPrice || localItem.useOutletRegularPriceFormula;
-    const price = useRegularOutletPrice && regularBase && !localItem.fixedRegularPrice
+    const price = regularBase && !localItem.fixedRegularPrice
       ? priceFromOutlet(regularBase)
       : localItem.price;
-    const largePrice = noLarge ? undefined : useOutletPrice && outletLarge
+    const largePrice = noLarge ? undefined : outletLarge
       ? priceFromOutlet(outletLarge)
       : localItem.largePrice;
     const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
@@ -565,8 +563,8 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
       noRegular, noLarge, price, largePrice,
-      outletSellingPrice: Boolean(useRegularOutletPrice && regularBase && !localItem.fixedRegularPrice),
-      outletLargeSellingPrice: Boolean(useOutletPrice && outletLarge && !noLarge),
+      outletSellingPrice: Boolean(regularBase || localItem.fixedRegularPrice),
+      outletLargeSellingPrice: Boolean(outletLarge && !noLarge),
       oldPrice: regularBase || localItem.oldPrice,
       oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
       hasOutletOfficialPrice: Boolean(outletRegular),
@@ -577,7 +575,8 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const image = item.image || item.img || localItem.image || null;
   const regularPrice = localItem.fixedRegularPrice ? localItem.price : getApiProductPrice(item, localItem);
   const officialLargePrice = getApiProductLargeOldPrice(item, localItem);
-  const apiLargePrice = localItem.useOutletPriceFormula && !localItem.noLarge && officialLargePrice
+  const explicitOutletLarge = firstNumber(item.large_orig_price, item.largeOrigPrice, item.large_old_price, item.largeOldPrice);
+  const apiLargePrice = !localItem.noLarge && (explicitOutletLarge || (localItem.useOutletPriceFormula && officialLargePrice))
     ? getApiProductPrice({ name: itemName, price: officialLargePrice }, localItem)
     : getApiProductLargePrice(item, localItem);
   // Produk minuman baru kadang belum mengirim data Large dari API.
@@ -600,6 +599,10 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     name: itemName,
     desc: item.description || localItem.desc,
     price: regularPrice,
+    outletSellingPrice: Boolean(localItem.fixedRegularPrice || firstNumber(item.jasdorPrice, item.jasdor_price, item.salePrice, item.sale_price, item.price, item.orig_price, item.origPrice)),
+    outletLargeSellingPrice: Boolean(explicitOutletLarge),
+    hasOutletOfficialPrice: Boolean(firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price)),
+    hasOutletLargePrice: Boolean(explicitOutletLarge),
     oldPrice: getApiProductOldPrice(item, localItem),
     largePrice,
     oldLargePrice: officialLargePrice || (fallbackLargePrice ? item.orig_price + 7000 : undefined),
