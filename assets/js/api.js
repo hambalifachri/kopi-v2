@@ -320,18 +320,8 @@ function getApiMenuGroups(rawResponse) {
 }
 
 function getApiProductPrice(item, localItem) {
-  const jasdorPrice = firstNumber(item.jasdorPrice, item.jasdor_price);
-  if (jasdorPrice) return jasdorPrice;
-
-  const livePromoPrice = firstNumber(item.salePrice, item.sale_price, item.price);
-  const apiPrice = livePromoPrice || firstNumber(item.orig_price, item.origPrice);
-  if (!apiPrice) return localItem.price || 0;
-
-  const outletCategory = String(window.kopiKenanganOutletState?.outletCategory || "").trim().toLowerCase();
-  const promoMarkup = outletCategory === "airport" ? 7000 : 3000;
-  const adjustedPrice = Math.round(apiPrice / 2) + promoMarkup;
-  const manualAdjustment = PRICE_ADJUSTMENTS[normalizeApiText(item.name)] || 0;
-  return adjustedPrice + manualAdjustment;
+  const officialPrice = firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price);
+  return officialPrice ? Math.round(officialPrice / 2) + 3500 : localItem.price || 0;
 }
 
 function getApiProductOldPrice(item, localItem) {
@@ -599,7 +589,7 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     name: itemName,
     desc: item.description || localItem.desc,
     price: regularPrice,
-    outletSellingPrice: Boolean(localItem.fixedRegularPrice || firstNumber(item.jasdorPrice, item.jasdor_price, item.salePrice, item.sale_price, item.price, item.orig_price, item.origPrice)),
+    outletSellingPrice: Boolean(localItem.fixedRegularPrice || firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price)),
     outletLargeSellingPrice: Boolean(explicitOutletLarge),
     hasOutletOfficialPrice: Boolean(firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price)),
     hasOutletLargePrice: Boolean(explicitOutletLarge),
@@ -813,54 +803,6 @@ function renderOutletResults(outlets, keyword = "") {
       outletResults.appendChild(button);
     });
 }
-
-const PRICE_ADJUSTMENTS = {
-  "tiramisu-latte": 500,
-  "toffee-nut-latte": 500,
-  "pistachio-aren-latte": 500,
-  "choco-caramel": 500,
-  "babyccino": 500,
-  "danish-tiramisu": 500,
-  "salt-bread-original": 500,
-  "chocolate-croissant": 500,
-  "roti-keju-manis": 500,
-  "og-aren-speculoos-latte": 1000,
-  "dua-shot-og-aren": 1000,
-  "mocha-caramel": 1000,
-  "cafe-malt-latte": 1000,
-  "tiramisu-mocha-latte": 1000,
-  "toffee-nut-aren-latte": 1000,
-  "toffee-nut-oat-latte": 1000,
-  "butterscotch-aren-latte": 1000,
-  "og-aren-milky-speculoos": 1000,
-  "toffee-nut-choco-macchiato": 1000,
-  "butterscotch-sea-salt-macchiato": 1000,
-  "milk-oreo-crumble": 1000,
-  "kenangan-milk-tea": 1000,
-  "milo-dinosaurus": 1000,
-  "oreo-shake": 1000,
-  "raspberry-hibiscus": 1000,
-  "susu-grass-jelly": 1000,
-  "hazelnut-choco-milk-tea": 1000,
-  "avocado-caramel": 1000,
-  "avocado-milk": 1000,
-  "caramel-dutch-choco": 1000,
-  "dutch-chocolate": 1000,
-  "hazelnut-dutch-choco": 1000,
-  "tiramisu-frappe": 1000,
-  "matcha-kenangan-frappe": 1000,
-  "roti-gulung-abon": 1000,
-  "matcha-latte": 2000,
-  "butterscotch-kenangan-frappe": 2000,
-  "kopi-kenangan-mantan-frappe": 2000,
-  "vanilla-kenangan-frappe": 2000,
-  "dutch-choco-kenangan-frappe": 2000,
-  "bambang-choco-cheese": 2000,
-  "choco-chip-cookies": 2000,
-  "join-the-dark-side-cookie": 2000,
-  "friend-chip-cookie": 2000
-  // Tambahkan nama menu lainnya di sinii
-};
 
 window.loadDynamicMenu = async function(outletCode = "JKT.RKMRYSN") {
   const container = document.getElementById("catalogContainer");
