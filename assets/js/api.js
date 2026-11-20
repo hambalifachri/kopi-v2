@@ -455,6 +455,7 @@ function buildDynamicBundleItem(drinks, foods, drinkCount, bundleMinimum) {
     priceDelta: item.price,
     officialPrice: item.oldPrice,
     hasOutletOfficialPrice: item.hasOutletOfficialPrice === true,
+    outletSellingPrice: item.outletSellingPrice === true,
     menuId: item.id,
   });
   const orderWithDefault = (itemsToOrder, defaultItem, eligibleIds) => [
@@ -545,7 +546,8 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
 
     const regularBase = outletRegular || (noRegular ? outletLarge : undefined);
     const priceFromOutlet = (price) => getApiProductPrice({ name: itemName, price }, localItem);
-    const price = useOutletPrice && regularBase && !localItem.fixedRegularPrice
+    const useRegularOutletPrice = useOutletPrice || localItem.useOutletRegularPriceFormula;
+    const price = useRegularOutletPrice && regularBase && !localItem.fixedRegularPrice
       ? priceFromOutlet(regularBase)
       : localItem.price;
     const largePrice = noLarge ? undefined : useOutletPrice && outletLarge
@@ -563,6 +565,8 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
       image: item.image || localItem.image, isSoldOut: item.is_sold_out === true,
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
       noRegular, noLarge, price, largePrice,
+      outletSellingPrice: Boolean(useRegularOutletPrice && regularBase && !localItem.fixedRegularPrice),
+      outletLargeSellingPrice: Boolean(useOutletPrice && outletLarge && !noLarge),
       oldPrice: regularBase || localItem.oldPrice,
       oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
       hasOutletOfficialPrice: Boolean(outletRegular),

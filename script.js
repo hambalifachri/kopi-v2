@@ -1223,10 +1223,14 @@ function isResellerEligible(item) {
 
 function getKopkenPremiumOutletPromoSurcharge(item, options = {}) {
   if (getKopkenPremiumOutletOfficialSurcharge(item) === 0) return 0;
-  if (!item.dynamicOutletBundle) return 1500;
+  if (!item.dynamicOutletBundle) {
+    const size = String(options.size || "Regular").toLowerCase();
+    if ((size === "regular" && item.outletSellingPrice) || (size === "large" && item.outletLargeSellingPrice)) return 0;
+    return 1500;
+  }
   const groups = Array.isArray(item.options) ? item.options : [];
-  const selectedCount = groups.filter((group) => options?.[group.key]).length;
-  return 1500 * Math.max(1, selectedCount);
+  const selected = groups.map(group => group.options.find(option => option.value === options[group.key]) || group.options[0]);
+  return selected.length ? 1500 * selected.filter(option => !option?.outletSellingPrice).length : 1500;
 }
 
 function getDisplayPrice(item) {
