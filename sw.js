@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fachrindah-pwa-v52-harga-3500';
+const CACHE_NAME = 'fachrindah-pwa-v53-regular-price';
 const urlsToCache = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const urlsToCache = [
   './menu-data.js?v=20261120-all-outlet-prices',
   './script.js?v=20261120-all-outlet-prices',
   './assets/js/payment-qris.js?v=20261106-1',
-  './assets/js/api.js?v=20261120-harga-3500',
+  './assets/js/api.js?v=20261122-regular-price',
   './assets/js/order-queue.js?v=20261029-queue-confirm',
   './assets/js/best-sellers.js?v=20261030-1',
   './assets/data/best-sellers.json?v=20261030',
