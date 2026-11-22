@@ -222,6 +222,8 @@ menuItems.forEach((item) => {
   item.image = resolveMenuImage(item);
 });
 
+const originalKopkenMenuItems = menuItems.filter(item => item.brand === "kopi-kenangan").map(item => ({ ...item }));
+
 const cart = new Map();
 let pendingItemId = "";
 let proofPreviewUrl = "";

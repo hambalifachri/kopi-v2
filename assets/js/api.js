@@ -253,7 +253,7 @@ function getOutletCode(outlet) {
 }
 
 function normalizeMenuName(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function normalizeApiText(value) {
@@ -530,11 +530,11 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     if (hasLocalItem ? !firstNumber(localItem.price) : !item.id || !(outletRegular || outletLarge)) return null;
 
     const noRegular = localItem.noRegular === true || (!hasLocalItem && !outletRegular);
-    const noLarge = localItem.noLarge === true || item.noLarge === true;
+    const noLarge = localItem.noLarge === true || item.noLarge === true || !firstNumber(localItem.largePrice);
     if (noRegular && noLarge) return null;
 
     const regularBase = outletRegular || (noRegular ? outletLarge : undefined);
-    const largePrice = noLarge ? undefined : firstNumber(localItem.largePrice, outletLarge);
+    const largePrice = noLarge ? undefined : firstNumber(localItem.largePrice);
     const price = noRegular
       ? firstNumber(localItem.largePrice, localItem.price, outletLarge)
       : outletRegular && !localItem.fixedRegularPrice
@@ -543,7 +543,6 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
     const catalogItem = hasLocalItem ? localItem : {
       id: "kopken-live-" + item.id,
-      options: [],
       catalogOptionsUnverified: true,
     };
     return { ...catalogItem, ...overrideItem, outletCodes: [], brand: "kopi-kenangan",
@@ -711,9 +710,7 @@ function loadSelectedOutlet() {
 
 function cacheOriginalKopiKenanganMenu() {
   if (originalKopiKenanganMenu || typeof menuItems === "undefined") return;
-  originalKopiKenanganMenu = menuItems
-    .filter((item) => item.brand === "kopi-kenangan")
-    .map((item) => ({ ...item }));
+  originalKopiKenanganMenu = originalKopkenMenuItems.map(item => ({ ...item }));
 }
 
 function restoreLocalKopiKenanganMenu() {
@@ -1463,6 +1460,7 @@ window.validateKopkenCartAvailability = async function() {
   if (!products.length) throw new Error("Menu outlet belum tersedia. Pilih ulang outlet atau coba lagi sebelum transfer.");
   const validItems = [...products,...buildDynamicKopiKenanganBundles(products)];
   const missing = [];
+  const incomplete = [];
   for (const [key,item] of cart) {
     const valid = validItems.some(product => String(product.id) === String(item.id)
       && normalizeMenuName(product.name) === normalizeMenuName(item.name)
@@ -1470,12 +1468,19 @@ window.validateKopkenCartAvailability = async function() {
       && !product.syncPending
       && (!Array.isArray(product.outletCodes) || !product.outletCodes.length || product.outletCodes.includes(code)));
     if (!valid) { missing.push(item.name); cart.delete(key); }
+    else {
+      const product = validItems.find(product => String(product.id) === String(item.id));
+      if (getItemOptionGroups(product).some(group => !group.options.some(option => option.value === item.options?.[group.key] && !option.disabled))) incomplete.push(item.name);
+    }
   }
   const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
   menuItems.length = 0;
   menuItems.push(...otherBrands,...validItems);
   setKopiKenanganOutletState({menuLoaded:true,menuLoading:false,source:latest.source,menuUpdatedAt:latest.updatedAt || "",outletCategory:latest.category || outlet.outletCategory});
   if (typeof renderMenu === "function") renderMenu();
+  if (incomplete.length) {
+    throw new Error("Pilihan menu perlu diperbarui. Hapus lalu tambahkan kembali " + [...new Set(incomplete)].join(", ") + " agar ukuran, gula, es, dan pilihan lainnya terisi lengkap.");
+  }
   if (missing.length) {
     saveCartToStorage();
     renderCart();
