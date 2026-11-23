@@ -522,10 +522,19 @@ function getApiProductName(item) {
   return String(item.name || "").trim() || "Menu Tanpa Nama";
 }
 
+const KOPKEN_REGULAR_PLUS_7000_LARGE = new Set([
+  "bluebericano",
+  "strawbericano",
+  "creamy-cheesecake-latte",
+  "strawberry-cheesecake-frappe",
+  "blueberry-cheesecake-frappe",
+]);
+
 function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const itemName = getApiProductName(item);
   const localItem = localMenuByName.get(normalizeMenuName(itemName)) || {};
   const overrideItem = KOPI_KENANGAN_API_MENU_OVERRIDES[normalizeApiText(itemName)] || {};
+  const regularPlus7000Large = KOPKEN_REGULAR_PLUS_7000_LARGE.has(normalizeApiText(itemName));
   const apiGroup = normalizeApiMenuGroup(item._category_name || item.category || item.group_name);
   const finalGroup = apiGroup || localItem.group || "food";
   if (item.catalog_only === true) {
@@ -535,16 +544,17 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     if (hasLocalItem ? !firstNumber(localItem.price) : !item.id || !(outletRegular || outletLarge)) return null;
 
     const noRegular = localItem.noRegular === true || (!hasLocalItem && !outletRegular);
-    const noLarge = localItem.noLarge === true || item.noLarge === true || !firstNumber(localItem.largePrice);
-    if (noRegular && noLarge) return null;
 
     const regularBase = outletRegular || (noRegular ? outletLarge : undefined);
-    const largePrice = noLarge ? undefined : firstNumber(localItem.largePrice);
     const price = noRegular
       ? firstNumber(localItem.largePrice, localItem.price, outletLarge)
       : outletRegular && !localItem.fixedRegularPrice
         ? getApiProductPrice({ name: itemName, price: outletRegular }, localItem)
         : localItem.price;
+    const configuredLargePrice = regularPlus7000Large && price && !noRegular ? price + 7000 : firstNumber(localItem.largePrice);
+    const noLarge = localItem.noLarge === true || item.noLarge === true || !configuredLargePrice;
+    if (noRegular && noLarge) return null;
+    const largePrice = noLarge ? undefined : configuredLargePrice;
     const localSizeDelta = Math.max(0, (Number(localItem.oldLargePrice) || 0) - (Number(localItem.oldPrice) || 0));
     const catalogItem = hasLocalItem ? localItem : {
       id: "kopken-live-" + item.id,
@@ -557,7 +567,7 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
       isNew: localItem.isNew === true || finalGroup === "baru", syncPending: false,
       noRegular, noLarge, price, largePrice,
       outletSellingPrice: Boolean(!noRegular && (outletRegular || localItem.fixedRegularPrice)),
-      outletLargeSellingPrice: false,
+      outletLargeSellingPrice: Boolean(regularPlus7000Large && !noLarge),
       oldPrice: regularBase || localItem.oldPrice,
       oldLargePrice: outletLarge || (outletRegular ? (localSizeDelta ? outletRegular + localSizeDelta : undefined) : localItem.oldLargePrice),
       hasOutletOfficialPrice: Boolean(outletRegular),
@@ -577,7 +587,9 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
   const fallbackLargePrice = isNewKopkenDrink
     ? regularPrice + 7000
     : undefined;
-  const largePrice = apiLargePrice || fallbackLargePrice;
+  const largePrice = regularPlus7000Large && !localItem.noLarge && item.noLarge !== true
+    ? regularPrice + 7000
+    : apiLargePrice || fallbackLargePrice;
 
   return {
     ...localItem,
@@ -591,7 +603,7 @@ function toKopiKenanganMenuItem(item, localMenuByName, sourceIndex) {
     desc: item.description || localItem.desc,
     price: regularPrice,
     outletSellingPrice: Boolean(localItem.fixedRegularPrice || firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price)),
-    outletLargeSellingPrice: false,
+    outletLargeSellingPrice: regularPlus7000Large && !localItem.noLarge && item.noLarge !== true,
     hasOutletOfficialPrice: Boolean(firstNumber(item.orig_price, item.origPrice, item.oldPrice, item.price, item.salePrice, item.sale_price)),
     hasOutletLargePrice: Boolean(explicitOutletLarge),
     oldPrice: getApiProductOldPrice(item, localItem),
