@@ -1004,9 +1004,9 @@ function getUnrestrictedItemOptionGroups(item) {
   return [...baseOptions, ...addOns].filter(keepOptionGroup);
 }
 
-function shouldShowOptionGroup(group) {
+function shouldShowOptionGroup(group, selections = selectedOptions) {
   if (!group.dependsOn) return true;
-  return selectedOptions[group.dependsOn.key] === group.dependsOn.value;
+  return selections[group.dependsOn.key] === group.dependsOn.value;
 }
 
 function ensureSelectedOptions(item) {

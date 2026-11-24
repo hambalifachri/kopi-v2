@@ -1487,7 +1487,7 @@ window.validateKopkenCartAvailability = async function() {
     if (!valid) { missing.push(item.name); cart.delete(key); }
     else {
       const product = validItems.find(product => String(product.id) === String(item.id));
-      if (getItemOptionGroups(product).some(group => !group.options.some(option => option.value === item.options?.[group.key] && !option.disabled))) incomplete.push(item.name);
+      if (getItemOptionGroups(product).filter(group => shouldShowOptionGroup(group, item.options || {})).some(group => !group.options.some(option => option.value === item.options?.[group.key] && !option.disabled))) incomplete.push(item.name);
     }
   }
   const otherBrands = menuItems.filter(item => item.brand !== "kopi-kenangan");
