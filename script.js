@@ -1028,7 +1028,7 @@ function ensureSelectedOptions(item) {
 
 function getVisibleOptionGroups(item) {
   ensureSelectedOptions(item);
-  return getItemOptionGroups(item).filter(shouldShowOptionGroup);
+  return getItemOptionGroups(item).filter(group => shouldShowOptionGroup(group));
 }
 
 function getOptionPriceText(option, item) {
