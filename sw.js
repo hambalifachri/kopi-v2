@@ -1,10 +1,10 @@
-const CACHE_NAME = 'fachrindah-pwa-v59-fore-cheesy';
+const CACHE_NAME = 'fachrindah-pwa-v60-batch-60k';
 const urlsToCache = [
   './',
   './index.html',
   './styles.css?v=20261113-outlet-status',
   './menu-data.js?v=20261126-fore-cheesy',
-  './script.js?v=20261124-ice-options',
+  './script.js?v=20261126-batch-60k',
   './assets/js/payment-qris.js?v=20261106-1',
   './assets/js/api.js?v=20261126-fore-cheesy',
   './assets/js/order-queue.js?v=20261029-queue-confirm',

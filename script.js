@@ -2074,42 +2074,42 @@ function formatProofForWA(savedOrder) {
 const KOPKEN_BATCH_MIN_TOTAL = 50000;
 const KOPKEN_BATCH_PREFERRED_MAX_TOTAL = 65000;
 const KOPKEN_BATCH_MAX_TOTAL = 71000;
+const KOPKEN_BATCH_TARGET_MAXIMUMS = [60000, 61000, 62000, 63000, 64000, 65000];
 
-function findValidKopkenBatchPartition(items, batchCount, maximumTotal) {
+function findValidKopkenBatchPartition(items, batchCount, maximumTotal, preferredCount = 0, searchBudget = { remaining: 50000 }) {
+  const limits = Array.from({ length: batchCount }, (_, index) => index < preferredCount ? 60000 : maximumTotal);
   const sortedItems = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
   const buckets = Array.from({ length: batchCount }, () => []);
   const totals = Array(batchCount).fill(0);
   const failedStates = new Set();
-  let exploredStates = 0;
-  const maxExploredStates = 50000;
+
 
   function assignItem(itemIndex) {
-    exploredStates += 1;
-    if (exploredStates > maxExploredStates) return false;
+    if (--searchBudget.remaining < 0) return false;
     if (itemIndex === sortedItems.length) {
-      return totals.every((total) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= maximumTotal);
+      return totals.every((total, index) => total >= KOPKEN_BATCH_MIN_TOTAL && total <= limits[index]);
     }
 
     const remainingTotal = sortedItems
       .slice(itemIndex)
       .reduce((total, item) => total + item.batchPrice, 0);
     const totalDeficit = totals.reduce((total, value) => total + Math.max(0, KOPKEN_BATCH_MIN_TOTAL - value), 0);
-    const totalCapacity = totals.reduce((total, value) => total + (maximumTotal - value), 0);
+    const totalCapacity = totals.reduce((total, value, index) => total + (limits[index] - value), 0);
     if (remainingTotal < totalDeficit || remainingTotal > totalCapacity) return false;
 
-    const stateKey = `${itemIndex}|${[...totals].sort((a, b) => a - b).join(",")}`;
+    const stateKey = `${itemIndex}|${totals.map((value,index) => value + ":" + limits[index]).sort().join(",")}`;
     if (failedStates.has(stateKey)) return false;
 
     const item = sortedItems[itemIndex];
     const candidateIndexes = totals
       .map((total, index) => ({ total, index }))
-      .filter(({ total }) => total + item.batchPrice <= maximumTotal)
+      .filter(({ total, index }) => total + item.batchPrice <= limits[index])
       .sort((a, b) => b.total - a.total);
     const attemptedTotals = new Set();
 
     for (const { total, index } of candidateIndexes) {
-      if (attemptedTotals.has(total)) continue;
-      attemptedTotals.add(total);
+      if (attemptedTotals.has(total + ":" + limits[index])) continue;
+      attemptedTotals.add(total + ":" + limits[index]);
       buckets[index].push(item);
       totals[index] += item.batchPrice;
       if (assignItem(itemIndex + 1)) return true;
@@ -2259,8 +2259,10 @@ function buildRuleBasedKopkenBatches(items) {
   const maximum = kopkenMinimumEnabled ? 65000 : 71000;
   const sorted = [...items].sort((a, b) => b.batchPrice - a.batchPrice);
   const total = sorted.reduce((sum, item) => sum + item.batchPrice, 0);
-  function canAppend(bucket, sum, item) {
-    return sum + item.batchPrice <= maximum
+  let targetMaximum = maximum;
+  let preferredCount = 0;
+  function canAppend(bucket, sum, item, limit = maximum) {
+    return sum + item.batchPrice <= limit
       && (!kopkenMax3ItemsEnabled || bucket.length < 3 || sum < minimum);
   }
   // First try a complete partition meeting the minimum in every batch.
@@ -2268,28 +2270,36 @@ function buildRuleBasedKopkenBatches(items) {
   let budget = 50000;
   if (sorted.length <= 40) {
     for (let count = Math.floor(total / minimum); count >= Math.ceil(total / maximum) && count > 0 && budget > 0; count--) {
-      const buckets = Array.from({length: count}, () => []);
-      const totals = Array(count).fill(0);
-      const failed = new Set();
-      function assign(index) {
-        if (--budget < 0) return false;
-        if (index === sorted.length) return totals.every(value => value >= minimum);
-        const state = index + ':' + buckets.map((b,i) => `${totals[i]},${b.length}`).sort().join('|');
-        if (failed.has(state)) return false;
-        const seen = new Set();
-        for (let i = 0; i < count; i++) {
-          const signature = `${totals[i]},${buckets[i].length}`;
-          if (seen.has(signature) || !canAppend(buckets[i], totals[i], sorted[index])) continue;
-          seen.add(signature);
-          buckets[i].push(sorted[index]); totals[i] += sorted[index].batchPrice;
-          if (assign(index + 1)) return true;
-          totals[i] -= sorted[index].batchPrice; buckets[i].pop();
+      for (preferredCount = count; preferredCount >= 0; preferredCount--) {
+        for (const cap of KOPKEN_BATCH_TARGET_MAXIMUMS) {
+          targetMaximum = Math.min(maximum, cap);
+          if (total > count * targetMaximum) continue;
+          const buckets = Array.from({length: count}, () => []);
+          const totals = Array(count).fill(0);
+          const failed = new Set();
+          function assign(index) {
+            if (--budget < 0) return false;
+            if (index === sorted.length) return totals.every(value => value >= minimum);
+            const state = index + ':' + buckets.map((b,i) => `${totals[i]},${b.length},${i < preferredCount ? 60000 : targetMaximum}`).sort().join('|');
+            if (failed.has(state)) return false;
+            const seen = new Set();
+            for (let i = 0; i < count; i++) {
+              const signature = `${totals[i]},${buckets[i].length},${i < preferredCount ? 60000 : targetMaximum}`;
+              if (seen.has(signature) || !canAppend(buckets[i], totals[i], sorted[index], i < preferredCount ? 60000 : targetMaximum)) continue;
+              seen.add(signature);
+              buckets[i].push(sorted[index]); totals[i] += sorted[index].batchPrice;
+              if (assign(index + 1)) return true;
+              totals[i] -= sorted[index].batchPrice; buckets[i].pop();
+            }
+            failed.add(state); return false;
+          }
+          if (assign(0)) return buckets;
         }
-        failed.add(state); return false;
       }
-      if (assign(0)) return buckets;
     }
   }
+  targetMaximum = maximum;
+  preferredCount = 0;
   // Keep all items visible even when no complete arrangement was found.
   const buckets = [];
   for (const item of sorted) {
@@ -2309,11 +2319,17 @@ function buildKopkenOrderBatches(items) {
   const total = items.reduce((sum, item) => sum + item.batchPrice, 0);
   if (total <= KOPKEN_BATCH_MAX_TOTAL) return items.length ? [[...items]] : [];
   if (items.length <= 40) {
+    const searchBudget = { remaining: 50000 };
     const maximumCount = Math.floor(total / KOPKEN_BATCH_MIN_TOTAL);
     const minimumCount = Math.ceil(total / preferredMaximum);
     for (let count = maximumCount; count >= minimumCount; count -= 1) {
-      const partition = findValidKopkenBatchPartition(items, count, preferredMaximum);
-      if (partition) return partition;
+      for (let preferredCount = count; preferredCount >= 0; preferredCount--) {
+      for (const maximum of KOPKEN_BATCH_TARGET_MAXIMUMS) {
+        if (total > count * maximum) continue;
+        const partition = findValidKopkenBatchPartition(items, count, maximum, preferredCount, searchBudget);
+        if (partition) return partition;
+      }
+      }
     }
   }
   let remaining = [...items];
@@ -2324,7 +2340,7 @@ function buildKopkenOrderBatches(items) {
       batches.push(remaining);
       break;
     }
-    const preferred = findBestKopkenBatch(remaining, preferredMaximum)
+    const preferred = KOPKEN_BATCH_TARGET_MAXIMUMS.reduce((found, maximum) => found || findBestKopkenBatch(remaining, maximum), null)
       || findBestKopkenBatch(remaining, KOPKEN_BATCH_MAX_TOTAL);
 
     if (preferred) {
