@@ -119,6 +119,7 @@ const BRANDS_DATA = [
     description: "Template menu Fore dengan opsi espresso dan dairy.",
     accent: "#1d8f5f",
     categories: [
+      { id: "cheesy-blast", title: "Cheesy Blast" },
       { id: "the-unexpected-twist", title: "The Unexpected Twist" },
       { id: "sunny-burst-series", title: "Sunny Burst Series" },
       { id: "fore-signature", title: "Fore Signature" },
