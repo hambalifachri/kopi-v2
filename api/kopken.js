@@ -64,8 +64,8 @@ async function klikKopi(path) {
 
 function klikOutlet(outlet) {
   return { code: outlet.code, name: outlet.name, address: outlet.address || "",
-    category: outlet.category || "", isOpen: typeof outlet.isOpen === "boolean" ? outlet.isOpen : null,
-    openStatus: outlet.openStatus || "" };
+    category: outlet.category || "", isOpen: null,
+    openStatus: "" };
 }
 
 async function primary(params) {
@@ -80,21 +80,15 @@ async function primary(params) {
   }
   const code = params.get("outletCode") || "";
   if (!/^[a-zA-Z0-9._-]{2,80}$/.test(code)) throw new Error("Kode outlet tidak valid");
-  if (action === "status") {
-    let data = await klikKopi("outlets?" + new URLSearchParams({ q: code }));
-    let outlet = data.outlets?.find(o => o.code === code);
-    if (!outlet && params.get("outletName")) {
-      data = await klikKopi("outlets?" + new URLSearchParams({ q: params.get("outletName") }));
-      outlet = data.outlets?.find(o => o.code === code);
-    }
-    if (!outlet) throw new Error("Status outlet tidak ditemukan");
-    return { outletCode: code, source,
-      status: /pesan di outlet|order at store|in.store only/i.test(outlet.openStatus || "") ? "onsite_only"
-        : outlet.isOpen === true ? "open" : outlet.isOpen === false ? "closed" : "unknown",
-      message: outlet.openStatus || "", checkedAt: new Date().toISOString() };
-  }
   const data = await klikKopi("menu?" + new URLSearchParams({ outletRef: code, priceTier: "normal" }));
   if (!Array.isArray(data.menu) || data.storeCode && data.storeCode !== code) throw new Error("Menu outlet tidak valid");
+  if (action === "status") {
+    const status = data.isClosed === true || data.checkoutAllowed === false ? "closed"
+      : data.isClosed === false && data.checkoutAllowed === true ? "open" : "unknown";
+    return { outletCode: code, source, status,
+      message: status === "open" ? "Outlet menerima pesanan" : status === "closed" ? "Outlet belum menerima pesanan" : "",
+      checkedAt: new Date().toISOString() };
+  }
   const groups = new Map();
   const aliases = { "Kopi": "Coffee", "Non-Kopi": "Non Coffee", "Frappe": "Kenangan Frappe", "Oatside": "Oatside Series" };
   for (const product of data.menu) {
