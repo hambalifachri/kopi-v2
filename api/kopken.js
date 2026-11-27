@@ -57,7 +57,22 @@ async function primary(params) {
       fuzzy_name: keyword, page_index: String(page), page_size: "30",
     }));
     if (!Array.isArray(data.store)) throw new Error("Daftar outlet tidak valid");
-    return { outlets: data.store.filter(o => o.code && o.name).map(jasdoryukOutlet),
+    const outlets = data.store.filter(o => o.code && o.name).map(jasdoryukOutlet);
+    if (page === 1) {
+      const term = keyword.replace(/[^\p{L}\p{N}\s-]/gu, " ").trim();
+      const supplementary = term.length >= 3 ? await rows("outlets", {
+        select: "code,name,address,is_open,open_status", brand: "eq.kenangan",
+        is_active: "eq.true", name: "ilike.*" + term + "*", order: "name.asc", limit: "30",
+      }).catch(() => []) : [];
+      const existing = new Set(outlets.map(outlet => outlet.code));
+      for (const outlet of supplementary) {
+        if (!existing.has(outlet.code)) {
+          outlets.push({ ...outletRow(outlet), catalogFallback: true });
+          existing.add(outlet.code);
+        }
+      }
+    }
+    return { outlets,
       source: "jasdoryuk", page, hasMore: page < Number(data.pages || 1) };
   }
   const code = params.get("outletCode") || "";
@@ -67,8 +82,16 @@ async function primary(params) {
       fuzzy_name: code, page_index: "1", page_size: "30",
     }));
     const raw = data.store?.find(o => o.code === code);
-    if (!raw) throw new Error("Outlet tidak ditemukan");
-    const outlet = jasdoryukOutlet(raw);
+    let outlet;
+    if (raw) outlet = jasdoryukOutlet(raw);
+    else {
+      const [fallback] = await rows("outlets", {
+        select: "code,name,address,is_open,open_status", brand: "eq.kenangan",
+        is_active: "eq.true", code: "eq." + code, limit: "1",
+      });
+      if (!fallback) throw new Error("Outlet tidak ditemukan");
+      outlet = outletRow(fallback);
+    }
     return { outletCode: code, source: "jasdoryuk",
       status: /pesan di outlet|order at store|in.store only/i.test(outlet.openStatus) ? "onsite_only"
         : outlet.isOpen === true ? "open" : outlet.isOpen === false ? "closed" : "unknown",
