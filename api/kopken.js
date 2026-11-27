@@ -27,102 +27,90 @@ export function normalizeMenu(catalog, stock, code) {
   if(!groups.size)throw new Error('Incomplete outlet catalog');
   return {outletCode:code,source:SOURCE,checkedAt:new Date().toISOString(),payload:{data:{menu_groups:[...groups].map(([group_name,menu_products])=>({group_name,menu_products}))}}};
 }
-async function jasdoryuk(path) {
-  const response = await fetch("https://jasdoryuk.com/api/" + path, {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(12000),
-    cache: "no-store",
+const KLIK_KOPI_BASE = "https://jasdorin-byklikkopi.vercel.app";
+let catalogSession = null;
+
+async function newCatalogSession() {
+  const response = await fetch(KLIK_KOPI_BASE + "/api/kopken/session", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+    signal: AbortSignal.timeout(8000),
   });
-  if (!response.ok) throw new Error("Sumber outlet belum tersedia");
-  const body = await response.json();
-  if (!body?.data) throw new Error("Respons sumber tidak valid");
-  return body.data;
+  if (!response.ok) throw new Error("Sesi sumber katalog gagal");
+  const cookie = response.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
+  if (!cookie) throw new Error("Sesi katalog tidak tersedia");
+  return { cookie, expiresAt: Date.now() + 10 * 60 * 1000 };
 }
 
-function jasdoryukOutlet(outlet) {
-  return {
-    code: outlet.code, name: outlet.name, address: outlet.address || "",
+async function klikKopi(path) {
+  if (!catalogSession) catalogSession = newCatalogSession().catch(error => { catalogSession = null; throw error; });
+  let session = await catalogSession;
+  if (session.expiresAt <= Date.now()) {
+    catalogSession = newCatalogSession().catch(error => { catalogSession = null; throw error; });
+    session = await catalogSession;
+  }
+  const request = () => fetch(KLIK_KOPI_BASE + "/api/kopken/" + path, {
+    headers: { Accept: "application/json", Cookie: session.cookie },
+    cache: "no-store", signal: AbortSignal.timeout(12000),
+  });
+  let response = await request();
+  if (response.status === 401) {
+    catalogSession = newCatalogSession().catch(error => { catalogSession = null; throw error; });
+    session = await catalogSession;
+    response = await request();
+  }
+  if (!response.ok) throw new Error("Sumber katalog belum tersedia");
+  return response.json();
+}
+
+function klikOutlet(outlet) {
+  return { code: outlet.code, name: outlet.name, address: outlet.address || "",
     category: outlet.category || "", isOpen: typeof outlet.isOpen === "boolean" ? outlet.isOpen : null,
-    openStatus: outlet.openStatus || outlet.order_msg || "",
-  };
+    openStatus: outlet.openStatus || "" };
 }
 
 async function primary(params) {
   const action = params.get("action");
+  const source = "klik-kopi";
   if (action === "outlets") {
     const keyword = (params.get("keyword") || "").trim().slice(0, 100);
-    const page = Math.max(1, Number(params.get("page")) || 1);
-    if (keyword.length < 3) return { outlets: [], source: "jasdoryuk" };
-    const data = await jasdoryuk("outlets?" + new URLSearchParams({
-      fuzzy_name: keyword, page_index: String(page), page_size: "30",
-    }));
-    if (!Array.isArray(data.store)) throw new Error("Daftar outlet tidak valid");
-    const outlets = data.store.filter(o => o.code && o.name).map(jasdoryukOutlet);
-    if (page === 1) {
-      const term = keyword.replace(/[^\p{L}\p{N}\s-]/gu, " ").trim();
-      const supplementary = term.length >= 3 ? await rows("outlets", {
-        select: "code,name,address,is_open,open_status", brand: "eq.kenangan",
-        is_active: "eq.true", name: "ilike.*" + term + "*", order: "name.asc", limit: "30",
-      }).catch(() => []) : [];
-      const existing = new Set(outlets.map(outlet => outlet.code));
-      for (const outlet of supplementary) {
-        if (!existing.has(outlet.code)) {
-          outlets.push({ ...outletRow(outlet), isOpen: null, openStatus: "", catalogFallback: true });
-          existing.add(outlet.code);
-        }
-      }
-    }
-    return { outlets,
-      source: "jasdoryuk", page, hasMore: page < Number(data.pages || 1) };
+    if (keyword.length < 3) return { outlets: [], source };
+    const data = await klikKopi("outlets?" + new URLSearchParams({ q: keyword }));
+    if (!Array.isArray(data.outlets)) throw new Error("Daftar outlet tidak valid");
+    return { outlets: data.outlets.filter(o => o.code && o.name).map(klikOutlet), source, page: 1, hasMore: false };
   }
   const code = params.get("outletCode") || "";
   if (!/^[a-zA-Z0-9._-]{2,80}$/.test(code)) throw new Error("Kode outlet tidak valid");
   if (action === "status") {
-    const data = await jasdoryuk("outlets?" + new URLSearchParams({
-      fuzzy_name: code, page_index: "1", page_size: "30",
-    }));
-    const raw = data.store?.find(o => o.code === code);
-    let outlet;
-    let source = "jasdoryuk";
-    if (raw) outlet = jasdoryukOutlet(raw);
-    else {
-      const response = await fetch("https://kopken.digitalinmad.my.id/miong/api/outlets/" + encodeURIComponent(code), {
-        headers: { Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(8000),
-      });
-      if (!response.ok) throw new Error("Status detail outlet belum tersedia");
-      const detail = (await response.json())?.data?.store;
-      if (!detail || detail.code !== code) throw new Error("Kode detail outlet tidak cocok");
-      outlet = { ...jasdoryukOutlet(detail), canOrder: detail.canOrder, statusText: detail.statusText };
-      source = "digitalinmad";
+    let data = await klikKopi("outlets?" + new URLSearchParams({ q: code }));
+    let outlet = data.outlets?.find(o => o.code === code);
+    if (!outlet && params.get("outletName")) {
+      data = await klikKopi("outlets?" + new URLSearchParams({ q: params.get("outletName") }));
+      outlet = data.outlets?.find(o => o.code === code);
     }
-    const onsite = /pesan di outlet|order at store|in.store only|hanya pesan di outlet/i.test(outlet.openStatus + " " + (outlet.statusText || ""));
+    if (!outlet) throw new Error("Status outlet tidak ditemukan");
     return { outletCode: code, source,
-      status: onsite ? "onsite_only"
-        : outlet.isOpen === false || outlet.canOrder === false ? "closed"
-        : outlet.isOpen === true ? "open" : "unknown",
-      message: outlet.openStatus, checkedAt: new Date().toISOString() };
+      status: /pesan di outlet|order at store|in.store only/i.test(outlet.openStatus || "") ? "onsite_only"
+        : outlet.isOpen === true ? "open" : outlet.isOpen === false ? "closed" : "unknown",
+      message: outlet.openStatus || "", checkedAt: new Date().toISOString() };
   }
-  const data = await jasdoryuk("outlets/" + encodeURIComponent(code) + "/menu");
-  if (!Array.isArray(data.menu_groups) || !data.menu_groups.length) throw new Error("Menu kosong");
+  const data = await klikKopi("menu?" + new URLSearchParams({ outletRef: code, priceTier: "normal" }));
+  if (!Array.isArray(data.menu) || data.storeCode && data.storeCode !== code) throw new Error("Menu outlet tidak valid");
   const groups = new Map();
-  for (const group of data.menu_groups) {
-    for (const product of group.menu_products || []) {
-      if (!product.id || !product.name || product.not_carried === true) continue;
-      const categories = Array.isArray(product.categories) && product.categories.length ? product.categories : [group.group_name];
-      for (const name of categories) {
-        if (!groups.has(name)) groups.set(name, []);
-        groups.get(name).push({
-          id: product.id, name: product.name, image: product.image, brand: "Kopi Kenangan",
-          catalog_only: true, is_sold_out: product.is_sold_out === true,
-          outlet_regular_price: Number(product.orig_price || product.normal_price || product.price) || undefined,
-        });
-      }
-    }
+  const aliases = { "Kopi": "Coffee", "Non-Kopi": "Non Coffee", "Frappe": "Kenangan Frappe", "Oatside": "Oatside Series" };
+  for (const product of data.menu) {
+    if (!product.id || !product.name) continue;
+    const category = product.sourceCategory || product.category || "Food";
+    const name = aliases[category] || category;
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push({ id: product.productCode || product.code || product.id,
+      name: product.name, image: product.img, brand: "Kopi Kenangan",
+      catalog_only: true, is_sold_out: product.isSoldOut === true,
+      outlet_regular_price: Number(product.origPrice) || undefined });
   }
-  if (!groups.size) throw new Error("Menu tidak valid");
-  return { outletCode: code, source: "jasdoryuk", checkedAt: new Date().toISOString(),
-    upstreamBackup: data.is_backup === true,
-    payload: { data: { is_closed: data.is_closed, menu_groups: [...groups].map(([group_name,menu_products]) => ({group_name,menu_products})) } } };
+  if (!groups.size) throw new Error("Menu kosong");
+  return { outletCode: code, source, checkedAt: new Date().toISOString(),
+    upstreamSource: data.source || "", stockFresh: data.stockFresh === true,
+    payload: { data: { is_closed: data.isClosed, menu_groups: [...groups].map(([group_name,menu_products]) => ({group_name,menu_products})) } } };
 }
 
 export default async function handler(req, res) {
