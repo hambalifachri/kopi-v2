@@ -67,7 +67,7 @@ async function primary(params) {
       const existing = new Set(outlets.map(outlet => outlet.code));
       for (const outlet of supplementary) {
         if (!existing.has(outlet.code)) {
-          outlets.push({ ...outletRow(outlet), catalogFallback: true });
+          outlets.push({ ...outletRow(outlet), isOpen: null, openStatus: "", catalogFallback: true });
           existing.add(outlet.code);
         }
       }
@@ -83,18 +83,23 @@ async function primary(params) {
     }));
     const raw = data.store?.find(o => o.code === code);
     let outlet;
+    let source = "jasdoryuk";
     if (raw) outlet = jasdoryukOutlet(raw);
     else {
-      const [fallback] = await rows("outlets", {
-        select: "code,name,address,is_open,open_status", brand: "eq.kenangan",
-        is_active: "eq.true", code: "eq." + code, limit: "1",
+      const response = await fetch("https://kopken.digitalinmad.my.id/miong/api/outlets/" + encodeURIComponent(code), {
+        headers: { Accept: "application/json" }, cache: "no-store", signal: AbortSignal.timeout(8000),
       });
-      if (!fallback) throw new Error("Outlet tidak ditemukan");
-      outlet = outletRow(fallback);
+      if (!response.ok) throw new Error("Status detail outlet belum tersedia");
+      const detail = (await response.json())?.data?.store;
+      if (!detail || detail.code !== code) throw new Error("Kode detail outlet tidak cocok");
+      outlet = { ...jasdoryukOutlet(detail), canOrder: detail.canOrder, statusText: detail.statusText };
+      source = "digitalinmad";
     }
-    return { outletCode: code, source: "jasdoryuk",
-      status: /pesan di outlet|order at store|in.store only/i.test(outlet.openStatus) ? "onsite_only"
-        : outlet.isOpen === true ? "open" : outlet.isOpen === false ? "closed" : "unknown",
+    const onsite = /pesan di outlet|order at store|in.store only|hanya pesan di outlet/i.test(outlet.openStatus + " " + (outlet.statusText || ""));
+    return { outletCode: code, source,
+      status: onsite ? "onsite_only"
+        : outlet.isOpen === false || outlet.canOrder === false ? "closed"
+        : outlet.isOpen === true ? "open" : "unknown",
       message: outlet.openStatus, checkedAt: new Date().toISOString() };
   }
   const data = await jasdoryuk("outlets/" + encodeURIComponent(code) + "/menu");
