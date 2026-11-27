@@ -758,6 +758,8 @@ function renderOutletNotFound() {
   outletResults.hidden = false;
 }
 
+let kopkenOutletStatusObserver = null;
+
 function renderOutletResults(outlets, keyword = "") {
   const outletResults = document.getElementById("outletResults");
   if (!outletResults) return;
@@ -769,6 +771,53 @@ function renderOutletResults(outlets, keyword = "") {
     renderOutletNotFound();
     return;
   }
+
+  kopkenOutletStatusObserver?.disconnect();
+  const statusQueue = [];
+  const pendingStatus = new WeakMap();
+  let activeChecks = 0;
+  async function checkVisibleOutletStatuses() {
+    if (activeChecks >= 2) return;
+    const next = statusQueue.shift();
+    if (!next) return;
+    const { button, statusElement, outlet } = next;
+    if (!button.isConnected) { void checkVisibleOutletStatuses(); return; }
+    activeChecks++;
+    statusElement.textContent = "MEMERIKSA…";
+    try {
+      const params = new URLSearchParams({ action: "status", outletCode: outlet.code, outletName: outlet.name });
+      const response = await fetch(KOPKEN_CATALOG_API + "?" + params, {
+        headers: getBrandCatalogHeaders(), cache: "no-store", signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error("Status belum tersedia");
+      const result = await response.json();
+      if (result.outletCode !== outlet.code) throw new Error("Outlet berubah");
+      if (!button.isConnected) return;
+      const closed = result.status === "closed" || result.status === "onsite_only";
+      outlet.isOpen = result.status === "open" ? true : closed ? false : null;
+      statusElement.textContent = result.status === "open" ? "BUKA" : result.status === "closed" ? "TUTUP"
+        : result.status === "onsite_only" ? "PESAN DI OUTLET" : "STATUS BELUM TERSEDIA";
+      statusElement.className = result.status === "open" ? "outlet-open-status" : closed ? "outlet-closed-status" : "outlet-unknown-status";
+      button.disabled = closed;
+      button.classList.toggle("outlet-result-closed", closed);
+    } catch {
+      if (button.isConnected) statusElement.textContent = "STATUS BELUM TERSEDIA";
+    } finally {
+      activeChecks--;
+      void checkVisibleOutletStatuses();
+    }
+  }
+  kopkenOutletStatusObserver = typeof IntersectionObserver === "function" ? new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const pending = pendingStatus.get(entry.target);
+      if (!pending) continue;
+      pendingStatus.delete(entry.target);
+      kopkenOutletStatusObserver?.unobserve(entry.target);
+      statusQueue.push(pending);
+      void checkVisibleOutletStatuses();
+    }
+  }, { root: outletResults }) : null;
 
   [...outlets]
     .sort((first, second) => Number(first?.isOpen === false) - Number(second?.isOpen === false))
@@ -796,7 +845,7 @@ function renderOutletResults(outlets, keyword = "") {
       } else {
         const isOpen = outlet.isOpen === true;
         statusElement.className = isOpen ? "outlet-open-status" : "outlet-unknown-status";
-        statusElement.textContent = isOpen ? "BUKA" : "BELUM DICEK";
+        statusElement.textContent = isOpen ? "BUKA" : "MEMERIKSA…";
       }
       heading.appendChild(statusElement);
       button.appendChild(heading);
@@ -812,6 +861,16 @@ function renderOutletResults(outlets, keyword = "") {
         if (code) window.loadDynamicMenu(code);
       });
       outletResults.appendChild(button);
+      if (outlet.isOpen == null && code) {
+        const pending = { button, statusElement, outlet };
+        if (kopkenOutletStatusObserver) {
+          pendingStatus.set(button, pending);
+          kopkenOutletStatusObserver.observe(button);
+        } else {
+          statusQueue.push(pending);
+          void checkVisibleOutletStatuses();
+        }
+      }
     });
 }
 

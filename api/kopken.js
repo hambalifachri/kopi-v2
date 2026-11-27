@@ -95,11 +95,13 @@ async function primary(params) {
     if (!product.id || !product.name) continue;
     const category = product.sourceCategory || product.category || "Food";
     const name = aliases[category] || category;
-    if (!groups.has(name)) groups.set(name, []);
-    groups.get(name).push({ id: product.productCode || product.code || product.id,
+    for (const groupName of product.isNew === true ? ["Baru!", name] : [name]) {
+    if (!groups.has(groupName)) groups.set(groupName, []);
+    groups.get(groupName).push({ id: product.productCode || product.code || product.id,
       name: product.name, image: product.img, brand: "Kopi Kenangan",
       catalog_only: true, is_sold_out: product.isSoldOut === true,
       outlet_regular_price: Number(product.origPrice) || undefined });
+    }
   }
   if (!groups.size) throw new Error("Menu kosong");
   return { outletCode: code, source, checkedAt: new Date().toISOString(),
